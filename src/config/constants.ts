@@ -15,3 +15,12 @@ export const UNDO_DEPTH = 20;
 
 /** Seed of the fixed MVP map. */
 export const DEFAULT_SEED = "train-mind-map";
+
+/** Side of the square map, in cells. The whole map is generated at start. */
+export const MAP_SIZE = 120;
+
+/** Side of the area revealed at start (ring 0), in cells, centred on the map. */
+export const INITIAL_REVEALED_SIZE = 48;
+
+/** Cells each expansion ring adds to every side of the revealed area. */
+export const RING_STEP = 12;
