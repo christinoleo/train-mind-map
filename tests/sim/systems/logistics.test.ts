@@ -66,7 +66,7 @@ function world() {
   };
   const run = (ticks: number) => {
     for (let t = 0; t < ticks; t++)
-      flow(state, { emit: (e) => events.push(e) });
+      flow(state, { emit: (e) => events.push(e), offline: false });
   };
   return { state, events, put, box, wire, run };
 }

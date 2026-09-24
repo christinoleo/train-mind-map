@@ -6,6 +6,7 @@ import { EdgeMenu } from "./EdgeMenu";
 import { ExportNotice } from "./ExportNotice";
 import { Hint, type HintView } from "./Hint";
 import { NodeMenu } from "./NodeMenu";
+import { OfflineReport } from "./OfflineReport";
 import { Palette } from "./Palette";
 import { ResearchNotice, ResearchPanel } from "./ResearchPanel";
 import { SettingsMenu } from "./SettingsMenu";
@@ -22,6 +23,8 @@ type Props = ComponentProps<typeof Palette> & {
   researchNotice: ComponentProps<typeof ResearchNotice>;
   settings: ComponentProps<typeof SettingsMenu>;
   exportNotice: ComponentProps<typeof ExportNotice>;
+  /** "Enquanto você esteve fora", on return from an absence. */
+  offlineReport: ComponentProps<typeof OfflineReport>;
   /** The onboarding hint shown now, if any. */
   onboardingHint: ReadonlySignal<HintView | null>;
   /** The global stock, published by the UI bridge. */
@@ -35,8 +38,8 @@ type Props = ComponentProps<typeof Palette> & {
 };
 
 // The DOM overlay layer above the canvas: the HUD capsule, the menus, the
-// undo, research and settings buttons, the palette, the onboarding hint
-// and the research and export notices.
+// undo, research and settings buttons, the palette, the onboarding hint,
+// the research and export notices and the offline report.
 export function UiRoot({
   stock,
   stamina,
@@ -50,6 +53,7 @@ export function UiRoot({
   settings,
   exportNotice,
   onboardingHint,
+  offlineReport,
   ...palette
 }: Props) {
   return (
@@ -69,6 +73,7 @@ export function UiRoot({
       <Hint hint={onboardingHint} />
       <ResearchNotice {...researchNotice} />
       <ExportNotice {...exportNotice} />
+      <OfflineReport {...offlineReport} />
     </>
   );
 }

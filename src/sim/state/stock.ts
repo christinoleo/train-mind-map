@@ -223,7 +223,11 @@ export function deposit(state: GameState, items: Cost, site: Rect): ItemCounts {
  * Takes up to `count` of `item` out of `storage`, the longest-held first,
  * and returns how many it took.
  */
-function withdraw(storage: StorageNode, item: ItemId, count: number): number {
+export function withdraw(
+  storage: StorageNode,
+  item: ItemId,
+  count: number,
+): number {
   let left = count;
   for (const run of storage.items) {
     if (run.item !== item) continue;

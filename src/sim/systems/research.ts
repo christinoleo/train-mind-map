@@ -55,11 +55,17 @@ function advance(
 
 /**
  * Labs consume science packs for the active research, 1 pack every 5 s each
- * (FR40, FR109), and complete it once it has all it costs (FR116).
+ * (FR40, FR109), and complete it once it has all it costs (FR116). Offline
+ * they idle, with a pack under way held where it is, and the packs pile up
+ * in their buffers and edges (FR122).
  */
-export const research: System = (state, { emit }) => {
+export const research: System = (state, { emit, offline }) => {
   for (const node of state.nodes.values()) {
     if (node.kind !== "lab") continue;
+    if (offline) {
+      setStatus(node, "starved", emit);
+      continue;
+    }
     const sat = satisfactionOf(state, node.id);
     setStatus(node, advance(state, node, sat, emit), emit);
   }

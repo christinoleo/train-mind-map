@@ -10,6 +10,30 @@ export const MAX_TICKS_PER_FRAME = 5;
  */
 export const MAX_BACKLOG_MS = 10_000;
 
+/**
+ * Longest absence offline progress covers (FR120). Research raises it to
+ * 12 h and 24 h in the full game.
+ */
+export const OFFLINE_CAP_MS = 8 * 60 * 60 * 1000;
+
+/** CPU time the offline fast-forward may spend before it extrapolates (NFR5). */
+export const OFFLINE_BUDGET_MS = 400;
+
+/**
+ * Shortest window the offline fast-forward measures production rates over.
+ * Trains (Epic 5) lengthen it to twice the longest round trip.
+ */
+export const OFFLINE_WINDOW_MS = 60_000;
+
+/**
+ * How far production rates may drift between two windows, as a fraction of
+ * the larger, for the factory to count as steady.
+ */
+export const STEADY_TOLERANCE = 0.02;
+
+/** Shortest absence that earns the "Enquanto você esteve fora" report. */
+export const OFFLINE_REPORT_MIN_MS = 60_000;
+
 /** How often the UI bridge publishes the state summary to the HUD (4 Hz). */
 export const UI_PUBLISH_MS = 250;
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCount } from "../../src/ui/format";
+import { formatCount, formatDuration } from "../../src/ui/format";
 
 describe("formatCount", () => {
   it.each([
@@ -16,5 +16,16 @@ describe("formatCount", () => {
     [42_000_000, "42M"],
   ])("shows %i as %s", (n, text) => {
     expect(formatCount(n)).toBe(text);
+  });
+});
+
+describe("formatDuration", () => {
+  it.each([
+    [30_500, "30 s"],
+    [45 * 60_000 + 59_000, "45 min"],
+    [8 * 3_600_000, "8 h"],
+    [2 * 3_600_000 + 15 * 60_000, "2 h 15 min"],
+  ])("shows %i ms as %s", (ms, text) => {
+    expect(formatDuration(ms)).toBe(text);
   });
 });
