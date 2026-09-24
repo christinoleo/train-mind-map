@@ -1,5 +1,10 @@
 import { computed, effect, signal, type Signal } from "@preact/signals";
-import { HINT_MS, UI_PUBLISH_MS } from "./config/constants";
+import {
+  HINT_HALF_WIDTH_PX,
+  HINT_MS,
+  HINT_TOP_PX,
+  UI_PUBLISH_MS,
+} from "./config/constants";
 import { h, render } from "preact";
 import { ITEMS, type ItemCounts } from "./data/items";
 import type { NodeKind } from "./data/nodes";
@@ -391,8 +396,16 @@ function hintView(target: HintTarget | null): HintView | null {
   return {
     id: target.id,
     at: "screen",
-    x: Math.round(clamp(x, 0, width)),
-    y: Math.round(clamp(y, 0, height)),
+    // The capsule sits above its point, centred on it: keep it clear of
+    // the edges, and of the HUD at the top.
+    x: Math.round(
+      clamp(
+        x,
+        Math.min(HINT_HALF_WIDTH_PX, width / 2),
+        Math.max(width - HINT_HALF_WIDTH_PX, width / 2),
+      ),
+    ),
+    y: Math.round(clamp(y, HINT_TOP_PX, height)),
   };
 }
 

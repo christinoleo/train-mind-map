@@ -82,3 +82,12 @@ export const HASH_BUCKET_CELLS = 8;
  * spacing between items come out whole, so flow stays exact.
  */
 export const FLOW_UNITS_PER_CELL = 40;
+
+/** Room kept beside an onboarding hint's point for half its capsule, in screen pixels. */
+export const HINT_HALF_WIDTH_PX = 120;
+
+/**
+ * Highest an onboarding hint's point may sit, in screen pixels from the top:
+ * the capsule goes above it, below the HUD.
+ */
+export const HINT_TOP_PX = 120;
