@@ -2,7 +2,7 @@
 
 A factory builder in the spirit of Factorio, played in a mobile browser. The factory is a **node graph** (mind map) drawn on a 2D resource map. Edges carry items and power, and they **never cross**. A separate double-track **rail layer** moves items in batches, and its automation grows in five tiers, from a fixed line up to a request-driven network. The game starts as a clicker, turns into an idle game, and ends when you launch a rocket.
 
-- **Stack:** TypeScript and PixiJS 8 (WebGL), built with Vite and shipped as a PWA.
+- **Stack:** TypeScript and PixiJS 8 (WebGL), built with Vite and published to itch.io as an HTML5 game.
 - **Planning:** the design documents live in [`_bmad-output/planning-artifacts/`](_bmad-output/planning-artifacts/). They include the game brief, the GDD, the game architecture and the requirements inventory. The route from here to the MVP is tracked as a wayfinder map in this repo's GitHub issues.
 
 ## Stress test
@@ -25,3 +25,20 @@ To run it on a phone, put the phone on the same Wi-Fi network as the computer:
 4. Tap **copiar resultados**. Over plain `http` the clipboard is often blocked; the JSON then appears in a text box below, selected, ready to copy by hand. Paste it into ticket #3.
 
 The JSON records the device, the renderer and GPU, the settings, FPS and frame-time statistics over the last 600 frames, the JS heap and every context loss: how long the context stayed lost (`lostMs`) and how long the first frame after the restore took (`recoveryMs`). Memory on iOS is not exposed to the page, so measure it with Safari Web Inspector (Timelines, Memory) from a Mac.
+
+## Deploy
+
+Every push to `main` that passes CI publishes the build to itch.io. The `Publish to itch.io` workflow (`.github/workflows/itch.yml`) takes the `dist/` that CI built and checked and uploads it with [butler](https://itch.io/docs/butler/) to the `html5` channel, tagged with the commit SHA. Until the secret and the variables below exist, the workflow skips the upload and passes with a notice.
+
+The first time, set up the project by hand:
+
+1. Create the project on itch.io. Set **Kind of project** to **HTML**. Under **Embed options**, tick **This file will be played in the browser** and **Mobile friendly**.
+2. Create an API key at <https://itch.io/user/settings/api-keys>.
+3. In the GitHub repository, open **Settings > Secrets and variables > Actions** and add:
+   - the secret `BUTLER_API_KEY`, set to the API key;
+   - the variable `ITCH_USER`, set to your itch.io username;
+   - the variable `ITCH_GAME`, set to the project's URL slug (the part after `itch.io/`).
+
+After the first upload, mark the `html5` file as playable in the browser on the project's edit page.
+
+itch.io serves the game from a nested path (`/html/{uploadId}/`), so Vite builds with relative asset URLs (`base: './'`). itch.io also rejects uploads of 1,000 files or more, and CI fails the build before that. All itch.io games share one storage origin, so every localStorage key and IndexedDB database starts with `STORAGE_PREFIX` (`train-mind-map:`, in `src/config/constants.ts`); a test checks that each file touching storage uses it.
