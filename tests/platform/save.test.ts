@@ -160,6 +160,20 @@ describe("migrations", () => {
     expect(state.edges.size).toBe(fixture.state.edges.length);
   });
 
+  it("gives a schema 1 Station an empty buffer", () => {
+    const v1 = structuredClone(fixture) as unknown as RawSave & {
+      state: { nodes: [number, object][] };
+    };
+    v1.state.nodes.push([99, { id: 99, kind: "station", x: 0, y: 0 }]);
+    const migrated = migrate(v1);
+    if (!migrated.ok) throw new Error(migrated.reason);
+    const { nodes } = migrated.value.state as typeof v1.state;
+    expect(nodes.at(-1)).toEqual([
+      99,
+      { id: 99, kind: "station", x: 0, y: 0, items: [] },
+    ]);
+  });
+
   it("applies the chain one version at a time", () => {
     const chain: Record<number, Migration> = {
       1: (save) => ({ ...save, schemaVersion: 2, renamed: save.old }),

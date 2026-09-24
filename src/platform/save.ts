@@ -16,7 +16,7 @@ import {
 import { log, type LogEntry } from "./log";
 
 /** Bumped whenever the saved state changes shape; add a migration with it. */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const SAVE_KEYS = {
   /** The latest save. */
@@ -45,8 +45,20 @@ export type RawSave = { schemaVersion: number } & Record<string, unknown>;
 /** Turns a save of schema `v` into one of schema `v + 1`. */
 export type Migration = (save: RawSave) => RawSave;
 
-/** `MIGRATIONS[v]` upgrades a save of schema `v`. Empty until schema 2. */
-export const MIGRATIONS: Readonly<Record<number, Migration>> = {};
+/** `MIGRATIONS[v]` upgrades a save of schema `v`. */
+export const MIGRATIONS: Readonly<Record<number, Migration>> = {
+  // Schema 2: a Station holds a buffer (FR92). Its card also shrank from
+  // 3×3 to 2×2, which keeps its top-left cell.
+  1: (save) => {
+    const state = save.state as { nodes?: unknown } | undefined;
+    if (!Array.isArray(state?.nodes)) return { ...save, schemaVersion: 2 };
+    const nodes = (state.nodes as [number, { kind: string }][]).map(
+      ([id, node]) =>
+        node.kind === "station" ? [id, { ...node, items: [] }] : [id, node],
+    );
+    return { ...save, schemaVersion: 2, state: { ...state, nodes } };
+  },
+};
 
 /** Applies the migrations one after another, up to `target`. */
 export function migrate(
