@@ -25,3 +25,7 @@ Single context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/age
 - `npm test`: run the Vitest suite once. Tests live in `tests/`, mirroring `src/`.
 
 CI (`.github/workflows/ci.yml`) runs lint, test and build on every push to `main` and every pull request. The official PixiJS agent skills are copied into `.claude/skills/pixijs*` from `node_modules/pixi.js/skills/`; refresh them after upgrading `pixi.js`.
+
+## Standing decisions for workers
+
+- Until the MVP playtest there are no player saves to protect. A PR that adds a save-schema migration may be merged by its worker without asking; there is no need to label it `needs-help`.
