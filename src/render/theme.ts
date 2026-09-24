@@ -1,7 +1,8 @@
 import { CELL_PX } from "../config/constants";
-import { RAW_RESOURCES, type ItemId, type RawResource } from "../data/items";
+import { ITEMS, type ItemId } from "../data/items";
 import type { NodeCategory } from "../data/nodes";
 import type { Rect } from "../sim/geometry/rect";
+import type { NodeStatus } from "../sim/state/gameState";
 
 export { CELL_PX };
 
@@ -44,7 +45,7 @@ export const PALETTE = {
   inputRing: 0xcfd5e2,
   /** An amber dot marks an output connector. */
   output: 0xffb547,
-  /** An edge's stroke, until the items on it tint it (Epic 3). */
+  /** An edge's stroke before any item has run along it. */
   edge: 0xcfd5e2,
   edgeAlpha: 0.4,
   /** An edge glows dimmer while its mesh is short of power (FR65). */
@@ -78,44 +79,58 @@ export const GHOST_ALPHA = 0.6;
 /** A node being moved, and its edges, fade to this while its ghost is dragged. */
 export const MOVING_ALPHA = 0.3;
 
-/** Node state colours: red for blocked or starved, yellow for no power. */
-export const STATE_COLOR = {
+/** A status a card flags: every one but working. */
+export type FlaggedStatus = Exclude<NodeStatus, "working">;
+
+/**
+ * Colour of a node's state pill and outline (FR149): red for blocked or
+ * starved, yellow for no power. A working node shows neither.
+ */
+export const STATE_COLOR: Record<FlaggedStatus, number> = {
   blocked: 0xf87171,
   starved: 0xf87171,
-  noPower: 0xfacc15,
-} as const;
+  no_power: 0xfacc15,
+};
 
-export type GlyphShape = "circle" | "square" | "diamond" | "gear" | "flask";
+export type GlyphShape =
+  | "circle"
+  | "square"
+  | "diamond"
+  | "gear"
+  | "flask"
+  | "triangle"
+  | "hexagon"
+  | "bar";
 
 interface ItemStyle {
   color: number;
   shape: GlyphShape;
 }
 
-// Okabe-Ito hues plus a distinct shape per resource, so colour is never the
-// only cue (FR150). The glyphs are placeholders until the item atlas lands.
-export const RESOURCE_STYLE: Record<RawResource, ItemStyle> = {
+// Okabe-Ito hues plus a shape per item (FR150): the raw resources each have
+// their own shape, and no two items share both colour and shape. Some
+// products still share a shape with another item; a glyph for each of the
+// ~31 items comes with the item atlas (Epic 9).
+export const ITEM_STYLE: Record<ItemId, ItemStyle> = {
   "iron-ore": { color: 0x56b4e9, shape: "square" },
   "copper-ore": { color: 0xe69f00, shape: "circle" },
   coal: { color: 0xc9d1dc, shape: "diamond" },
   stone: { color: 0xf0e442, shape: "gear" },
   "crude-oil": { color: 0xcc79a7, shape: "flask" },
+  "iron-plate": { color: 0xb4c8dc, shape: "hexagon" },
+  "copper-plate": { color: 0xd55e00, shape: "hexagon" },
+  brick: { color: 0xa0522d, shape: "square" },
+  gear: { color: 0x8a93a6, shape: "gear" },
+  "copper-cable": { color: 0xf0a868, shape: "bar" },
+  circuit: { color: 0x009e73, shape: "triangle" },
+  rail: { color: 0x7a6a58, shape: "bar" },
+  "red-science": { color: 0xe0455a, shape: "flask" },
 };
 
-/** Each item's colour: its swatch in the stock HUD and its dot in flight. */
-export const ITEM_COLOR: Record<ItemId, number> = {
-  ...(Object.fromEntries(
-    RAW_RESOURCES.map((r) => [r, RESOURCE_STYLE[r].color]),
-  ) as Record<RawResource, number>),
-  "iron-plate": 0xb4c8dc,
-  "copper-plate": 0xd55e00,
-  brick: 0xa0522d,
-  gear: 0x8a93a6,
-  "copper-cable": 0xf0a868,
-  circuit: 0x009e73,
-  rail: 0x7a6a58,
-  "red-science": 0xe0455a,
-};
+/** Each item's colour: its swatch in the stock HUD, its dot and its edge's tint. */
+export const ITEM_COLOR = Object.fromEntries(
+  ITEMS.map((item) => [item, ITEM_STYLE[item].color]),
+) as Record<ItemId, number>;
 
 /** How long construction items fly from storage to the site (FR72). */
 export const BUILD_FLIGHT_MS = 600;

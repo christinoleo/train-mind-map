@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { MAP_SIZE } from "../../src/config/constants";
+import { ITEMS, RAW_RESOURCES } from "../../src/data/items";
 import {
   isInside,
   revealedBounds,
   roundedCorners,
 } from "../../src/render/mapView";
-import { RESOURCE_STYLE } from "../../src/render/theme";
+import { ITEM_STYLE } from "../../src/render/theme";
 import { createGameState } from "../../src/sim/state/gameState";
 import {
   cellIndex,
@@ -127,9 +128,16 @@ describe("roundedCorners", () => {
   });
 });
 
-describe("RESOURCE_STYLE", () => {
+describe("ITEM_STYLE", () => {
   it("gives every resource its own glyph shape (FR150)", () => {
-    const shapes = Object.values(RESOURCE_STYLE).map((s) => s.shape);
+    const shapes = RAW_RESOURCES.map((r) => ITEM_STYLE[r].shape);
     expect(new Set(shapes).size).toBe(shapes.length);
+  });
+
+  it("gives no two items the same colour and shape (FR150)", () => {
+    const looks = ITEMS.map(
+      (i) => `${ITEM_STYLE[i].color}|${ITEM_STYLE[i].shape}`,
+    );
+    expect(new Set(looks).size).toBe(ITEMS.length);
   });
 });

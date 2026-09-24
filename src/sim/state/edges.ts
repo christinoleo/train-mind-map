@@ -301,7 +301,7 @@ export function spacingUnits(level: EdgeLevel): number {
 }
 
 /** An edge's length in flow units: from its output connector to its input. */
-export function edgeUnits(edge: Pick<Edge, "path">): number {
+export function edgeUnits(edge: { readonly path: readonly Point[] }): number {
   return pathLength(edge.path) * FLOW_UNITS_PER_CELL;
 }
 

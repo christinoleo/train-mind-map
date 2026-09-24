@@ -10,6 +10,7 @@ import type { EdgePreview } from "../input/tools/connect";
 import type { Ghost } from "../input/tools/place";
 import { EdgePreviewView, EdgeViews } from "./edges";
 import { Flights } from "./flights";
+import { ItemViews } from "./items";
 import { createLayers, type Layers } from "./layers";
 import { applyLod } from "./lod";
 import { drawDeposits, drawTerrain, revealedBounds } from "./mapView";
@@ -60,6 +61,7 @@ export function createRenderer(
   const layers = createLayers(world);
   const nodeViews = new NodeViews(layers.nodes);
   const edgeViews = new EdgeViews(layers.edges);
+  const itemViews = new ItemViews(layers.items, app.renderer);
   const edgePreviewView = new EdgePreviewView(layers.overlays);
   let edgePreview: EdgePreview | null = null;
   let selectedEdge: EdgeId | null = null;
@@ -126,6 +128,7 @@ export function createRenderer(
     drawnMap = null;
     nodeViews.clear();
     edgeViews.clear();
+    itemViews.clear();
     flights.clear();
     drawnCard = null;
   });
@@ -150,10 +153,11 @@ export function createRenderer(
   };
 
   return {
-    frame() {
+    frame(alpha) {
       if (contextLost) return;
       const { map } = state;
-      camera.setViewport(app.screen.width, app.screen.height);
+      const { width, height } = app.screen;
+      camera.setViewport(width, height);
       if (drawnMap !== map || drawnRing !== map.revealedRing) rebuildMap();
       nodeViews.sync(state.nodes, moving);
       edgeViews.sync(
@@ -162,9 +166,17 @@ export function createRenderer(
         selectedEdge,
         isEdgeShort,
         moving,
+        camera.lod,
+      );
+      itemViews.update(
+        state.edges,
+        edgeViews,
+        alpha,
+        camera.lod,
+        camera.viewRect(),
       );
       drawGhostLayer();
-      edgePreviewView.update(edgePreview, camera, app.screen.width);
+      edgePreviewView.update(edgePreview, camera, width);
       flights.update(performance.now());
       world.scale.set(camera.scale);
       world.position.set(camera.x, camera.y);

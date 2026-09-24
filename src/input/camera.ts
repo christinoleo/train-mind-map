@@ -112,6 +112,12 @@ export class Camera {
     };
   }
 
+  /** The world rect on screen, in world units. */
+  viewRect(): Rect {
+    const { x, y } = this.toWorld(0, 0);
+    return { x, y, w: this.width / this.scale, h: this.height / this.scale };
+  }
+
   private hasView(): boolean {
     return this.width > 0 && this.height > 0;
   }

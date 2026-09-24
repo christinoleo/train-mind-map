@@ -12,7 +12,7 @@ import type { DeepReadonly } from "./readonly";
 import {
   CELL_PX,
   PALETTE,
-  RESOURCE_STYLE,
+  ITEM_STYLE,
   toWorld,
   type GlyphShape,
 } from "./theme";
@@ -154,7 +154,7 @@ export function drawDeposits(map: MapView, bounds: Rect): Graphics {
   const glyphR = CELL_PX * 0.2;
   for (const deposit of map.deposits) {
     if (!isInside(deposit, bounds)) continue;
-    const { color, shape } = RESOURCE_STYLE[deposit.resource];
+    const { color, shape } = ITEM_STYLE[deposit.resource];
     const { x, y, w, h } = toWorld(deposit);
     g.roundRect(x, y, w, h, CELL_PX * 0.3).fill({
       color,
@@ -203,4 +203,10 @@ const GLYPH_POLYS = {
     return [Math.cos(a) * rr, Math.sin(a) * rr];
   }).flat(),
   flask: [-0.35, -1.1, 0.35, -1.1, 0.35, -0.3, 1.05, 1, -1.05, 1, -0.35, -0.3],
+  triangle: [0, -1.15, 1.1, 0.8, -1.1, 0.8],
+  hexagon: Array.from({ length: 6 }, (_, k) => {
+    const a = (k * Math.PI) / 3;
+    return [Math.cos(a) * 1.05, Math.sin(a) * 1.05];
+  }).flat(),
+  bar: [-1.1, -0.45, 1.1, -0.45, 1.1, 0.45, -1.1, 0.45],
 } satisfies Record<Exclude<GlyphShape, "circle" | "square">, number[]>;

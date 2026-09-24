@@ -23,6 +23,12 @@ export const strings = {
     lab: "Laboratório",
     station: "Estação",
   },
+  // A node's state, on the pill under its card (FR149).
+  nodeStatus: {
+    blocked: "Bloqueado",
+    starved: "Sem insumos",
+    no_power: "Sem energia",
+  },
   // Short item names, for costs.
   items: {
     "iron-ore": "minério de ferro",

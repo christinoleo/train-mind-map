@@ -2,12 +2,20 @@ import { Container, Graphics, Text } from "pixi.js";
 import type { Point } from "../sim/geometry/planar";
 import type { Edge, FactoryNode } from "../sim/state/gameState";
 import type { EdgeId, NodeId } from "../sim/state/ids";
-import type { Camera } from "../input/camera";
+import { ITEMS, type ItemId } from "../data/items";
+import type { Camera, Lod } from "../input/camera";
 import type { EdgePreview } from "../input/tools/connect";
 import { edgeReasonText } from "../ui/format";
 import { edgeLineOf } from "./connectors";
+import { itemMix, measure, slice, type Polyline } from "./polyline";
 import type { DeepReadonly } from "./readonly";
-import { CELL_PX, GHOST_COLOR, MOVING_ALPHA, PALETTE } from "./theme";
+import {
+  CELL_PX,
+  GHOST_COLOR,
+  ITEM_COLOR,
+  MOVING_ALPHA,
+  PALETTE,
+} from "./theme";
 
 /** Width of an edge's stroke, in world units. */
 const EDGE_WIDTH = CELL_PX * 0.28;
@@ -43,23 +51,52 @@ export function strokeLine(
   });
 }
 
+/** Width of an edge's dashes in the overview, in world units. */
+const DASH_WIDTH = CELL_PX * 0.6;
+/** Length of one dash and of the gap after it, in world units. */
+const DASH = CELL_PX * 2;
+const DASH_GAP = CELL_PX;
+
+/**
+ * Strokes `line` onto `g` in dashes, one colour after another: the item mix
+ * of an edge seen from far away (FR149).
+ */
+export function strokeDashes(
+  g: Graphics,
+  line: Polyline,
+  colors: readonly number[],
+) {
+  for (let d = 0, k = 0; d < line.length; d += DASH + DASH_GAP, k++) {
+    const dash = slice(line, d, Math.min(d + DASH, line.length));
+    strokeLine(g, dash, colors[k % colors.length], 1, DASH_WIDTH);
+  }
+  return g;
+}
+
+interface EdgeDrawing {
+  edge: EdgeView;
+  from: NodeView;
+  to: NodeView;
+  selected: boolean;
+  line: Polyline;
+  /** The solid stroke, drawn white so its tint colours it. */
+  g: Graphics;
+  /** The overview's dashes, drawn for the item mix `dashed` names. */
+  dashes: Graphics | null;
+  dashed: string;
+  /** The edge's main item, kept after the edge empties. */
+  main: ItemId | null;
+}
+
 /**
  * Keeps one translucent stroke per edge in `layer` (GDD §Arte), diffing the
  * state's edges against the drawn ones each frame. An edge is redrawn when
- * it, either of its nodes or the selection changes; its mesh's shortage only
- * dims it. The item tint comes with the items (Epic 3).
+ * it, either of its nodes or the selection changes. Its stroke takes the
+ * colour of the item it carries most (FR149), and its mesh's shortage dims
+ * it. In the overview it turns into dashes of its item mix.
  */
 export class EdgeViews {
-  private readonly views = new Map<
-    EdgeId,
-    {
-      edge: EdgeView;
-      from: NodeView;
-      to: NodeView;
-      selected: boolean;
-      g: Graphics;
-    }
-  >();
+  private readonly views = new Map<EdgeId, EdgeDrawing>();
 
   constructor(private readonly layer: Container) {}
 
@@ -70,48 +107,102 @@ export class EdgeViews {
     /** True when the edge's mesh is short of power. */
     isShort: (edge: EdgeView) => boolean,
     faded: NodeId | null = null,
+    lod: Lod = "graph",
   ) {
+    // A redrawn edge keeps the main item it showed.
+    const mains = new Map<EdgeId, ItemId | null>();
     for (const [id, view] of this.views) {
-      const edge = edges.get(id);
       if (
-        edge !== view.edge ||
+        edges.get(id) !== view.edge ||
         nodes.get(view.edge.from) !== view.from ||
         nodes.get(view.edge.to) !== view.to ||
         (id === selected) !== view.selected
       ) {
         view.g.destroy();
+        view.dashes?.destroy();
+        mains.set(id, view.main);
         this.views.delete(id);
-      } else if (!view.selected) {
-        view.g.alpha = edgeAlpha(isShort(edge));
       }
     }
     for (const [id, edge] of edges) {
       if (this.views.has(id)) continue;
-      const line = edgeLineOf(edge, nodes);
-      if (!line) continue;
-      const from = nodes.get(edge.from)!;
-      const to = nodes.get(edge.to)!;
-      const isSelected = id === selected;
+      const points = edgeLineOf(edge, nodes);
+      if (!points) continue;
       const g = strokeLine(
         new Graphics({ label: `edge:${id}` }),
-        line,
-        isSelected ? PALETTE.output : PALETTE.edge,
+        points,
+        0xffffff,
         1,
       );
-      g.alpha = isSelected ? 0.9 : edgeAlpha(isShort(edge));
       this.layer.addChild(g);
-      this.views.set(id, { edge, from, to, selected: isSelected, g });
+      this.views.set(id, {
+        edge,
+        from: nodes.get(edge.from)!,
+        to: nodes.get(edge.to)!,
+        selected: id === selected,
+        line: measure(points),
+        g,
+        dashes: null,
+        dashed: "",
+        main: mains.get(id) ?? null,
+      });
     }
-    // The edges of a node being moved fade with it.
-    for (const { edge, g } of this.views.values()) {
-      g.alpha = edge.from === faded || edge.to === faded ? MOVING_ALPHA : 1;
+    const overview = lod === "overview";
+    for (const view of this.views.values()) {
+      const { edge, g } = view;
+      const mix = itemMix(edge.items);
+      if (mix.length > 0) view.main = mix[0];
+      // The selected edge keeps its highlighted stroke at any zoom.
+      const dashed = overview && mix.length > 0 && !view.selected;
+      if (dashed) this.drawDashes(view, mix);
+      g.visible = !dashed;
+      if (view.dashes) view.dashes.visible = dashed;
+
+      g.tint = view.selected
+        ? PALETTE.output
+        : view.main
+          ? ITEM_COLOR[view.main]
+          : PALETTE.edge;
+      // The edges of a node being moved fade with it.
+      const alpha =
+        (view.selected ? 0.9 : edgeAlpha(isShort(edge))) *
+        (edge.from === faded || edge.to === faded ? MOVING_ALPHA : 1);
+      g.alpha = alpha;
+      if (view.dashes) view.dashes.alpha = alpha;
     }
+  }
+
+  /** The line edge `id` is drawn along, while it is drawn. */
+  lineOf(id: EdgeId): Polyline | undefined {
+    return this.views.get(id)?.line;
   }
 
   /** Drops every stroke, so the next `sync` draws them all again. */
   clear() {
-    for (const { g } of this.views.values()) g.destroy();
+    for (const { g, dashes } of this.views.values()) {
+      g.destroy();
+      dashes?.destroy();
+    }
     this.views.clear();
+  }
+
+  /**
+   * Redraws `view`'s dashes when its item types are not the ones drawn. They
+   * keep the order of `ITEMS`, so a shift in counts does not redraw them.
+   */
+  private drawDashes(view: EdgeDrawing, mix: readonly ItemId[]) {
+    const types = ITEMS.filter((item) => mix.includes(item));
+    const key = types.join();
+    if (key === view.dashed) return;
+    view.dashes ??= this.layer.addChild(
+      new Graphics({ label: `edge-dashes:${view.edge.id}` }),
+    );
+    strokeDashes(
+      view.dashes.clear(),
+      view.line,
+      types.map((item) => ITEM_COLOR[item]),
+    );
+    view.dashed = key;
   }
 }
 

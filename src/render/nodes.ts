@@ -13,12 +13,16 @@ import {
   CELL_PX,
   GHOST_COLOR,
   PALETTE,
-  RESOURCE_STYLE,
+  ITEM_STYLE,
   MOVING_ALPHA,
+  STATE_COLOR,
+  type FlaggedStatus,
 } from "./theme";
 
 /** Height of a card's category header, in world units. */
 const HEADER = CELL_PX * 0.7;
+/** Height of a card's state pill, in world units. */
+const PILL_HEIGHT = CELL_PX * 0.55;
 /** Radius of a connector's circle, in world units. */
 const CONNECTOR_R = CELL_PX * 0.16;
 const CARD_RADIUS = PALETTE.cardRadius * CELL_PX;
@@ -93,7 +97,7 @@ function drawIconSlot(
     width: 1,
   });
   if (resource) {
-    const { color, shape } = RESOURCE_STYLE[resource];
+    const { color, shape } = ITEM_STYLE[resource];
     drawGlyph(g, shape, cx, cy, r * 0.55).fill(color);
   }
 }
@@ -113,23 +117,32 @@ function drawShadow(g: Graphics, side: number): void {
 }
 
 /**
- * The name in the header, rasterised at the largest zoom so it stays sharp
- * when the camera zooms in, and shrunk to fit the card.
+ * Bold card text of `fontSize` world units, rasterised at the largest zoom so
+ * it stays sharp when the camera zooms in, and shrunk to fit `maxWidth`.
  */
-function headerLabel(label: string, side: number): Text {
+function cardText(label: string, fontSize: number, maxWidth: number): Text {
   const scale = MAX_ZOOM_SCALE;
-  const pad = CELL_PX * 0.2;
   const text = new Text({
     text: label,
     style: {
       fontFamily: "system-ui, sans-serif",
       fontWeight: "700",
-      fontSize: HEADER * 0.6 * scale,
+      fontSize: fontSize * scale,
       fill: PALETTE.headerText,
     },
   });
-  const fit = Math.min(1, (side - 2 * pad) / (text.width / scale));
+  const fit = Math.min(1, maxWidth / (text.width / scale));
   text.scale.set(fit / scale);
+  return text;
+}
+
+/**
+ * The name in the header, rasterised at the largest zoom so it stays sharp
+ * when the camera zooms in, and shrunk to fit the card.
+ */
+function headerLabel(label: string, side: number): Text {
+  const pad = CELL_PX * 0.2;
+  const text = cardText(label, HEADER * 0.6, side - 2 * pad);
   text.anchor.set(0, 0.5);
   text.position.set(pad, HEADER / 2);
   return text;
@@ -153,14 +166,49 @@ export function drawGhostOutline(g: Graphics, kind: NodeKind, valid: boolean) {
 
 type NodeView = DeepReadonly<FactoryNode>;
 
+/** What `node` is doing, when it makes items and is not working. */
+export function flaggedStatus(node: NodeView): FlaggedStatus | null {
+  if (!("production" in node)) return null;
+  const { status } = node.production;
+  return status === "working" ? null : status;
+}
+
+/**
+ * A card's state (FR149): an outline round the card and a pill on its
+ * bottom edge naming the state, both in the state's colour.
+ */
+function drawStatusBadge(kind: NodeKind, status: FlaggedStatus) {
+  const side = cardSide(kind);
+  const color = STATE_COLOR[status];
+  const badge = new Container({ label: `status:${status}` });
+  const g = badge.addChild(new Graphics());
+  g.roundRect(0, 0, side, side, CARD_RADIUS).stroke({ color, width: 2 });
+
+  const h = PILL_HEIGHT;
+  const text = cardText(strings.nodeStatus[status], h * 0.62, side - h);
+  text.anchor.set(0.5);
+  text.position.set(side / 2, side);
+  const w = text.width + h;
+  g.roundRect(side / 2 - w / 2, side - h / 2, w, h, h / 2).fill(color);
+  badge.addChild(text);
+  return badge;
+}
+
 /**
  * Keeps one card per node in `layer`, diffing the state's nodes against the
- * drawn ones each frame. A node object that changes identity is redrawn.
+ * drawn ones each frame. A node object that changes identity is redrawn; a
+ * change of status only shows another badge, each built once and kept.
  */
 export class NodeViews {
   private readonly views = new Map<
     NodeId,
-    { node: NodeView; card: Container }
+    {
+      node: NodeView;
+      card: Container;
+      status: FlaggedStatus | null;
+      /** Each status's badge, built the first time the node shows it. */
+      badges: Partial<Record<FlaggedStatus, Container>>;
+    }
   >();
 
   constructor(private readonly layer: Container) {}
@@ -181,10 +229,20 @@ export class NodeViews {
       );
       card.position.set(node.x * CELL_PX, node.y * CELL_PX);
       this.layer.addChild(card);
-      this.views.set(id, { node, card });
+      this.views.set(id, { node, card, status: null, badges: {} });
     }
-    for (const [id, { card }] of this.views) {
-      card.alpha = id === faded ? MOVING_ALPHA : 1;
+    for (const [id, view] of this.views) {
+      view.card.alpha = id === faded ? MOVING_ALPHA : 1;
+      const status = flaggedStatus(view.node);
+      if (status === view.status) continue;
+      const { badges } = view;
+      if (view.status) badges[view.status]!.visible = false;
+      if (status) {
+        (badges[status] ??= view.card.addChild(
+          drawStatusBadge(view.node.kind, status),
+        )).visible = true;
+      }
+      view.status = status;
     }
   }
 
