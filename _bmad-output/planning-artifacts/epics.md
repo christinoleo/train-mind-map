@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [1]
+stepsCompleted: [1, 2]
 inputDocuments:
   - _bmad-output/planning-artifacts/gdds/gdd-train-mind-map-2026-09-24/gdd.md
   - _bmad-output/planning-artifacts/gdds/gdd-train-mind-map-2026-09-24/epics.md
@@ -319,33 +319,228 @@ Nenhum documento de UX dedicado. Requisitos de interação/HUD estão nos FRs de
 
 ### FR Coverage Map
 
-{{requirements_coverage_map}}
+- FR1: Epic 1
+- FR2: Epic 1
+- FR3: Epic 1
+- FR4: Epic 6
+- FR5: Epic 1
+- FR6: Epic 1
+- FR7: Epic 1
+- FR8: Epic 6
+- FR9: Epic 1
+- FR10: Epic 1
+- FR11: Epic 1
+- FR12: Epic 1
+- FR13: Epic 1
+- FR14: Epic 1
+- FR15: Epic 2
+- FR16: Epic 2
+- FR17: Epic 2
+- FR18: Epic 2
+- FR19: Epic 2
+- FR20: Epic 2
+- FR21: Epic 2
+- FR22: Epic 2
+- FR23: Epic 3
+- FR24: Epic 3
+- FR25: Epic 3
+- FR26: Epic 3
+- FR27: Epic 2
+- FR28: Epic 3
+- FR29: Epic 3
+- FR30: Epic 3
+- FR31: Epic 3
+- FR32: Epic 3
+- FR33: Epic 8
+- FR34: Epic 3
+- FR35: Epic 8
+- FR36: Epic 8
+- FR37: Epic 3
+- FR38: Epic 3
+- FR39: Epic 6
+- FR40: Epic 4
+- FR41: Epic 5
+- FR42: Epic 8
+- FR43: Epic 2
+- FR44: Epic 2
+- FR45: Epic 5
+- FR46: Epic 6
+- FR47: Epic 2
+- FR48: Epic 6, Epic 8
+- FR49: Epic 3
+- FR50: Epic 3
+- FR51: Epic 2
+- FR52: Epic 2
+- FR53: Epic 2
+- FR54: Epic 2
+- FR55: Epic 3
+- FR56: Epic 3
+- FR57: Epic 3
+- FR58: Epic 2
+- FR59: Epic 2
+- FR60: Epic 3
+- FR61: Epic 3
+- FR62: Epic 7
+- FR63: Epic 3
+- FR64: Epic 3
+- FR65: Epic 3
+- FR66: Epic 3
+- FR67: Epic 3
+- FR68: Epic 2
+- FR69: Epic 2
+- FR70: Epic 2
+- FR71: Epic 2
+- FR72: Epic 2
+- FR73: Epic 3
+- FR74: Epic 2
+- FR75: Epic 2
+- FR76: Epic 4
+- FR77: Epic 2
+- FR78: Epic 5
+- FR79: Epic 5
+- FR80: Epic 5
+- FR81: Epic 5
+- FR82: Epic 7
+- FR83: Epic 7
+- FR84: Epic 7
+- FR85: Epic 5
+- FR86: Epic 5
+- FR87: Epic 7
+- FR88: Epic 5
+- FR89: Epic 5
+- FR90: Epic 5
+- FR91: Epic 5
+- FR92: Epic 5
+- FR93: Epic 5
+- FR94: Epic 5
+- FR95: Epic 5
+- FR96: Epic 5
+- FR97: Epic 5
+- FR98: Epic 7
+- FR99: Epic 7
+- FR100: Epic 7
+- FR101: Epic 7
+- FR102: Epic 7
+- FR103: Epic 7
+- FR104: Epic 7
+- FR105: Epic 7
+- FR106: Epic 7
+- FR107: Epic 7
+- FR108: Epic 7
+- FR109: Epic 4
+- FR110: Epic 4
+- FR111: Epic 6
+- FR112: Epic 6
+- FR113: Epic 6
+- FR114: Epic 6
+- FR115: Epic 6
+- FR116: Epic 4
+- FR117: Epic 8
+- FR118: Epic 8
+- FR119: Epic 8
+- FR120: Epic 4
+- FR121: Epic 4
+- FR122: Epic 4
+- FR123: Epic 7
+- FR124: Epic 6
+- FR125: Epic 4
+- FR126: Epic 4
+- FR127: Epic 4
+- FR128: Epic 4
+- FR129: Epic 4
+- FR130: Epic 9
+- FR131: Epic 3
+- FR132: Epic 2
+- FR133: Epic 2
+- FR134: Epic 2
+- FR135: Epic 2
+- FR136: Epic 2
+- FR137: Epic 2
+- FR138: Epic 2
+- FR139: Epic 4
+- FR140: Epic 5
+- FR141: Epic 9
+- FR142: Epic 9
+- FR143: Epic 9
+- FR144: Epic 4
+- FR145: Epic 9
+- FR146: Epic 1
+- FR147: Epic 3
+- FR148: Epic 1, Epic 9
+- FR149: Epic 3
+- FR150: Epic 9
+- FR151: Epic 9
+- FR152: Epic 9
+- FR153: Epic 9
+- FR154: Epic 1
+- FR155: Epic 1
+- FR156: Epic 1
+- FR157: Epic 2, Epic 3, Epic 5
+- FR158: Epic 1
+- FR159: Epic 2
+- FR160: Epic 10
+- FR161: Epic 10
+- FR162: Epic 10
 
 ## Epic List
 
-{{epics_list}}
+### Epic 1: Mapa navegável no celular
 
-<!-- Repeat for each epic in epics_list (N = 1, 2, 3...) -->
+O jogador abre o jogo no navegador do celular e explora, com arraste e pinça, um mapa gerado por seed com jazidas, lagos e o Núcleo. O desenvolvedor já tem o overlay de desempenho, o `window.game` e o painel superadmin básico para testar desde o primeiro dia.
+**FRs:** FR1, FR2, FR3, FR5, FR6, FR7, FR9, FR10, FR11, FR12, FR13, FR14, FR146, FR148 (base), FR154, FR155 (base), FR156, FR158
+**Notas:** a story 1.1 é o starter (AR1). Inclui a fronteira de lint de `sim/`, o loop com tick fixo, as camadas de render, o handler global de erros e o logger. Mede FPS e memória no iPhone 11 desde já.
 
-## Epic {{N}}: {{epic_title_N}}
+### Epic 2: Construir a fábrica em grafo
 
-{{epic_goal_N}}
+O jogador toca nas jazidas (com fôlego), paga construções com o estoque global, coloca nós, puxa arestas com dobras respeitando a regra planar, move, remove e desfaz.
+**FRs:** FR15, FR16, FR17, FR18, FR19, FR20, FR21, FR22, FR27, FR43, FR44, FR47, FR51, FR52, FR53, FR54, FR58, FR59, FR68, FR69, FR70, FR71, FR72, FR74, FR75, FR77, FR132, FR133, FR134, FR135, FR136, FR137, FR138, FR157 (hash espacial), FR159
+**Notas:** fila de comandos, desfazer e replay; geometria planar com testes de caso-limite.
 
-<!-- Repeat for each story (M = 1, 2, 3...) within epic N -->
+### Epic 3: A fábrica ganha vida
 
-### Story {{N}}.{{M}}: {{story_title_N_M}}
+Itens fluem visivelmente pelas arestas, e extratores, fornalhas, montadoras, geradores, divisores e mescladores produzem a cadeia da era vermelha. A energia é distribuída pelas malhas, e os gargalos ficam visíveis.
+**FRs:** FR23, FR24, FR25, FR26, FR28, FR29, FR30, FR31, FR32, FR34, FR37, FR38, FR49, FR50, FR55, FR56, FR57, FR60, FR61, FR63, FR64, FR65, FR66, FR67, FR73, FR131, FR147, FR149, FR157 (malhas)
+**Notas:** meta de 1.000 itens a 60 FPS (ParticleContainer, culling, LOD) e estados bloqueado, faminto e sem energia.
 
-As a {{user_type}},
-I want {{capability}},
-So that {{value_benefit}}.
+### Epic 4: Progresso que persiste
 
-**Acceptance Criteria:**
+O jogador pesquisa no Laboratório (as 4 pesquisas do MVP que não são ferroviárias), o progresso é salvo e continua com o jogo fechado (teto de 8 h), e as dicas iniciais guiam os primeiros minutos.
+**FRs:** FR40, FR76, FR109, FR110, FR116, FR120, FR121, FR122, FR125, FR126, FR127, FR128, FR129, FR139, FR144
+**Notas:** IndexedDB com migrações, avanço rápido offline, clamp de aba em segundo plano.
 
-<!-- for each AC on this story -->
+### Epic 5: O primeiro trem (fecha o MVP)
 
-**Given** {{precondition}}
-**When** {{action}}
-**Then** {{expected_outcome}}
-**And** {{additional_criteria}}
+O jogador pesquisa a Ferrovia, traça trilho de via dupla, coloca duas Estações e põe um trem de 2 vagões numa linha com condições de partida, levando cobre distante até a base sem colisões.
+**FRs:** FR41, FR45, FR78, FR79, FR80, FR81, FR85, FR86, FR88, FR89, FR90, FR91, FR92, FR93, FR94, FR95, FR96, FR97, FR140, FR157 (reservas)
+**Notas:** marco do MVP, com a meta "concluir as 5 pesquisas" e playtest com 3 a 5 pessoas.
 
-<!-- End story repeat -->
+---
+**▲ MVP (Épicos 1–5) ▲**
+---
+
+### Epic 6: Expansão e árvore tecnológica
+
+O jogador avança pelas eras vermelha, verde e azul, expande o mapa em anéis, desbloqueia a Montadora 2 e 3, o Filtro, conectores extras, arestas nível 3, tetos offline maiores e o relatório de retorno.
+**FRs:** FR4, FR8, FR39, FR46, FR48 (itens até a ciência verde), FR111, FR112, FR113, FR114, FR115, FR124
+
+### Epic 7: Redes ferroviárias automatizadas
+
+O jogador escala a ferrovia: cruzamentos X e interchange, junções, pontes, várias linhas e trens, energia pelos trilhos, destaque de impasse e automação T2 a T5 (grupos, limites, depósito, regras de estação e de trem, rede de pedidos).
+**FRs:** FR62, FR82, FR83, FR84, FR87, FR98, FR99, FR100, FR101, FR102, FR103, FR104, FR105, FR106, FR107, FR108, FR123
+
+### Epic 8: Rumo ao foguete
+
+O jogador explora petróleo, refinaria, planta química, painel solar, a cadeia avançada e a ciência azul, constrói o Silo, lança o foguete e segue em modo livre.
+**FRs:** FR33, FR35, FR36, FR42, FR48 (restante), FR117, FR118, FR119
+
+### Epic 9: Acabamento
+
+A arte blueprint final (temas escuro e claro), ícones acessíveis a daltônicos, áudio completo, painel de estatísticas, conquistas, onboarding completo, preferências e o PWA com aviso de atualização.
+**FRs:** FR130, FR141, FR142, FR143, FR145, FR148 (final), FR150, FR151, FR152, FR153
+
+### Epic 10: Prestígio (stretch)
+
+Depois do lançamento, o jogador funda uma nova colônia numa seed nova e ganha Patentes e bônus espaciais permanentes.
+**FRs:** FR160, FR161, FR162
+
+> Implementation is tracked on GitHub (wayfinder map, issue #1). The per-story breakdown is generated with `/to-tickets`, not in this file.
