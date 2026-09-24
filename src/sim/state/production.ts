@@ -2,6 +2,8 @@ import type { ItemId } from "../../data/items";
 import {
   CRAFTERS,
   EXTRACTOR_SECONDS,
+  isCrafterKind,
+  type Recipe,
   RECIPE_IDS,
   RECIPES,
   type RecipeId,
@@ -9,6 +11,7 @@ import {
 import { TICK_MS } from "../../config/constants";
 import type { Emit } from "../events";
 import type {
+  CrafterNode,
   FactoryNode,
   NodeStatus,
   ProducerNode,
@@ -24,17 +27,16 @@ export function isProducer(node: FactoryNode): node is ProducerNode {
   return "production" in node;
 }
 
+export function isCrafter(node: FactoryNode): node is CrafterNode {
+  return isCrafterKind(node.kind);
+}
+
 function secondsToTicks(seconds: number): number {
   return Math.round((seconds * 1000) / TICK_MS);
 }
 
 /** One batch of what `node` makes: what it consumes, yields and takes. */
-interface Batch {
-  inputs: Readonly<Partial<Record<ItemId, number>>>;
-  output: ItemId;
-  count: number;
-  ticks: number;
-}
+type Batch = Pick<Recipe, "inputs" | "output" | "count"> & { ticks: number };
 
 function batchOf(node: ProducerNode): Batch | undefined {
   if (node.kind === "extractor") {
@@ -49,11 +51,6 @@ function batchOf(node: ProducerNode): Batch | undefined {
   const { inputs, output, count, seconds } = RECIPES[node.recipe];
   const ticks = secondsToTicks(seconds / CRAFTERS[node.kind].speed);
   return { inputs, output, count, ticks };
-}
-
-/** The item `node` makes, if it has one. */
-export function outputItem(node: ProducerNode): ItemId | undefined {
-  return batchOf(node)?.output;
 }
 
 /**
@@ -86,7 +83,7 @@ function smeltingFor(item: ItemId): RecipeId | undefined {
  * smelting recipe of whatever arrives. Returns whether the item entered.
  */
 export function acceptItem(node: FactoryNode, item: ItemId): boolean {
-  if (node.kind !== "furnace" && node.kind !== "assembler-1") return false;
+  if (!isCrafter(node)) return false;
   const p = node.production;
   let recipe = node.recipe;
   if (node.kind === "furnace" && isEmpty(p))
@@ -103,7 +100,7 @@ export function acceptItem(node: FactoryNode, item: ItemId): boolean {
 /** Takes one finished item out of `node`'s output buffer, if there is one. */
 export function takeOutput(node: FactoryNode): ItemId | undefined {
   if (!isProducer(node) || node.production.output === 0) return undefined;
-  const item = outputItem(node);
+  const item = batchOf(node)?.output;
   if (item !== undefined) node.production.output--;
   return item;
 }
@@ -126,8 +123,7 @@ function advance(p: Production, batch: Batch | undefined): NodeStatus {
     if (!consume(p, batch.inputs)) return "starved";
     p.progress = 0;
   }
-  if (p.progress < batch.ticks) p.progress++;
-  if (p.progress < batch.ticks) return "working";
+  if (p.progress < batch.ticks && ++p.progress < batch.ticks) return "working";
   if (p.output > 0) return "blocked";
   p.output = batch.count;
   p.progress = null;

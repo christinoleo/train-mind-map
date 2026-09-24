@@ -107,5 +107,9 @@ export const CRAFTERS: Readonly<
   "assembler-1": { category: "assembly", speed: 0.5 },
 };
 
+export function isCrafterKind(kind: NodeKind): kind is CrafterKind {
+  return kind in CRAFTERS;
+}
+
 /** An Extractor makes 1 item of its deposit's resource this often (FR30). */
 export const EXTRACTOR_SECONDS = 2;

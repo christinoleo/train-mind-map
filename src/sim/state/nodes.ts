@@ -1,6 +1,12 @@
 import type { RawResource } from "../../data/items";
 import { NODES, type NodeKind } from "../../data/nodes";
-import { CRAFTERS, RECIPES, type RecipeId } from "../../data/recipes";
+import {
+  CRAFTERS,
+  isCrafterKind,
+  RECIPES,
+  type RecipeId,
+} from "../../data/recipes";
+import { assert } from "../assert";
 import { allCells, containsRect, overlaps, type Rect } from "../geometry/rect";
 import { fail, ok, type Result } from "../result";
 import type { FactoryNode, GameState } from "./gameState";
@@ -24,7 +30,7 @@ export function createNode(
 ): FactoryNode {
   switch (kind) {
     case "extractor":
-      if (!resource) throw new Error("An Extractor needs a resource");
+      assert(resource, "An Extractor needs a resource");
       return { id, kind, x, y, resource, production: newProduction() };
     case "furnace":
     case "assembler-1":
@@ -44,8 +50,7 @@ export function createNode(
 /** True when `kind` may run `recipe`: a Furnace smelts, an Assembler assembles. */
 export function canRun(kind: NodeKind, recipe: RecipeId): boolean {
   return (
-    (kind === "furnace" || kind === "assembler-1") &&
-    CRAFTERS[kind].category === RECIPES[recipe].category
+    isCrafterKind(kind) && CRAFTERS[kind].category === RECIPES[recipe].category
   );
 }
 

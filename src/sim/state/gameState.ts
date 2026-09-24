@@ -55,6 +55,9 @@ export type FactoryNode = NodeBase &
 /** A node that makes items. */
 export type ProducerNode = Extract<FactoryNode, { production: Production }>;
 
+/** A Furnace or Assembler: a node that runs a recipe. */
+export type CrafterNode = Extract<FactoryNode, { kind: CrafterKind }>;
+
 export interface Edge {
   id: EdgeId;
 }
