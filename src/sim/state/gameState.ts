@@ -20,6 +20,7 @@ import {
 } from "./ids";
 import type { GameMap } from "./map";
 import { createNode } from "./nodes";
+import { newPower, type Power } from "./power";
 import { newStamina, type Stamina } from "./stamina";
 import { sumStock } from "./stock";
 
@@ -32,9 +33,9 @@ interface NodeBase {
 
 /**
  * What a producing node is doing (FR23): making a batch, waiting for inputs,
- * or holding a full output buffer.
+ * holding a full output buffer, or stalled by a mesh with no power at all.
  */
-export type NodeStatus = "working" | "starved" | "blocked";
+export type NodeStatus = "working" | "starved" | "blocked" | "no_power";
 
 /** The buffers and progress of a node that makes items (FR24–FR26). */
 export interface Production {
@@ -43,7 +44,10 @@ export interface Production {
   input: Partial<Record<ItemId, number>>;
   /** Finished items waiting to leave, all of the output item. */
   output: number;
-  /** Ticks of work on the current batch, or `null` between batches. */
+  /**
+   * Ticks of work on the current batch, or `null` between batches. A short
+   * mesh adds a fraction of a tick per tick (FR64).
+   */
   progress: number | null;
 }
 
@@ -58,7 +62,19 @@ export type FactoryNode = NodeBase &
         production: Production;
       }
     | { kind: StorageKind; items: ItemCounts }
-    | { kind: Exclude<NodeKind, "extractor" | CrafterKind | StorageKind> }
+    | {
+        kind: "generator";
+        /** Fuel items waiting in the input buffer. */
+        fuel: number;
+        /** Ticks left on the fuel item burning now, or 0. */
+        burn: number;
+      }
+    | {
+        kind: Exclude<
+          NodeKind,
+          "extractor" | CrafterKind | StorageKind | "generator"
+        >;
+      }
   );
 
 /** A node that makes items. */
@@ -117,6 +133,8 @@ export interface GameState {
    * cache, recomputed at the end of each tick and never saved.
    */
   stock: ItemCounts;
+  /** The power meshes. A derived cache, rebuilt when the topology changes. */
+  power: Power;
 }
 
 /** Starts a game on a free seed's map, or on a scenario stamped over its seed. */
@@ -146,6 +164,7 @@ export function createGameState(world: string | Scenario): GameState {
     tapLevel: 0,
     edgeLevel: 1,
     stock: sumStock(nodes),
+    power: newPower(),
   };
 }
 

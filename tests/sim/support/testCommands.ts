@@ -2,6 +2,7 @@ import type { Command } from "../../../src/sim/commands/command";
 import { fail, ok } from "../../../src/sim/result";
 import type { FactoryNode, GameState } from "../../../src/sim/state/gameState";
 import { allocateId, type NodeId } from "../../../src/sim/state/ids";
+import { topologyChanged } from "../../../src/sim/state/power";
 
 /** A Box at the map corner; the queue tests ignore where nodes sit. */
 export function bareNode(id: NodeId): FactoryNode {
@@ -20,6 +21,7 @@ export class AddNode implements Command {
   apply(state: GameState) {
     const id = allocateId(state.nextIds, "node");
     state.nodes.set(id, bareNode(id));
+    topologyChanged(state);
     this.placed = id;
   }
 
@@ -41,6 +43,7 @@ export class RemoveNode implements Command {
 
   apply(state: GameState) {
     state.nodes.delete(this.id);
+    topologyChanged(state);
   }
 
   invert(): Command {
@@ -59,6 +62,7 @@ class RestoreNode implements Command {
 
   apply(state: GameState) {
     state.nodes.set(this.id, bareNode(this.id));
+    topologyChanged(state);
   }
 
   invert(): Command {

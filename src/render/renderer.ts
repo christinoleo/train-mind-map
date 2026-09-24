@@ -1,9 +1,10 @@
 import { Container, Graphics, type Application } from "pixi.js";
 import type { SimEventOf } from "../sim/events";
 import type { Rect } from "../sim/geometry/rect";
-import type { GameState } from "../sim/state/gameState";
+import type { Edge, GameState } from "../sim/state/gameState";
 import type { EdgeId, NodeId } from "../sim/state/ids";
 import { nodeRect } from "../sim/state/nodes";
+import { isShort } from "../sim/state/power";
 import type { Camera } from "../input/camera";
 import type { EdgePreview } from "../input/tools/connect";
 import type { Ghost } from "../input/tools/place";
@@ -126,6 +127,12 @@ export function createRenderer(
     drawnCard = null;
   });
 
+  /** True when the mesh an edge conducts power in is short (FR65). */
+  const isEdgeShort = (edge: DeepReadonly<Edge>) => {
+    const mesh = state.power.meshOf.get(edge.from);
+    return mesh !== undefined && isShort(mesh);
+  };
+
   /** The centre of a rect of cells, in world units. */
   const rectCenter = (cells: Rect) => {
     const { x, y, w, h } = toWorld(cells);
@@ -146,7 +153,7 @@ export function createRenderer(
       camera.setViewport(app.screen.width, app.screen.height);
       if (drawnMap !== map || drawnRing !== map.revealedRing) rebuildMap();
       nodeViews.sync(state.nodes);
-      edgeViews.sync(state.edges, state.nodes, selectedEdge);
+      edgeViews.sync(state.edges, state.nodes, selectedEdge, isEdgeShort);
       drawGhostLayer();
       edgePreviewView.update(edgePreview, camera, app.screen.width);
       flights.update(performance.now());

@@ -8,7 +8,7 @@ import {
   createGameState,
   type ProducerNode,
 } from "../../../src/sim/state/gameState";
-import { allocateId } from "../../../src/sim/state/ids";
+import { allocateId, type NodeId } from "../../../src/sim/state/ids";
 import { createNode } from "../../../src/sim/state/nodes";
 import {
   acceptItem,
@@ -16,8 +16,12 @@ import {
   takeOutput,
 } from "../../../src/sim/state/production";
 import { tick } from "../../../src/sim/tick";
+import { link } from "../support/power";
 
-/** A game with one producing node, placed directly, and a tick driver. */
+/**
+ * A game with one producing node, placed directly and powered by the Core,
+ * and a tick driver.
+ */
 function setup(kind: NodeKind, recipe?: RecipeId) {
   const state = createGameState("production");
   const commands = new CommandQueue();
@@ -28,6 +32,7 @@ function setup(kind: NodeKind, recipe?: RecipeId) {
     recipe,
   }) as ProducerNode;
   state.nodes.set(id, node);
+  link(state, id, 1 as NodeId);
   const made: ItemId[] = [];
   /**
    * Runs `n` ticks. Each tick first offers `feed` (as an edge would) and,

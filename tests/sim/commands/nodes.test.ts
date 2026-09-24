@@ -3,6 +3,7 @@ import { MVP_SCENARIO } from "../../../src/data/scenarios/mvp";
 import { NODE_KINDS, NODES, STARTING_NODES } from "../../../src/data/nodes";
 import type { Command } from "../../../src/sim/commands/command";
 import { CommandQueue } from "../../../src/sim/commands/commandQueue";
+import { ConnectEdge } from "../../../src/sim/commands/connectEdge";
 import { PlaceNode } from "../../../src/sim/commands/placeNode";
 import { RemoveNode } from "../../../src/sim/commands/removeNode";
 import { EventQueue, type SimEvent } from "../../../src/sim/events";
@@ -14,6 +15,7 @@ import {
   hashState,
   serializeState,
 } from "../../../src/sim/state/serialize";
+import { acceptItem } from "../../../src/sim/state/production";
 import { tick } from "../../../src/sim/tick";
 import { fillCore } from "../support/stock";
 
@@ -243,6 +245,16 @@ describe("RemoveNode", () => {
   it("loses the items inside, so its undo brings the node back empty", () => {
     const { state, commands, step, run } = setup();
     run(new PlaceNode("extractor", 65, 58));
+    // Powered by a fuelled Generator, so it produces.
+    run(new PlaceNode("generator", 71, 58));
+    run(
+      new ConnectEdge(
+        { node: 2 as NodeId, port: 0 },
+        { node: 3 as NodeId, port: 0 },
+      ),
+    );
+    expect(state.edges.size).toBe(1);
+    acceptItem(state.nodes.get(3 as NodeId)!, "coal");
     for (let t = 0; t < 30; t++) step();
     expect(state.nodes.get(2 as NodeId)).toMatchObject({
       production: { output: 1 },
@@ -300,7 +312,8 @@ describe("determinism", () => {
     const restored = deserializeState(
       JSON.parse(JSON.stringify(serializeState(state))),
     );
-    expect(restored).toEqual(state);
+    // The power meshes are a cache that the first tick rebuilds.
+    expect({ ...restored, power: null }).toEqual({ ...state, power: null });
     expect(hashState(restored)).toBe(hashState(state));
   });
 });

@@ -46,6 +46,8 @@ export function createNode(
     case "core":
     case "box":
       return { id, kind, x, y, items: {} };
+    case "generator":
+      return { id, kind, x, y, fuel: 0, burn: 0 };
     default:
       return { id, kind, x, y };
   }

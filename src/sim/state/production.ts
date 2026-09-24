@@ -8,6 +8,7 @@ import {
   RECIPES,
   type RecipeId,
 } from "../../data/recipes";
+import { GENERATOR } from "../../data/power";
 import { TICK_MS } from "../../config/constants";
 import type { Emit } from "../events";
 import type {
@@ -80,9 +81,15 @@ function smeltingFor(item: ItemId): RecipeId | undefined {
  * Hands `item` to `node`'s input buffers, from any input connector (FR25).
  * The item enters only when the active recipe consumes it and its buffer,
  * 2× what one batch needs, has room (FR24). An empty Furnace switches to the
- * smelting recipe of whatever arrives. Returns whether the item entered.
+ * smelting recipe of whatever arrives. A Generator takes its fuel (FR67).
+ * Returns whether the item entered.
  */
 export function acceptItem(node: FactoryNode, item: ItemId): boolean {
+  if (node.kind === "generator") {
+    if (item !== GENERATOR.fuel || node.fuel >= GENERATOR.buffer) return false;
+    node.fuel++;
+    return true;
+  }
   if (!isCrafter(node)) return false;
   const p = node.production;
   let recipe = node.recipe;
@@ -114,26 +121,42 @@ function consume(p: Production, inputs: Batch["inputs"]): boolean {
 }
 
 /**
- * Works one tick on `p`. A batch starts once its inputs are in, and its
- * output lands only when the output buffer, 1 batch, has room (FR26).
+ * Works one tick on `p`, at `satisfaction` of full speed (FR64). A batch
+ * starts once its inputs are in, and its output lands only when the output
+ * buffer, 1 batch, has room (FR26).
  */
-function advance(p: Production, batch: Batch | undefined): NodeStatus {
+function advance(
+  p: Production,
+  batch: Batch | undefined,
+  satisfaction: number,
+): NodeStatus {
   if (!batch) return "starved";
   if (p.progress === null) {
     if (!consume(p, batch.inputs)) return "starved";
     p.progress = 0;
   }
-  if (p.progress < batch.ticks && ++p.progress < batch.ticks) return "working";
+  if (p.progress < batch.ticks) {
+    if (satisfaction === 0) return "no_power";
+    p.progress += satisfaction;
+    if (p.progress < batch.ticks) return "working";
+  }
   if (p.output > 0) return "blocked";
   p.output = batch.count;
   p.progress = null;
   return "working";
 }
 
-/** Advances `node` by one tick and reports a change of status (FR23). */
-export function stepProduction(node: ProducerNode, emit: Emit): void {
+/**
+ * Advances `node` by one tick at its mesh's `satisfaction` and reports a
+ * change of status (FR23).
+ */
+export function stepProduction(
+  node: ProducerNode,
+  satisfaction: number,
+  emit: Emit,
+): void {
   const p = node.production;
-  const status = advance(p, batchOf(node));
+  const status = advance(p, batchOf(node), satisfaction);
   if (status === p.status) return;
   p.status = status;
   emit({ type: "NodeStatusChanged", node: node.id, status });

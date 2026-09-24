@@ -43,6 +43,10 @@ export const strings = {
     stock: "Estoque",
     emptyStock: "Estoque vazio",
     stamina: "Fôlego",
+    power: "Energia",
+    powerUse: "uso",
+    powerShort: "falta de energia",
+    powerGlyph: "⚡",
   },
   // The node palette: the "+" button, the bottom tray and placement feedback.
   palette: {
@@ -122,6 +126,7 @@ export const strings = {
     overlays: "Overlays",
     coreRings: "Anéis de depósito e raios de garantia",
     hashBuckets: "Baldes do hash espacial",
+    powerMeshes: "Malhas de energia",
     nodes: "nós",
     edges: "arestas",
     items: "itens",

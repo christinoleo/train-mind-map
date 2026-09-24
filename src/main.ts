@@ -19,6 +19,7 @@ import { UpgradeEdge } from "./sim/commands/upgradeEdge";
 import { EventQueue } from "./sim/events";
 import type { FailReason } from "./sim/result";
 import { createGameState } from "./sim/state/gameState";
+import { powerSummary, type PowerSummary } from "./sim/state/power";
 import type { EdgeId } from "./sim/state/ids";
 import { tick } from "./sim/tick";
 import { edgeMenuInfo, type EdgeMenuInfo } from "./ui/EdgeMenu";
@@ -50,6 +51,7 @@ const selected = signal<NodeKind | null>(null);
 const hint = signal<FailReason | null>(null);
 const stock = signal<ItemCounts>(state.stock);
 const stamina = signal(state.stamina.points);
+const power = signal<PowerSummary>(powerSummary(state.power));
 const selectedEdge = signal<EdgeId | null>(null);
 const edgeMenu = signal<EdgeMenuInfo | null>(null);
 let published = -Infinity;
@@ -153,6 +155,8 @@ loop = createLoop({
       // `updateStock` replaces the cache each tick, so it can be shared as is;
       // publishing only on a change keeps the HUD from re-rendering idle.
       if (!sameCounts(stock.value, state.stock)) stock.value = state.stock;
+      const summary = powerSummary(state.power);
+      if (!samePower(power.value, summary)) power.value = summary;
       published = now;
     }
   },
@@ -165,6 +169,7 @@ render(
     hint,
     stock,
     stamina,
+    power,
     edgeMenu: {
       edge: edgeMenu,
       onUpgrade() {
@@ -198,6 +203,10 @@ if (import.meta.env.DEV || new URLSearchParams(location.search).has("debug")) {
     camera,
     controls,
   });
+}
+
+function samePower(a: PowerSummary, b: PowerSummary): boolean {
+  return a.supply === b.supply && a.demand === b.demand && a.short === b.short;
 }
 
 function sameCounts(a: ItemCounts, b: ItemCounts): boolean {

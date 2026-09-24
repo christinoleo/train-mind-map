@@ -1,6 +1,7 @@
 import type { ReadonlySignal } from "@preact/signals";
 import type { ComponentProps } from "preact";
 import type { ItemCounts } from "../data/items";
+import type { PowerSummary } from "../sim/state/power";
 import { EdgeMenu } from "./EdgeMenu";
 import { Palette } from "./Palette";
 import { StockHud } from "./StockHud";
@@ -12,14 +13,16 @@ type Props = ComponentProps<typeof Palette> & {
   stock: ReadonlySignal<ItemCounts>;
   /** The stamina points left. */
   stamina: ReadonlySignal<number>;
+  /** The ⚡ supplied and drawn, over every mesh. */
+  power: ReadonlySignal<PowerSummary>;
 };
 
 // The DOM overlay layer above the canvas: the HUD capsule and the palette now,
 // menus in later tasks.
-export function UiRoot({ stock, stamina, edgeMenu, ...palette }: Props) {
+export function UiRoot({ stock, stamina, power, edgeMenu, ...palette }: Props) {
   return (
     <>
-      <StockHud stock={stock} stamina={stamina} />
+      <StockHud stock={stock} stamina={stamina} power={power} />
       <EdgeMenu {...edgeMenu} />
       <Palette {...palette} />
     </>

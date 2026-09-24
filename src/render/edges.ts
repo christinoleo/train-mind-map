@@ -40,8 +40,8 @@ function strokeLine(
 /**
  * Keeps one translucent stroke per edge in `layer` (GDD §Arte), diffing the
  * state's edges against the drawn ones each frame. An edge is redrawn when
- * it, either of its nodes or the selection changes. The item tint comes with
- * the items (Epic 3).
+ * it, either of its nodes, the selection or its mesh's shortage changes. The
+ * item tint comes with the items (Epic 3).
  */
 export class EdgeViews {
   private readonly views = new Map<
@@ -51,6 +51,7 @@ export class EdgeViews {
       from: NodeView;
       to: NodeView;
       selected: boolean;
+      short: boolean;
       g: Graphics;
     }
   >();
@@ -61,6 +62,8 @@ export class EdgeViews {
     edges: ReadonlyMap<EdgeId, EdgeView>,
     nodes: ReadonlyMap<NodeId, NodeView>,
     selected: EdgeId | null,
+    /** True when the edge's mesh is short of power. */
+    isShort: (edge: EdgeView) => boolean,
   ) {
     for (const [id, view] of this.views) {
       const edge = edges.get(id);
@@ -68,7 +71,8 @@ export class EdgeViews {
         edge !== view.edge ||
         nodes.get(view.edge.from) !== view.from ||
         nodes.get(view.edge.to) !== view.to ||
-        (id === selected) !== view.selected
+        (id === selected) !== view.selected ||
+        isShort(view.edge) !== view.short
       ) {
         view.g.destroy();
         this.views.delete(id);
@@ -81,14 +85,15 @@ export class EdgeViews {
       const from = nodes.get(edge.from)!;
       const to = nodes.get(edge.to)!;
       const isSelected = id === selected;
+      const short = isShort(edge);
       const g = strokeLine(
         new Graphics({ label: `edge:${id}` }),
         line,
         isSelected ? PALETTE.output : PALETTE.edge,
-        isSelected ? 0.9 : PALETTE.edgeAlpha,
+        isSelected ? 0.9 : short ? PALETTE.edgeShortAlpha : PALETTE.edgeAlpha,
       );
       this.layer.addChild(g);
-      this.views.set(id, { edge, from, to, selected: isSelected, g });
+      this.views.set(id, { edge, from, to, selected: isSelected, short, g });
     }
   }
 

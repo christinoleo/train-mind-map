@@ -1,6 +1,7 @@
 import type { ReadonlySignal } from "@preact/signals";
 import { ITEMS, type ItemCounts } from "../data/items";
 import { STAMINA } from "../data/tap";
+import type { PowerSummary } from "../sim/state/power";
 import { cssColor, ITEM_COLOR } from "../render/theme";
 import { formatCount } from "./format";
 import { strings } from "./strings";
@@ -8,15 +9,16 @@ import { strings } from "./strings";
 interface Props {
   stock: ReadonlySignal<ItemCounts>;
   stamina: ReadonlySignal<number>;
+  power: ReadonlySignal<PowerSummary>;
 }
 
 /**
  * The HUD capsule at the top of the screen (GDD §HUD): one chip per item in
  * the global stock, a colour swatch and the count in K/M notation (FR68),
- * over the stamina bar (FR75). The item's name and exact count are in the
- * chip's label.
+ * over the ⚡ meter (FR131) and the stamina bar (FR75). The item's name and
+ * exact count are in the chip's label.
  */
-export function StockHud({ stock, stamina }: Props) {
+export function StockHud({ stock, stamina, power }: Props) {
   const text = strings.hud;
   const held = ITEMS.filter((item) => (stock.value[item] ?? 0) > 0);
   return (
@@ -46,6 +48,7 @@ export function StockHud({ stock, stamina }: Props) {
             })
           )}
         </ul>
+        <PowerMeter power={power} />
         <StaminaBar stamina={stamina} />
       </div>
     </div>
@@ -72,6 +75,37 @@ function StaminaBar({ stamina }: { stamina: ReadonlySignal<number> }) {
         class="stamina-fill"
         style={{ width: `${(points / STAMINA.max) * 100}%` }}
       />
+    </div>
+  );
+}
+
+/**
+ * The ⚡ meter: the power drawn over the power supplied, as a bar and as
+ * numbers, red while any mesh is short (FR65).
+ */
+function PowerMeter({ power }: { power: ReadonlySignal<PowerSummary> }) {
+  const text = strings.hud;
+  const { supply, demand, short } = power.value;
+  const numbers = `${formatCount(demand)}/${formatCount(supply)}`;
+  const label = `${text.power}: ${text.powerUse} ${numbers}${short ? ` (${text.powerShort})` : ""}`;
+  const load =
+    supply === 0 ? (demand > 0 ? 1 : 0) : Math.min(1, demand / supply);
+  return (
+    <div class="power" title={label} data-short={short}>
+      <span class="power-glyph" aria-hidden="true">
+        {text.powerGlyph}
+      </span>
+      <div
+        class="power-bar"
+        role="meter"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={supply}
+        aria-valuenow={Math.min(demand, supply)}
+      >
+        <div class="power-fill" style={{ width: `${load * 100}%` }} />
+      </div>
+      <span class="power-numbers">{numbers}</span>
     </div>
   );
 }
