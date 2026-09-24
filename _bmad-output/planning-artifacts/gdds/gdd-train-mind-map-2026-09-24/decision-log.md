@@ -114,3 +114,9 @@
   - Vite needs `base: './'`;
   - a build must stay under 1,000 files;
   - after the first push, set the page type to HTML by hand.
+
+## 2026-09-24 — v1.8 (Touch UX, wayfinder issue #2)
+
+- **The touch prototype was tested on a real phone** (branch `prototype/touch-ux`). It compared three schemes: A, drag and hold 300 ms to pin a bend; B, automatic routing; C, tap by tap. **B won.**
+- **Edges are auto-routed** along the shortest orthogonal grid path, avoiding nodes, water and edges, with a deterministic tie-break. There is no manual bend editing: to change a route, recreate the edge or move nodes. Moving a node re-routes the attached edges and is refused if any edge becomes invalid. See ADR-0007.
+- **Confirmed as is:** 2×2 and 3×3 node footprints, connector hit areas of 44 px or more, a 500 ms long press to move, and two-finger pan and pinch with edge auto-pan.

@@ -11,7 +11,7 @@ A placed building card in the factory graph. It has input connectors on the left
 _Avoid_: building, block, machine
 
 **Edge**:
-A directed polyline from one node's output connector to another node's input connector. It carries items and power at a limited throughput and may never cross another edge, a node or water.
+A directed, automatically routed polyline from one node's output connector to another node's input connector. It carries items and power at a limited throughput and may never cross another edge, a node or water.
 _Avoid_: belt, wire, link, connection
 
 **Connector**:
@@ -19,7 +19,7 @@ An input or output port on a node where an edge attaches.
 _Avoid_: socket, pin, port
 
 **Bend**:
-A cell where an edge's polyline changes direction.
+A cell where an edge's automatic route changes direction. Players never place bends directly.
 _Avoid_: waypoint, corner
 
 **Planar rule**:

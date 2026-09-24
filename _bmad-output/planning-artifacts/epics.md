@@ -46,7 +46,7 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 - **FR17** [MVP] Nós não se sobrepõem entre si, nem com água, nem com jazidas (exceto o Extrator, que precisa ficar sobre uma jazida).
 - **FR18** [MVP] Cada tipo de nó e cada nível de aresta e de trilho só pode ser construído depois de liberado por pesquisa, exceto os nós iniciais (Extrator, Fornalha, Gerador, Caixa, Montadora 1, Laboratório).
 - **FR19** [MVP] Tocar num nó abre o menu contextual (receita, upgrade, remover e opções específicas do tipo).
-- **FR20** [MVP] Mover nó: segurar 500 ms sobre o nó e arrastar. As arestas acompanham mantendo as células de dobra (só o primeiro e o último segmento se movem) e ficam vermelhas se ficarem inválidas; soltar numa posição inválida cancela o movimento.
+- **FR20** [MVP] Mover nó: segurar 500 ms sobre o nó e arrastar. As arestas ligadas recalculam a rota; se alguma ficar sem rota ou longa demais, o movimento é recusado.
 - **FR21** [MVP] Remover um nó devolve 100% do custo de construção ao estoque global; os itens que estavam dentro dele (buffers) são perdidos. O Núcleo é indestrutível.
 - **FR22** [MVP] O upgrade de um nó (ex.: nível de Montadora) é feito no lugar, pagando a diferença de custo.
 - **FR23** [MVP] Um nó com a saída cheia fica no estado "bloqueado" e um nó sem insumo fica "faminto"; o ícone do nó mostra o estado.
@@ -87,7 +87,7 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 #### Arestas
 
 - **FR51** [MVP] Criar aresta: arrastar de um conector de saída até um conector de entrada. Arrastar a partir do vazio move a câmera em vez de criar aresta.
-- **FR52** [MVP] A aresta é uma polilinha com até 4 dobras, cada dobra numa célula; durante o arraste, segurar 300 ms parado numa célula fixa uma dobra.
+- **FR52** [MVP] A rota da aresta é automática: o menor caminho ortogonal na grade, desviando de nós, água e arestas, com desempate determinístico. O jogador não coloca dobras; para mudar, remove e recria ou move nós (issue #2).
 - **FR53** [MVP] **Regra planar:** a aresta não cruza outra aresta, não atravessa nó e não atravessa água. Durante o arraste, um traçado inválido fica vermelho (com o motivo), e soltar sobre ele não cria nada. Não há ponte nem túnel para arestas.
 - **FR54** [MVP] Comprimento máximo: 12 células (nível 1), 20 (nível 2) e 32 (nível 3). O comprimento é a soma dos comprimentos dos segmentos da polilinha, em células, arredondada para cima; é o mesmo valor usado no custo.
 - **FR55** [MVP] Vazão: 2 itens/s (nível 1), 4 (nível 2) e 8 (nível 3). A velocidade visual dos itens é de 3 células/s; o espaçamento mínimo entre itens é velocidade ÷ vazão.
@@ -301,7 +301,7 @@ mkdir -p .claude/skills && cp -r node_modules/pixi.js/skills/* .claude/skills/
 - **AR22** Semântica de E/S dos nós conforme a arquitetura (buffers de entrada 2× a receita, buffer de saída 1 lote, rodízio de Divisor e Mesclador, bloqueio do Filtro).
 - **AR23** Render: um único `Application` do Pixi com 8 camadas (terreno e grade, jazidas, arestas, itens, nós, trilhos, trens, sobreposições). Itens num `ParticleContainer` com uma textura por item no atlas e culling por AABB do viewport. LOD por zoom (traço colorido / pontos / ícones). Pool para sprites de itens e trens; views criadas e descartadas por diff estado × views, uma por ID.
 - **AR24** Tratamento de `webglcontextlost` com recriação dos recursos (mitigação de pixijs#12224).
-- **AR25** Câmera e gestos próprios (sem `pixi-viewport`); regras de gesto: 8 px, 500 ms, 300 ms, dois dedos cancelam, conector vs. vazio.
+- **AR25** Câmera e gestos próprios (sem `pixi-viewport`); regras de gesto: 8 px, 500 ms, dois dedos cancelam, conector vs. vazio.
 - **AR26** Áudio com Web Audio API nativa (sem `@pixi/sound`): formato único AAC `.m4a`, desbloqueio no 1º gesto, máximo de 8 vozes, agregação de SFX iguais em < 50 ms.
 - **AR27** Assets: ícones SVG no repositório (`kebab-case`) empacotados num atlas PNG no build; pré-carregamento de tudo no boot (≤ 1 MB).
 - **AR28** PWA com `vite-plugin-pwa` (`generateSW`), pré-cache do shell e dos assets de boot, aviso de nova versão, manifest com `orientation: any`.
@@ -492,7 +492,7 @@ O jogador abre o jogo no navegador do celular e explora, com arraste e pinça, u
 
 ### Epic 2: Construir a fábrica em grafo
 
-O jogador toca nas jazidas (com fôlego), paga construções com o estoque global, coloca nós, puxa arestas com dobras respeitando a regra planar, move, remove e desfaz.
+O jogador toca nas jazidas (com fôlego), paga construções com o estoque global, coloca nós, puxa arestas com rota automática respeitando a regra planar, move, remove e desfaz.
 **FRs:** FR15, FR16, FR17, FR18, FR19, FR20, FR21, FR22, FR27, FR43, FR44, FR47, FR51, FR52, FR53, FR54, FR58, FR59, FR68, FR69, FR70, FR71, FR72, FR74, FR75, FR77, FR132, FR133, FR134, FR135, FR136, FR137, FR138, FR157 (hash espacial), FR159
 **Notas:** fila de comandos, desfazer e replay; geometria planar com testes de caso-limite.
 

@@ -228,7 +228,8 @@ npm create pixi.js@latest train-mind-map -- --template bundler-vite
 
 - Arestas são polilinhas com vértices em células inteiras. O teste de interseção de segmentos usa aritmética inteira (orientação por produto vetorial), sem erro de ponto flutuante.
 - O **hash espacial em grade** (baldes de 8×8 células) indexa os segmentos de aresta, os retângulos dos nós e as células de água. Um candidato consulta só os baldes que ele toca.
-- Durante o arraste, a validação roda no máximo uma vez por frame.
+- **Roteamento (issue #2):** `sim/geometry/route.ts` calcula a rota de uma aresta com A* em 4 direções sobre a grade de células. As células ocupadas por nós, água e arestas existentes ficam bloqueadas. O desempate é determinístico (ordem fixa das direções, menor número de dobras) e o caminho é simplificado em polilinha. A mesma função serve à prévia, ao `ConnectEdge` e ao `MoveNode`.
+- Durante o arraste, a validação e o roteamento rodam no máximo uma vez por frame.
 - A camada de trilhos tem seu próprio índice. Arestas e trilhos não colidem entre si, exceto trilho contra nó (que é proibido, a não ser na Estação).
 
 ### Energia
@@ -561,9 +562,9 @@ onPointerUp() { if (this.result.ok) dispatch(new ConnectEdge(this.preview)); }
 
 - **Toque vs. arraste:** o movimento precisa passar de 8 px para contar como arraste. Um toque simples no vazio só seleciona ou desseleciona.
 - **Pressão longa:** 500 ms sem mover mais de 8 px. Sobre um nó, ativa Mover nó; o arraste depois disso não move a câmera.
-- **Arrastar a partir de um conector** cria uma aresta; a partir do vazio, move a câmera. Segurar 300 ms parado durante a criação de uma aresta fixa uma dobra.
+- **Arrastar a partir de um conector** cria uma aresta, com prévia ao vivo da rota automática; a partir do vazio, move a câmera. Não há gesto de dobra.
 - **Dois dedos** sempre cancelam a ferramenta em curso e fazem pinça e pan.
-- **MoveNode:** mantém as células de dobra das arestas e move só o primeiro e o último segmento. Se alguma aresta ficar inválida, o movimento é recusado.
+- **MoveNode:** recalcula a rota de todas as arestas ligadas. Se alguma ficar sem rota ou passar do comprimento máximo, o movimento é recusado com `Result`.
 - **Desktop:** roda do mouse = zoom; arrastar no vazio, botão do meio ou espaço + arrastar = pan; teclas 1–9 = paleta; T = alternar camada; Ctrl+Z = desfazer; Esc = cancelar a ferramenta.
 
 ### Assets, áudio e PWA
