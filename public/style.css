@@ -68,8 +68,8 @@ canvas {
   font-weight: 600;
 }
 
-/* The HUD capsule at the top: the global stock as chips. It wraps rather
-   than scrolls, and lets touches through to the map. */
+/* The HUD capsule at the top: the global stock as chips over the stamina
+   bar. It wraps rather than scrolls, and lets touches through to the map. */
 #ui-root > .hud {
   position: fixed;
   top: calc(8px + env(safe-area-inset-top, 0px));
@@ -82,21 +82,50 @@ canvas {
   color: #e4e7ee;
 }
 
+.hud-capsule {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  max-width: 100%;
+  padding: 6px 14px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(43, 48, 60, 0.94);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
 .stock {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 4px 10px;
-  max-width: 100%;
   margin: 0;
-  padding: 6px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  background: rgba(43, 48, 60, 0.94);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  padding: 0;
   list-style: none;
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
+}
+
+/* The stamina bar under the chips: amber while there are taps left, and a
+   red track once they run out. */
+.stamina {
+  height: 4px;
+  min-width: 96px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.stamina[data-empty="true"] {
+  background: rgba(248, 113, 113, 0.45);
+}
+
+.stamina-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: #ffb547;
+  transition: width 0.15s ease-out;
 }
 
 .stock-chip {

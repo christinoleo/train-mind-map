@@ -16,6 +16,9 @@ export interface Command {
    * report what happened through `emit`.
    */
   apply(state: GameState, emit: Emit): void;
-  /** The command that undoes the last `apply`. */
-  invert(): Command;
+  /**
+   * The command that undoes the last `apply`. A command without one, such as
+   * a manual tap, is not undoable and never enters the undo stack.
+   */
+  invert?(): Command;
 }

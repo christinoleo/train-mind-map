@@ -93,7 +93,7 @@ export class CommandQueue {
       }
       command.apply(state, emit);
       this.replayLog.push([state.tick, command]);
-      if (undo) continue;
+      if (undo || !command.invert) continue;
       this.undoStack.push(command.invert());
       if (this.undoStack.length > UNDO_DEPTH) this.undoStack.shift();
     }
@@ -103,7 +103,8 @@ export class CommandQueue {
   private undoable(): number {
     let depth = this.undoStack.length;
     for (const entry of this.queued) {
-      depth = entry === "undo" ? depth - 1 : Math.min(depth + 1, UNDO_DEPTH);
+      if (entry === "undo") depth--;
+      else if (entry.invert) depth = Math.min(depth + 1, UNDO_DEPTH);
     }
     return depth;
   }

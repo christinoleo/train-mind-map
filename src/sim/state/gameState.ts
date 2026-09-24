@@ -18,6 +18,7 @@ import {
 } from "./ids";
 import type { GameMap } from "./map";
 import { createNode } from "./nodes";
+import { newStamina, type Stamina } from "./stamina";
 import { sumStock } from "./stock";
 
 interface NodeBase {
@@ -85,6 +86,10 @@ export interface GameState {
   edges: Map<EdgeId, Edge>;
   /** The node kinds the player may build. Research adds to it (Epic 4). */
   unlockedNodes: NodeKind[];
+  /** The manual taps left, and the recharge towards the next (FR75). */
+  stamina: Stamina;
+  /** The Ferramentas research level, which sets the items per tap (Epic 4). */
+  tapLevel: number;
   /**
    * The global stock: everything the storage nodes hold, summed. A derived
    * cache, recomputed at the end of each tick and never saved.
@@ -115,6 +120,8 @@ export function createGameState(world: string | Scenario): GameState {
     nodes,
     edges: new Map(),
     unlockedNodes: [...STARTING_NODES],
+    stamina: newStamina(),
+    tapLevel: 0,
     stock: sumStock(nodes),
   };
 }

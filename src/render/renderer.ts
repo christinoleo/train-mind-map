@@ -12,10 +12,12 @@ import { drawDeposits, drawTerrain, revealedBounds } from "./mapView";
 import { drawGhostOutline, drawNodeCard, NodeViews } from "./nodes";
 import type { DeepReadonly } from "./readonly";
 import {
+  BUILD_FLIGHT_MS,
   BUILD_FLIGHT_STAGGER_MS,
   CELL_PX,
   GHOST_ALPHA,
   ITEM_COLOR,
+  TAP_FLIGHT_MS,
   toWorld,
 } from "./theme";
 
@@ -29,6 +31,8 @@ export interface Renderer {
   setGhost(ghost: Ghost | null): void;
   /** Flies the items a construction took from storage to its site. */
   showConstruction(paid: SimEventOf<"ConstructionPaid">): void;
+  /** Pops the tapped cell and flies its item to the Core. */
+  showTap(tap: SimEventOf<"ManualTapped">): void;
 }
 
 /**
@@ -151,8 +155,18 @@ export function createRenderer(
           to,
           ITEM_COLOR[item],
           now + i * BUILD_FLIGHT_STAGGER_MS,
+          BUILD_FLIGHT_MS,
         );
       });
+    },
+    showTap({ x, y, item, core }) {
+      const to = centerOf(core);
+      if (!to) return;
+      const from = { x: (x + 0.5) * CELL_PX, y: (y + 0.5) * CELL_PX };
+      const now = performance.now();
+      const color = ITEM_COLOR[item];
+      flights.pop(from, color, now);
+      flights.launch(from, to, color, now, TAP_FLIGHT_MS);
     },
   };
 }
