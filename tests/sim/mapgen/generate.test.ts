@@ -104,9 +104,13 @@ describe("map generation", () => {
   });
 
   // 200 full maps take about 5 s on CI runners, so this test gets its own budget.
-  it("holds the guarantees across 200 random seeds", { timeout: 30_000 }, () => {
-    for (const seed of randomSeeds(200)) expectGuarantees(generateMap(seed));
-  });
+  it(
+    "holds the guarantees across 200 random seeds",
+    { timeout: 30_000 },
+    () => {
+      for (const seed of randomSeeds(200)) expectGuarantees(generateMap(seed));
+    },
+  );
 
   it("sizes each deposit by its ring", () => {
     for (const seed of randomSeeds(20)) {
