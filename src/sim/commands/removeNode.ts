@@ -2,9 +2,13 @@ import { fail, ok, type Result } from "../result";
 import type { FactoryNode, GameState } from "../state/gameState";
 import type { NodeId } from "../state/ids";
 import { checkFootprint } from "../state/nodes";
+import { isProducer, newProduction } from "../state/production";
 import type { Command } from "./command";
 
-/** Removes a node. The Core is indestructible. */
+/**
+ * Removes a node. The Core is indestructible. The items inside the node are
+ * lost, so its undo brings it back empty.
+ */
 export class RemoveNode implements Command {
   readonly type = "RemoveNode";
   private removed?: FactoryNode;
@@ -42,7 +46,9 @@ class RestoreNode implements Command {
   }
 
   apply(state: GameState) {
-    state.nodes.set(this.node.id, structuredClone(this.node));
+    const node = structuredClone(this.node);
+    if (isProducer(node)) node.production = newProduction();
+    state.nodes.set(node.id, node);
   }
 
   invert(): Command {

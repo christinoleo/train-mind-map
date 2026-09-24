@@ -33,6 +33,10 @@ export const strings = {
     "copper-plate": "placa de cobre",
     brick: "tijolo",
     gear: "engrenagem",
+    "copper-cable": "fio de cobre",
+    circuit: "circuito",
+    rail: "trilho",
+    "red-science": "ciência vermelha",
   },
   // The node palette: the "+" button, the bottom tray and placement feedback.
   palette: {
@@ -54,6 +58,7 @@ export const strings = {
     on_water: "Não dá para construir na água",
     out_of_bounds: "Fora da área revelada",
     out_of_range: "Fora do limite",
+    wrong_recipe: "Esta receita não roda neste nó",
   },
   // The rendering stress-test page (stress.html), used on real phones.
   stress: {

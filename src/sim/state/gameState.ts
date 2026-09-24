@@ -1,5 +1,6 @@
-import type { RawResource } from "../../data/items";
+import type { ItemId, RawResource } from "../../data/items";
 import { STARTING_NODES, type NodeKind } from "../../data/nodes";
+import type { CrafterKind, RecipeId } from "../../data/recipes";
 import type { Scenario } from "../../data/scenarios/scenario";
 import { generateMap } from "../mapgen/generate";
 import { seedRng, type RngState } from "../mapgen/rng";
@@ -12,6 +13,7 @@ import {
   type NodeId,
 } from "./ids";
 import type { GameMap } from "./map";
+import { createNode } from "./nodes";
 
 interface NodeBase {
   id: NodeId;
@@ -20,12 +22,38 @@ interface NodeBase {
   y: number;
 }
 
+/**
+ * What a producing node is doing (FR23): making a batch, waiting for inputs,
+ * or holding a full output buffer.
+ */
+export type NodeStatus = "working" | "starved" | "blocked";
+
+/** The buffers and progress of a node that makes items (FR24–FR26). */
+export interface Production {
+  status: NodeStatus;
+  /** Items waiting in the input buffers, by type. */
+  input: Partial<Record<ItemId, number>>;
+  /** Finished items waiting to leave, all of the output item. */
+  output: number;
+  /** Ticks of work on the current batch, or `null` between batches. */
+  progress: number | null;
+}
+
 /** A placed node. Kinds that carry their own data add it here. */
 export type FactoryNode = NodeBase &
   (
-    | { kind: "extractor"; resource: RawResource }
-    | { kind: Exclude<NodeKind, "extractor"> }
+    | { kind: "extractor"; resource: RawResource; production: Production }
+    | {
+        kind: CrafterKind;
+        /** The recipe it runs; a Furnace picks one from its first input. */
+        recipe: RecipeId | null;
+        production: Production;
+      }
+    | { kind: Exclude<NodeKind, "extractor" | CrafterKind> }
   );
+
+/** A node that makes items. */
+export type ProducerNode = Extract<FactoryNode, { production: Production }>;
 
 export interface Edge {
   id: EdgeId;
@@ -54,12 +82,12 @@ export function createGameState(world: string | Scenario): GameState {
     typeof world === "string" ? generated : applyScenario(generated, world);
   const nextIds = initialNextIds();
   // The Core starts placed, on the cells the map reserved for it.
-  const core: FactoryNode = {
-    id: allocateId(nextIds, "node"),
-    kind: "core",
-    x: map.core.x,
-    y: map.core.y,
-  };
+  const core = createNode(
+    allocateId(nextIds, "node"),
+    "core",
+    map.core.x,
+    map.core.y,
+  );
   return {
     tick: 0,
     rng: seedRng(seed),

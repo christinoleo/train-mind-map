@@ -1,9 +1,53 @@
 import type { RawResource } from "../../data/items";
 import { NODES, type NodeKind } from "../../data/nodes";
+import { CRAFTERS, RECIPES, type RecipeId } from "../../data/recipes";
 import { allCells, containsRect, overlaps, type Rect } from "../geometry/rect";
 import { fail, ok, type Result } from "../result";
 import type { FactoryNode, GameState } from "./gameState";
+import type { NodeId } from "./ids";
 import { isRevealed, MAP_RECT, Terrain, terrainAt } from "./map";
+import { newProduction } from "./production";
+
+/** What a node needs besides its place: an Extractor's resource, a crafter's recipe. */
+export interface NodeSetup {
+  resource?: RawResource;
+  recipe?: RecipeId;
+}
+
+/** A fresh node, with empty buffers when it produces. */
+export function createNode(
+  id: NodeId,
+  kind: NodeKind,
+  x: number,
+  y: number,
+  { resource, recipe }: NodeSetup = {},
+): FactoryNode {
+  switch (kind) {
+    case "extractor":
+      if (!resource) throw new Error("An Extractor needs a resource");
+      return { id, kind, x, y, resource, production: newProduction() };
+    case "furnace":
+    case "assembler-1":
+      return {
+        id,
+        kind,
+        x,
+        y,
+        recipe: recipe ?? null,
+        production: newProduction(),
+      };
+    default:
+      return { id, kind, x, y };
+  }
+}
+
+/** True when `kind` may run `recipe`: a Furnace smelts, an Assembler assembles. */
+export function canRun(kind: NodeKind, recipe: RecipeId): boolean {
+  return (
+    (kind === "furnace" || kind === "assembler-1") &&
+    CRAFTERS[kind].category === RECIPES[recipe].category
+  );
+}
 
 /** The cells a node of `kind` covers with its top-left cell at (x, y). */
 export function footprint(kind: NodeKind, x: number, y: number): Rect {

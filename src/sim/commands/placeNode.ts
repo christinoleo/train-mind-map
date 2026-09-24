@@ -1,9 +1,10 @@
 import type { RawResource } from "../../data/items";
 import type { NodeKind } from "../../data/nodes";
+import type { RecipeId } from "../../data/recipes";
 import { fail, ok, type Result } from "../result";
-import type { FactoryNode, GameState } from "../state/gameState";
+import type { GameState } from "../state/gameState";
 import { allocateId, type NodeId } from "../state/ids";
-import { checkFootprint, isUnlocked } from "../state/nodes";
+import { canRun, checkFootprint, createNode, isUnlocked } from "../state/nodes";
 import type { Command } from "./command";
 import { RemoveNode } from "./removeNode";
 
@@ -22,7 +23,10 @@ export function checkPlacement(
   return checkFootprint(state, kind, x, y);
 }
 
-/** Places a node of `kind` with its top-left cell at (x, y) (FR16–FR18). */
+/**
+ * Places a node of `kind` with its top-left cell at (x, y) (FR16–FR18). A
+ * Furnace or Assembler may start with a chosen recipe (FR27).
+ */
 export class PlaceNode implements Command {
   readonly type = "PlaceNode";
   private placed?: NodeId;
@@ -31,9 +35,13 @@ export class PlaceNode implements Command {
     readonly kind: NodeKind,
     readonly x: number,
     readonly y: number,
+    readonly recipe?: RecipeId,
   ) {}
 
   validate(state: Readonly<GameState>): Result {
+    if (this.recipe && !canRun(this.kind, this.recipe)) {
+      return fail("wrong_recipe");
+    }
     const fits = checkPlacement(state, this.kind, this.x, this.y);
     return fits.ok ? ok() : fail(fits.reason);
   }
@@ -42,12 +50,13 @@ export class PlaceNode implements Command {
     const fits = checkFootprint(state, this.kind, this.x, this.y);
     if (!fits.ok) throw new Error("PlaceNode applied without validating");
     const id = allocateId(state.nextIds, "node");
-    const base = { id, x: this.x, y: this.y };
-    const node: FactoryNode =
-      this.kind === "extractor"
-        ? { ...base, kind: this.kind, resource: fits.value! }
-        : { ...base, kind: this.kind };
-    state.nodes.set(id, node);
+    state.nodes.set(
+      id,
+      createNode(id, this.kind, this.x, this.y, {
+        resource: fits.value,
+        recipe: this.recipe,
+      }),
+    );
     this.placed = id;
   }
 

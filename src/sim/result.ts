@@ -14,7 +14,8 @@ export type FailReason =
   | "on_deposit"
   | "on_water"
   | "out_of_bounds"
-  | "out_of_range";
+  | "out_of_range"
+  | "wrong_recipe";
 
 export type Result<T = void> =
   { ok: true; value: T } | { ok: false; reason: FailReason };

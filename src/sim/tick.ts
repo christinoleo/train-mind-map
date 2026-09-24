@@ -1,6 +1,8 @@
 import type { CommandQueue } from "./commands/commandQueue";
 import type { Emit } from "./events";
 import type { GameState } from "./state/gameState";
+import { extraction } from "./systems/extraction";
+import { production } from "./systems/production";
 
 export interface SystemContext {
   emit: Emit;
@@ -15,7 +17,7 @@ export type System = (state: GameState, ctx: SystemContext) => void;
  * edge flow, stations and trains, research, then stock and statistics.
  * Each is added here by the task that builds it.
  */
-export const SYSTEMS: readonly System[] = [];
+export const SYSTEMS: readonly System[] = [extraction, production];
 
 /** Advances the state by one tick. */
 export function tick(
