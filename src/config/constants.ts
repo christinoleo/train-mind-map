@@ -34,6 +34,9 @@ export const LONG_PRESS_MS = 500;
 /** Most screen pixels per map cell the camera zooms in to. */
 export const MAX_ZOOM_CELL_PX = 96;
 
+/** Closest zoom, in screen pixels per world unit. */
+export const MAX_ZOOM_SCALE = MAX_ZOOM_CELL_PX / CELL_PX;
+
 /**
  * Level-of-detail thresholds, in screen pixels per map cell. Below
  * `LOD_GRAPH_CELL_PX` the map shows the overview; from `LOD_ICONS_CELL_PX`

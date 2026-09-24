@@ -9,6 +9,10 @@ export const strings = {
     exported: "Save copiado para a área de transferência",
     exportFailed: "Não foi possível copiar o save",
   },
+  // Labels drawn on the map.
+  map: {
+    core: "Core",
+  },
   // The rendering stress-test page (stress.html), used on real phones.
   stress: {
     items: "Itens",

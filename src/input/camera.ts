@@ -3,12 +3,9 @@ import {
   CELL_PX,
   LOD_GRAPH_CELL_PX,
   LOD_ICONS_CELL_PX,
-  MAX_ZOOM_CELL_PX,
+  MAX_ZOOM_SCALE,
 } from "../config/constants";
 import type { Rect } from "../sim/geometry/rect";
-
-/** Closest zoom, in screen pixels per world unit. */
-const MAX_SCALE = MAX_ZOOM_CELL_PX / CELL_PX;
 
 /** Share of the screen the fitted area fills, leaving a margin around it. */
 export const FIT_MARGIN = 0.92;
@@ -93,7 +90,7 @@ export class Camera {
   /** Scales by `factor`, keeping the world point under the screen point in place. */
   zoomAt(screenX: number, screenY: number, factor: number) {
     const before = this.scale;
-    this.scale = clamp(before * factor, this.minScale, MAX_SCALE);
+    this.scale = clamp(before * factor, this.minScale, MAX_ZOOM_SCALE);
     const k = this.scale / before;
     this.x = screenX - (screenX - this.x) * k;
     this.y = screenY - (screenY - this.y) * k;
@@ -124,7 +121,7 @@ export class Camera {
       this.bounds && this.hasView()
         ? Math.min(
             fitArea(this.bounds, this.width, this.height).scale,
-            MAX_SCALE,
+            MAX_ZOOM_SCALE,
           )
         : 0;
   }
@@ -132,7 +129,7 @@ export class Camera {
   private clamp() {
     const { bounds } = this;
     if (!bounds || !this.hasView()) return;
-    this.scale = clamp(this.scale, this.minScale, MAX_SCALE);
+    this.scale = clamp(this.scale, this.minScale, MAX_ZOOM_SCALE);
     this.x = clampAxis(this.x, bounds.x, bounds.w, this.scale, this.width);
     this.y = clampAxis(this.y, bounds.y, bounds.h, this.scale, this.height);
   }
