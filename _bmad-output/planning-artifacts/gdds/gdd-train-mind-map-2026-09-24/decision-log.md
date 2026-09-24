@@ -128,3 +128,15 @@
   - The WebGL context-loss recovery works on both platforms (as reported by the designer).
 - **iOS Low Power Mode caps the game at 30 FPS.** With it on, 1,000 and 5,000 items both gave exactly 33.3 ms per frame, which confirms the cap is external.
 - **Decision:** the render architecture (a single Pixi app, `ParticleContainer`, culling, LOD) is confirmed with no changes. Galaxy A52 numbers are still wanted when that device is available, but they are not blocking.
+
+## 2026-09-24 — v1.9 (Visual language, wayfinder issue #7)
+
+- **Visual prototype** (branch `prototype/visual-blueprint`): it compared A (cyanotype technical drawing), B (node-editor cards) and C (schematic symbols). **The designer chose B**, which replaces the "blueprint" art direction.
+- **Node-editor style:**
+  - slate background (`#1b1f27`);
+  - rounded cards with a header coloured by category;
+  - state shown as a pill plus an outline (red = blocked or starved, yellow = no power);
+  - edges tinted by their item;
+  - a floating capsule HUD, with the palette in a bottom tray.
+- **Confirmed on the phone:** node states read clearly, items are distinguishable by colour plus shape, and the HUD is legible.
+- Pinch zoom was absent from the prototype by design (it had zoom buttons only). Real pinch comes from Epic 1 task #15 and was already validated in #2.

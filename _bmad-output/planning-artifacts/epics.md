@@ -219,8 +219,8 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 #### Arte e áudio
 
 - **FR147** [MVP] Todo item em trânsito é visível na aresta com cor e (no zoom próximo) ícone por tipo; a posição é interpolada entre ticks.
-- **FR148** Estilo blueprint: fundo de papel técnico azul-escuro com grade sutil; tema claro opcional em papel creme.
-- **FR149** [MVP] Nós como fichas de diagrama com cabeçalho colorido por categoria, ícone da receita e conectores em círculo; arestas em traço branco com espessura por nível; trilhos em traço duplo âmbar com dormentes; trens como retângulos estilizados.
+- **FR148** [MVP] Estilo editor de nós (issue #7): fundo de ardósia escura com grade discreta, fichas arredondadas com cabeçalho colorido por categoria, e HUD em cápsula no topo com a paleta numa bandeja inferior (GDD 1.9, §Arte).
+- **FR149** [MVP] Nós como fichas arredondadas com cabeçalho na cor da categoria, ícone da receita, estado em pílula e contorno (vermelho: bloqueado ou faminto; amarelo: sem energia), entradas em círculo vazado e saídas em ponto âmbar. Arestas em traço semitransparente na cor do item, com LOD: longe = traço tracejado com a mistura de cores; médio = pontos; perto = ícones com cor e forma.
 - **FR150** Paleta de ~31 itens distinguíveis por daltônicos: cada item combina cor e forma do ícone.
 - **FR151** Áudio: 1–2 faixas ambientes calmas (lo-fi/eletrônico) e ~15 SFX: tic de produção (tom por item, volume agregado), clique de conexão, apito e rolamento do trem, jingle de pesquisa concluída.
 - **FR152** [MVP] O áudio fica mudo até a primeira interação do jogador (política de autoplay dos navegadores).
@@ -535,7 +535,7 @@ O jogador explora petróleo, refinaria, planta química, painel solar, a cadeia 
 
 ### Epic 9: Acabamento
 
-A arte blueprint final (temas escuro e claro), ícones acessíveis a daltônicos, áudio completo, painel de estatísticas, conquistas, onboarding completo, preferências e o PWA com aviso de atualização.
+A arte final no estilo editor de nós, ícones acessíveis a daltônicos, áudio completo, painel de estatísticas, conquistas, onboarding completo, preferências e o PWA com aviso de atualização.
 **FRs:** FR130, FR141, FR142, FR143, FR145, FR148 (final), FR150, FR151, FR152, FR153
 
 ### Epic 10: Prestígio (stretch)

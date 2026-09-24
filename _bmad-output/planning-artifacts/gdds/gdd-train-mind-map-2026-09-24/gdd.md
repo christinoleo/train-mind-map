@@ -4,7 +4,7 @@ game_type: "simulation + idle-incremental"
 platforms: ["navegador mobile (principal)", "navegador desktop"]
 created: 2026-09-24
 updated: 2026-09-24
-version: 1.8
+version: 1.9
 status: final
 ---
 
@@ -378,9 +378,10 @@ A geração garante a distância de cada recurso-chave por anel. Isso transforma
 
 ### Arte
 
-- **Estilo blueprint/diagrama:** fundo de papel técnico azul-escuro com grade sutil (modo claro opcional em papel creme).
-- **Nós:** fichas de diagrama com cabeçalho colorido por categoria, ícone da receita e conectores em círculo.
-- **Arestas:** traços brancos em que os itens aparecem como pontos coloridos. A espessura indica o nível.
+- **Estilo editor de nós (issue #7; substitui o blueprint):** a fábrica parece um editor de visual script, no estilo do GraphEdit do Godot. O fundo é ardósia escura (`#1b1f27`) com grade discreta, e a água aparece em azul-petróleo arredondado.
+- **Nós:** fichas arredondadas (`#2b303c`) com sombra suave e **cabeçalho colorido por categoria** (Núcleo dourado, extração âmbar, fundição coral, montagem azul, energia lilás, armazenamento verde). A ficha mostra o nome no cabeçalho e o ícone da receita no corpo. **Estados** aparecem como pílula e contorno: vermelho para bloqueado e faminto, amarelo para sem energia. Conectores de entrada são círculos vazados; os de saída, pontos âmbar.
+- **Arestas:** traço semitransparente na cor do item principal, com itens animados. No zoom **médio** os itens são pontos coloridos; no **perto**, ícones com cor e forma; no **longe**, a aresta vira um traço tracejado com a mistura de cores dos itens.
+- **HUD:** cápsula flutuante no topo (estoque com pastilha de cor, barras de ⚡ e de fôlego) e paleta de nós numa bandeja inferior rolável, com a cor da categoria.
 - **Trilhos:** traço duplo com dormentes, em cor distinta (âmbar). Os trens são retângulos estilizados.
 - Paleta de itens com cerca de 31 cores e ícones distinguíveis também por daltônicos: cada item combina cor e forma do ícone.
 
@@ -430,7 +431,7 @@ Detalhes e stories de alto nível em `epics.md`.
 | E5 | Ferrovia | camada de trilhos, estação, trem, linhas, reserva, cruzamento, interchange, automação T1–T5 | básico (T1) |
 | E6 | Idle e persistência | save, offline com teto, tela de retorno | básico |
 | E7 | Cadeia completa e foguete | petróleo, avançados, ciência azul, Silo, lançamento | — |
-| E8 | Polimento | arte blueprint final, áudio, estatísticas, onboarding, conquistas | — |
+| E8 | Polimento | arte final no estilo editor de nós, áudio, estatísticas, onboarding, conquistas | — |
 | E9 | Prestígio (stretch) | nova colônia e Patentes | — |
 
 **Sequência:** E1 → E2 → E3 → E6 (básico) → E4 (mínimo) → E5 (básico) → **MVP** → E4 (completo) → E5 (completo) → E7 → E8 → E9.
