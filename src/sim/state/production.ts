@@ -112,6 +112,9 @@ export function takeOutput(node: FactoryNode): ItemId | undefined {
   return item;
 }
 
+/** How far below a batch's ticks progress may fall and still count as done. */
+const PROGRESS_EPSILON = 1e-9;
+
 /** Consumes one batch's inputs, if all are in the buffers. */
 function consume(p: Production, inputs: Batch["inputs"]): boolean {
   const needs = Object.entries(inputs) as [ItemId, number][];
@@ -135,10 +138,12 @@ function advance(
     if (!consume(p, batch.inputs)) return "starved";
     p.progress = 0;
   }
-  if (p.progress < batch.ticks) {
+  if (p.progress < batch.ticks - PROGRESS_EPSILON) {
     if (satisfaction === 0) return "no_power";
     p.progress += satisfaction;
-    if (p.progress < batch.ticks) return "working";
+    // Sums of fractions such as 10/12 fall a hair short of the whole; the
+    // tolerance keeps them from costing an extra tick per batch.
+    if (p.progress < batch.ticks - PROGRESS_EPSILON) return "working";
   }
   if (p.output > 0) return "blocked";
   p.output = batch.count;

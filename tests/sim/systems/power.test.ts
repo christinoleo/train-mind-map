@@ -18,14 +18,22 @@ import {
   satisfactionOf,
   topologyChanged,
 } from "../../../src/sim/state/power";
-import { acceptItem, takeOutput } from "../../../src/sim/state/production";
+import {
+  acceptItem,
+  stepProduction,
+  takeOutput,
+} from "../../../src/sim/state/production";
 import {
   deserializeState,
   hashState,
   serializeState,
 } from "../../../src/sim/state/serialize";
-import { tick } from "../../../src/sim/tick";
+import { flow } from "../../../src/sim/systems/flow";
+import { SYSTEMS, tick } from "../../../src/sim/tick";
 import { link } from "../support/power";
+
+/** The systems without edge flow: the tests empty the output buffers themselves. */
+const NO_FLOW = SYSTEMS.filter((system) => system !== flow);
 
 const CORE = 1 as NodeId;
 
@@ -47,7 +55,7 @@ function setup() {
   /** Runs `n` ticks, emptying every output buffer after each, as edges would. */
   const run = (n: number, drain = true) => {
     for (let t = 0; t < n; t++) {
-      tick(state, commands, (e) => events.push(e));
+      tick(state, commands, (e) => events.push(e), NO_FLOW);
       if (!drain) continue;
       for (const node of state.nodes.values()) takeOutput(node);
     }
@@ -151,6 +159,27 @@ describe("the Core", () => {
     expect(node.production.output).toBe(1);
     expect(node.production.status).toBe("working");
   });
+});
+
+describe("partial satisfaction", () => {
+  it.each([
+    [10, 11, 22],
+    [10, 12, 24],
+    [3, 30, 200],
+  ])(
+    "at %i⚡ for %i⚡ a 20-tick batch takes %i ticks, with no float drift",
+    (supply, demand, ticks) => {
+      const node = createNode(1 as NodeId, "extractor", 0, 0, {
+        resource: "iron-ore",
+      }) as ProducerNode;
+      let taken = 0;
+      while (node.production.output === 0) {
+        stepProduction(node, supply / demand, () => {});
+        taken++;
+      }
+      expect(taken).toBe(ticks);
+    },
+  );
 });
 
 describe("demand", () => {
@@ -260,8 +289,8 @@ describe("determinism", () => {
     );
     const commands = new CommandQueue();
     for (let t = 0; t < 100; t++) {
-      tick(state, commands, () => {});
-      tick(restored, commands, () => {});
+      tick(state, commands, () => {}, NO_FLOW);
+      tick(restored, commands, () => {}, NO_FLOW);
     }
     expect(hashState(restored)).toBe(hashState(state));
   });

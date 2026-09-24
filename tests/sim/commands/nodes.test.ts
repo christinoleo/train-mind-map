@@ -8,7 +8,10 @@ import { PlaceNode } from "../../../src/sim/commands/placeNode";
 import { RemoveNode } from "../../../src/sim/commands/removeNode";
 import { EventQueue, type SimEvent } from "../../../src/sim/events";
 import { fail, ok } from "../../../src/sim/result";
-import { createGameState } from "../../../src/sim/state/gameState";
+import {
+  createGameState,
+  type ProducerNode,
+} from "../../../src/sim/state/gameState";
 import type { NodeId } from "../../../src/sim/state/ids";
 import {
   deserializeState,
@@ -256,9 +259,11 @@ describe("RemoveNode", () => {
     expect(state.edges.size).toBe(1);
     acceptItem(state.nodes.get(3 as NodeId)!, "coal");
     for (let t = 0; t < 30; t++) step();
-    expect(state.nodes.get(2 as NodeId)).toMatchObject({
-      production: { output: 1 },
-    });
+    const extractor = state.nodes.get(2 as NodeId) as ProducerNode;
+    // Halfway through its second batch; the edge took the first item.
+    expect(extractor.production.progress).toBe(10);
+    // An item waiting to leave, as behind a full edge.
+    extractor.production.output = 1;
     run(new RemoveNode(2 as NodeId));
     commands.undo(state);
     step();

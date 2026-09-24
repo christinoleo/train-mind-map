@@ -16,6 +16,7 @@ export function link(state: GameState, from: NodeId, to: NodeId) {
     toPort: 0,
     level: 1,
     path: [],
+    items: [],
   });
   topologyChanged(state);
   return id;

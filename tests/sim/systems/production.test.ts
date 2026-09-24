@@ -15,8 +15,12 @@ import {
   batchTicks,
   takeOutput,
 } from "../../../src/sim/state/production";
-import { tick } from "../../../src/sim/tick";
+import { flow } from "../../../src/sim/systems/flow";
+import { SYSTEMS, tick } from "../../../src/sim/tick";
 import { link } from "../support/power";
+
+/** The systems without edge flow: the tests empty the output buffers themselves. */
+const NO_FLOW = SYSTEMS.filter((system) => system !== flow);
 
 /**
  * A game with one producing node, placed directly and powered by the Core,
@@ -41,7 +45,7 @@ function setup(kind: NodeKind, recipe?: RecipeId) {
   const run = (n: number, feed: ItemId[] = [], drain = true) => {
     for (let t = 0; t < n; t++) {
       for (const item of feed) acceptItem(node, item);
-      tick(state, commands, (e) => events.push(e));
+      tick(state, commands, (e) => events.push(e), NO_FLOW);
       const item = drain ? takeOutput(node) : undefined;
       if (item) made.push(item);
     }
