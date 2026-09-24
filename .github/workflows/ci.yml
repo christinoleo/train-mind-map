@@ -22,3 +22,14 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      - name: Check dist file count (itch.io accepts fewer than 1,000 files)
+        run: |
+          count=$(find dist -type f | wc -l)
+          echo "dist/ has $count files"
+          test "$count" -lt 1000
+      - if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 7

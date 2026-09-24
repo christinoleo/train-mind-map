@@ -4,6 +4,9 @@ import { defineConfig } from "vitest/config";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [preact()],
+  // Relative asset URLs: itch.io serves the game under /html/{uploadId}/.
+  // No PWA plugin and no service worker: itch's iframe supports neither (#9).
+  base: "./",
   server: {
     port: 8080,
   },

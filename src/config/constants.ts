@@ -50,3 +50,10 @@ export const AUTO_PAN_EDGE_PX = 48;
 
 /** Camera speed, in screen pixels per second, with the pointer at the screen's edge. */
 export const AUTO_PAN_SPEED_PX_S = 600;
+
+/**
+ * Prefix of every localStorage key and IndexedDB database the game creates.
+ * On itch.io all games share one storage origin, so unprefixed names collide.
+ * No key includes the build path, so saves survive new uploads.
+ */
+export const STORAGE_PREFIX = "train-mind-map:";
