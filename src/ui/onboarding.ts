@@ -1,15 +1,13 @@
 import { NODES } from "../data/nodes";
 import { cellCentre, connectorsOf } from "../render/connectors";
 import type { Point } from "../sim/geometry/planar";
-import type { GameState } from "../sim/state/gameState";
+import { clamp } from "../sim/math";
+import { isConnected } from "../sim/state/edges";
+import type { FactoryNode, GameState } from "../sim/state/gameState";
 import { canAfford, coreNode } from "../sim/state/stock";
 
 /** The onboarding hints, in the order they are shown (FR139). */
-export const HINTS = [
-  "tap-deposit",
-  "place-extractor",
-  "connect-core",
-] as const;
+const HINTS = ["tap-deposit", "place-extractor", "connect-core"] as const;
 export type HintId = (typeof HINTS)[number];
 
 /**
@@ -69,11 +67,13 @@ export class Onboarding {
       case "tap-deposit":
         return this.taps;
       case "place-extractor":
-        return extractors(state).length;
+        return countOf(
+          state.nodes.values(),
+          (node) => node.kind === "extractor",
+        );
       case "connect-core": {
         const core = coreNode(state).id;
-        return [...state.edges.values()].filter((edge) => edge.to === core)
-          .length;
+        return countOf(state.edges.values(), (edge) => edge.to === core);
       }
     }
   }
@@ -95,8 +95,10 @@ function target(state: Readonly<GameState>, id: HintId): HintTarget {
   }
 }
 
-function extractors(state: Readonly<GameState>) {
-  return [...state.nodes.values()].filter((node) => node.kind === "extractor");
+function countOf<T>(items: Iterable<T>, test: (item: T) => boolean): number {
+  let n = 0;
+  for (const item of items) if (test(item)) n++;
+  return n;
 }
 
 /** The centre of the iron cell nearest the Core. */
@@ -126,13 +128,13 @@ function nearestIron(state: Readonly<GameState>): Point {
  * with nothing leaving it, or, with none, the Core's first input.
  */
 function connectFrom(state: Readonly<GameState>): Point {
-  const linked = new Set([...state.edges.values()].map((edge) => edge.from));
-  const free = extractors(state).filter((node) => !linked.has(node.id));
-  const newest = free.at(-1);
+  let newest: FactoryNode | undefined;
+  for (const node of state.nodes.values()) {
+    const free =
+      node.kind === "extractor" &&
+      !isConnected(state, "output", { node: node.id, port: 0 });
+    if (free) newest = node;
+  }
   if (newest) return connectorsOf(newest, "output")[0];
   return connectorsOf(coreNode(state), "input")[0];
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
 }

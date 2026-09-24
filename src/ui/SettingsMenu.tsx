@@ -9,7 +9,7 @@ interface Props {
   onReviewHints(): void;
 }
 
-/** The ⚙ button, at the top-right corner, and the settings menu it opens. */
+/** The ⚙ button, beside undo, and the settings menu it opens. */
 export function SettingsMenu({ open, onReviewHints }: Props) {
   const text = strings.settings;
   return (

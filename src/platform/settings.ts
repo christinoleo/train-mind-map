@@ -8,7 +8,7 @@ export interface Settings {
   hintsSeen: number;
 }
 
-export const DEFAULT_SETTINGS: Readonly<Settings> = { hintsSeen: 0 };
+const DEFAULT_SETTINGS: Readonly<Settings> = { hintsSeen: 0 };
 
 const SETTINGS_KEY = `${STORAGE_PREFIX}settings`;
 

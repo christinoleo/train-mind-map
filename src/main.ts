@@ -26,6 +26,7 @@ import { SetResearch } from "./sim/commands/setResearch";
 import { UpgradeEdge } from "./sim/commands/upgradeEdge";
 import { UpgradeNode } from "./sim/commands/upgradeNode";
 import { EventQueue } from "./sim/events";
+import { clamp } from "./sim/math";
 import type { FailReason } from "./sim/result";
 import { createGameState, type GameState } from "./sim/state/gameState";
 import type { EdgeId, NodeId } from "./sim/state/ids";
@@ -86,11 +87,9 @@ const onboardingHint = signal<HintView | null>(null);
 let hintTarget: HintTarget | null = null;
 // The hints wait for the settings, which say how many were seen already.
 let onboarding: Onboarding | undefined;
-void loadSettings().then((loaded) => {
-  let settings = loaded;
+void loadSettings().then((settings) => {
   onboarding = new Onboarding(settings.hintsSeen, (hintsSeen) => {
-    settings = { ...settings, hintsSeen };
-    void saveSettings(settings);
+    void saveSettings({ ...settings, hintsSeen });
   });
 });
 /** Returns a function that shows a value in `target` for a moment. */
@@ -210,24 +209,18 @@ effect(() => {
 });
 // The research panel and the menus share one place on screen: opening one
 // closes the others.
-effect(() => {
-  if (researchOpen.value) {
+const panels = [researchOpen, settingsOpen];
+for (const panel of panels) {
+  effect(() => {
+    if (!panel.value) return;
     selectedEdge.value = null;
     selectedNode.value = null;
-    settingsOpen.value = false;
-  }
-});
-effect(() => {
-  if (settingsOpen.value) {
-    selectedEdge.value = null;
-    selectedNode.value = null;
-    researchOpen.value = false;
-  }
-});
+    for (const other of panels) if (other !== panel) other.value = false;
+  });
+}
 effect(() => {
   if (selectedEdge.value !== null || selectedNode.value !== null) {
-    researchOpen.value = false;
-    settingsOpen.value = false;
+    for (const panel of panels) panel.value = false;
   }
 });
 effect(() => {
@@ -394,17 +387,13 @@ function hintView(target: HintTarget | null): HintView | null {
   // Placing already, where the ghost's own hints take the palette's place.
   if (target.at === "palette") return selected.peek() ? null : target;
   const { width, height } = app.screen;
-  const { point } = target;
+  const { x, y } = camera.toScreen(target.point.x, target.point.y);
   return {
     id: target.id,
     at: "screen",
-    x: Math.round(clamp(point.x * camera.scale + camera.x, 0, width)),
-    y: Math.round(clamp(point.y * camera.scale + camera.y, 0, height)),
+    x: Math.round(clamp(x, 0, width)),
+    y: Math.round(clamp(y, 0, height)),
   };
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
 }
 
 function samePower(a: PowerSummary, b: PowerSummary): boolean {

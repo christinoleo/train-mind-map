@@ -389,6 +389,15 @@ canvas {
   color: #f5c542;
 }
 
+/* The round dark buttons: undo, research and settings. */
+#ui-root > :is(.undo, .research-toggle, .settings-toggle) {
+  border: 0;
+  border-radius: 50%;
+  background: rgba(19, 22, 28, 0.94);
+  color: #e4e7ee;
+  line-height: 1;
+}
+
 /* The undo button, at the bottom-left corner beside the palette. */
 #ui-root > .undo {
   position: fixed;
@@ -396,12 +405,7 @@ canvas {
   bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   width: 48px;
   height: 48px;
-  border: 0;
-  border-radius: 50%;
-  background: rgba(19, 22, 28, 0.94);
-  color: #e4e7ee;
   font-size: 1.5rem;
-  line-height: 1;
 }
 
 #ui-root > .undo:disabled {
@@ -433,12 +437,7 @@ canvas {
   bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   width: 48px;
   height: 48px;
-  border: 0;
-  border-radius: 50%;
-  background: rgba(19, 22, 28, 0.94);
-  color: #e4e7ee;
   font-size: 1.4rem;
-  line-height: 1;
 }
 
 #ui-root > .research-toggle[data-idle="true"] {
@@ -549,19 +548,15 @@ canvas {
   font-weight: 700;
 }
 
-/* The settings button, at the top-right corner, beside the HUD. */
+/* The settings button, beside undo at the bottom-left; the HUD grows to
+   the full width at the top as the stock fills. */
 #ui-root > .settings-toggle {
   position: fixed;
-  top: calc(8px + env(safe-area-inset-top, 0px));
-  right: 8px;
+  left: 72px;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   width: 44px;
   height: 44px;
-  border: 0;
-  border-radius: 50%;
-  background: rgba(19, 22, 28, 0.94);
-  color: #e4e7ee;
   font-size: 1.3rem;
-  line-height: 1;
 }
 
 /* An onboarding hint (FR139): a capsule in the node-editor style whose
