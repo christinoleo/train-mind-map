@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.DS_Store
+*.local
+_bmad/config.user.toml
+_bmad/custom/*.user.toml
+.claude/settings.local.json
