@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { MAP_SIZE } from "../../src/config/constants";
-import { isInside, revealedBounds, waterRuns } from "../../src/render/mapView";
+import {
+  isInside,
+  revealedBounds,
+  roundedCorners,
+  waterRuns,
+} from "../../src/render/mapView";
+import { RESOURCE_STYLE } from "../../src/render/theme";
 import { createGameState } from "../../src/sim/state/gameState";
 import {
   cellIndex,
@@ -74,5 +80,56 @@ describe("isInside", () => {
     const bounds = { x: 0, y: 0, w: 10, h: 10 };
     expect(isInside({ x: 6, y: 6, w: 4, h: 4 }, bounds)).toBe(true);
     expect(isInside({ x: 7, y: 6, w: 4, h: 4 }, bounds)).toBe(false);
+  });
+});
+
+describe("roundedCorners", () => {
+  it("rounds the four outer corners of a lone water cell", () => {
+    const map = mapWithWater([[10, 10]]);
+    const corners = roundedCorners(map, { x: 8, y: 8, w: 5, h: 5 });
+    expect(corners).toHaveLength(4);
+    expect(corners.every((c) => c.fill === "ground")).toBe(true);
+    expect(corners).toContainEqual({
+      x: 10,
+      y: 10,
+      dx: 1,
+      dy: 1,
+      fill: "ground",
+    });
+    expect(corners).toContainEqual({
+      x: 11,
+      y: 11,
+      dx: -1,
+      dy: -1,
+      fill: "ground",
+    });
+  });
+
+  it("fills the inner corner of an L-shaped lake with water", () => {
+    const map = mapWithWater([
+      [10, 10],
+      [11, 10],
+      [10, 11],
+      [11, 11],
+      [12, 10],
+      [12, 11],
+      [10, 12],
+      [11, 12],
+    ]);
+    const corners = roundedCorners(map, { x: 8, y: 8, w: 7, h: 7 });
+    const water = corners.filter((c) => c.fill === "water");
+    expect(water).toEqual([{ x: 12, y: 12, dx: 1, dy: 1, fill: "water" }]);
+  });
+
+  it("finds nothing on dry land", () => {
+    const map = mapWithWater([]);
+    expect(roundedCorners(map, { x: 0, y: 0, w: 10, h: 10 })).toEqual([]);
+  });
+});
+
+describe("RESOURCE_STYLE", () => {
+  it("gives every resource its own glyph shape (FR150)", () => {
+    const shapes = Object.values(RESOURCE_STYLE).map((s) => s.shape);
+    expect(new Set(shapes).size).toBe(shapes.length);
   });
 });

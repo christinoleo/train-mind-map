@@ -14,38 +14,69 @@ export function toWorld(r: Rect): Rect {
   };
 }
 
-/** Blueprint palette (GDD §Direção de Arte): dark technical-paper blue. */
-export const BLUEPRINT = {
-  /** Page background, also the colour of the unrevealed map. */
-  background: 0x0b1e3a,
-  land: 0x12305a,
-  water: 0x071429,
-  grid: 0x8fb4e3,
-  gridAlpha: 0.12,
+/** Node-editor palette (GDD §Arte, decision in #7): slate ground, card nodes. */
+export const PALETTE = {
+  /** Unrevealed map around the revealed area, darker than the ground. */
+  void: 0x13161c,
+  /** Revealed land. */
+  ground: 0x1b1f27,
+  grid: 0xffffff,
+  gridAlpha: 0.04,
   /** Every `majorEvery` cells the grid line is stronger. */
-  majorEvery: 4,
-  majorGridAlpha: 0.24,
-  /** Frame around the revealed area. */
-  border: 0xcfe0f5,
-  ink: 0xf2f6fc,
-  coreHeader: 0xf0a030,
-  coreBody: 0x173a69,
+  majorEvery: 5,
+  majorGridAlpha: 0.08,
+  water: 0x1e3a5f,
+  /** Corner radius of lakes, in cells. */
+  waterRadius: 0.4,
+  /** Alpha of the item-coloured tint under a deposit. */
+  depositTintAlpha: 0.13,
+  card: 0x2b303c,
+  /** Card corner radius, in cells. */
+  cardRadius: 0.25,
+  /** Soft drop shadow under cards. */
+  shadow: 0x000000,
+  /** Text on a category header. */
+  headerText: 0x15181f,
+  text: 0xe4e7ee,
+  dimText: 0x8a93a6,
+  /** A hollow circle marks an input connector. */
+  inputRing: 0xcfd5e2,
+  /** An amber dot marks an output connector. */
+  output: 0xffb547,
 } as const;
 
-export type ResourceShape =
-  "square" | "circle" | "triangle" | "diamond" | "drop";
+/** Node header colour per category. */
+export const CATEGORY_COLOR = {
+  core: 0xf5c542,
+  extraction: 0xd9a45b,
+  smelting: 0xe0735a,
+  assembly: 0x6b9cff,
+  power: 0xb98cff,
+  storage: 0x6fcf97,
+} as const;
 
-interface ResourceStyle {
+export type NodeCategory = keyof typeof CATEGORY_COLOR;
+
+/** Node state colours: red for blocked or starved, yellow for no power. */
+export const STATE_COLOR = {
+  blocked: 0xf87171,
+  starved: 0xf87171,
+  noPower: 0xfacc15,
+} as const;
+
+export type GlyphShape = "circle" | "square" | "diamond" | "gear" | "flask";
+
+interface ItemStyle {
   color: number;
-  shape: ResourceShape;
+  shape: GlyphShape;
 }
 
 // Okabe-Ito hues plus a distinct shape per resource, so colour is never the
-// only cue (FR150). The icons are placeholders until the item atlas lands.
-export const RESOURCE_STYLE: Record<RawResource, ResourceStyle> = {
+// only cue (FR150). The glyphs are placeholders until the item atlas lands.
+export const RESOURCE_STYLE: Record<RawResource, ItemStyle> = {
   "iron-ore": { color: 0x56b4e9, shape: "square" },
   "copper-ore": { color: 0xe69f00, shape: "circle" },
-  coal: { color: 0xc9d1dc, shape: "triangle" },
-  stone: { color: 0xf0e442, shape: "diamond" },
-  "crude-oil": { color: 0xcc79a7, shape: "drop" },
+  coal: { color: 0xc9d1dc, shape: "diamond" },
+  stone: { color: 0xf0e442, shape: "gear" },
+  "crude-oil": { color: 0xcc79a7, shape: "flask" },
 };

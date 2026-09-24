@@ -39,7 +39,9 @@ export function createRenderer(
     const { map } = state;
     const bounds = revealedBounds(map);
     for (const layer of [layers.terrain, layers.deposits, layers.nodes]) {
-      for (const child of layer.removeChildren()) child.destroy();
+      for (const child of layer.removeChildren()) {
+        child.destroy({ children: true });
+      }
     }
     layers.terrain.addChild(drawTerrain(map, bounds));
     layers.deposits.addChild(drawDeposits(map, bounds));

@@ -4,7 +4,7 @@ body {
   padding: 0;
   height: 100%;
   overflow: hidden;
-  background-color: #0b1e3a;
+  background-color: #13161c;
   touch-action: none;
 }
 
@@ -35,7 +35,7 @@ canvas {
   gap: 16px;
   padding: 24px;
   box-sizing: border-box;
-  background: rgba(11, 30, 58, 0.94);
+  background: rgba(19, 22, 28, 0.94);
   color: #fff;
   font-family: system-ui, sans-serif;
   text-align: center;
@@ -62,8 +62,8 @@ canvas {
   padding: 0 20px;
   border: 0;
   border-radius: 8px;
-  background: #f0a030;
-  color: #0b1e3a;
+  background: #f5c542;
+  color: #15181f;
   font: inherit;
   font-weight: 600;
 }

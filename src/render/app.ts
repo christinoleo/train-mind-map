@@ -1,5 +1,5 @@
 import { Application, type ApplicationOptions } from "pixi.js";
-import { BLUEPRINT } from "./theme";
+import { PALETTE } from "./theme";
 
 /** Highest device pixel ratio the canvas renders at. */
 const MAX_RESOLUTION = 2;
@@ -10,7 +10,7 @@ const MAX_RESOLUTION = 2;
  */
 export function appOptions(): Partial<ApplicationOptions> {
   return {
-    background: BLUEPRINT.background,
+    background: PALETTE.void,
     resizeTo: window,
     preference: "webgl",
     antialias: true,
