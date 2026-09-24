@@ -13,10 +13,11 @@ export const STEP_UNITS = (ITEM_SPEED * FLOW_UNITS_PER_CELL * TICK_MS) / 1000;
  * Moves an edge's items one tick. Each item moves `STEP_UNITS` but keeps its
  * spacing to the one ahead. The front item leaves through `deliver` on the
  * tick it reaches the input connector; while that refuses it, it waits there
- * and the queue halts behind it (FR57). Once
- * the last item has left room, a new one enters from `take`, of any type
- * (FR56); it keeps what the last one moved past the spacing, so the edge
- * carries exactly its throughput.
+ * and the queue halts behind it (FR57). Once the last item has left room, a
+ * new one enters from `take`, of any type (FR56); it keeps what the last one
+ * moved past the spacing, so the edge carries exactly its throughput. A last
+ * item delivered this tick still counts, where it would have moved to, so a
+ * short edge cannot skip the spacing.
  */
 export function stepEdge(
   edge: Edge,
@@ -27,9 +28,10 @@ export function stepEdge(
   const end = edgeUnits(edge);
   const spacing = spacingUnits(edge.level);
   for (const it of items) it.prevPos = it.pos;
+  let delivered: number | undefined;
   while (items.length > 0 && items[0].pos + STEP_UNITS >= end) {
     if (!deliver(items[0].item)) break;
-    items.shift();
+    delivered = items.shift()!.pos + STEP_UNITS;
   }
   let limit = end;
   for (const it of items) {
@@ -37,11 +39,11 @@ export function stepEdge(
     it.pos = Math.min(it.pos + STEP_UNITS, Math.max(limit, it.pos));
     limit = it.pos - spacing;
   }
-  const back = items[items.length - 1];
-  if (back && back.pos < spacing) return;
+  const back = items.length > 0 ? items[items.length - 1].pos : delivered;
+  if (back !== undefined && back < spacing) return;
   const item = take();
   if (item === undefined) return;
-  const pos = back ? back.pos - spacing : 0;
+  const pos = back === undefined ? 0 : back - spacing;
   items.push({ item, pos, prevPos: pos });
 }
 

@@ -88,10 +88,12 @@ describe("edge throughput", () => {
     },
   );
 
-  it.each([1, 30])("carries the same on a %i-cell edge", (cells) => {
-    const edge = bareEdge(3, cells);
+  it.each(
+    EDGE_LEVELS.flatMap((level) => [1, 2, 30].map((cells) => [level, cells])),
+  )("carries the same at level %i on a %i-cell edge", (level, cells) => {
+    const edge = bareEdge(level as EdgeLevel, cells);
     drive(edge, 200);
-    expect(drive(edge, 600).delivered).toHaveLength(480);
+    expect(drive(edge, 600).delivered).toHaveLength([2, 4, 8][level - 1] * 60);
   });
 
   it.each(EDGE_LEVELS)("counts whole flow units at level %i", (level) => {
