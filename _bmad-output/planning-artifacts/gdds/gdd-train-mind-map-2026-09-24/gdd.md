@@ -4,7 +4,7 @@ game_type: "simulation + idle-incremental"
 platforms: ["navegador mobile (principal)", "navegador desktop"]
 created: 2026-09-24
 updated: 2026-09-24
-version: 1.9
+version: 1.10
 status: final
 ---
 
@@ -150,12 +150,12 @@ Todo nó tem conectores de entrada à esquerda e de saída à direita. Os nós o
 
 **Trens (camada de trilhos)**
 - A camada de trilhos é independente. Trilhos passam por cima de arestas. **Trilho não atravessa nó, exceto a Estação.** Um botão alterna a camada em foco, e a outra fica esmaecida.
-- **Trilho:** é traçado célula a célula, com curvas de 45° e 90°. Custa 1 item "trilho" por célula. **Todo trilho é via dupla:** um lado de ida e um de volta, sempre. Trens em sentidos opostos nunca disputam o mesmo trecho.
+- **Trilho (issue #8):** tem **rota automática**. O jogador arrasta de uma estação a outra; a ponta de onde começa o arraste define a ponta de saída (esquerda ou direita da plataforma), e a ponta mais próxima de onde solta define a de chegada. A rota é o menor caminho em 8 direções (curvas de 45° e 90°), desviando de água e nós. Custa 1 item "trilho" por célula. **Todo trilho é via dupla:** um lado de ida e um de volta, sempre. Trens em sentidos opostos nunca disputam o mesmo trecho.
 - **Interconexões:**
   - *Cruzamento (X):* dois trilhos se cruzam no mesmo nível.
   - *Junção (Y):* um trilho se divide em dois; o trem escolhe o caminho pela rota.
   - *Ponte:* passa sobre água ou sobre outro trilho, sem cruzamento em nível. É liberada por pesquisa.
-  - Traçar um trilho atravessando outro cria automaticamente um **cruzamento X**. Tocar na interseção alterna entre **X** (os trens seguem reto) e **interchange** (os trens podem trocar de trilho em qualquer direção). A troca altera o grafo de rotas.
+  - Uma rota que atravessa outro trilho cria automaticamente um **cruzamento X**, desenhado só como os trilhos passando um sobre o outro, sem ícone. Tocar na interseção alterna entre **X** (os trens seguem reto) e **interchange** (os trens podem trocar de trilho em qualquer direção), que é desenhado como uma pequena rotatória de trilho. A troca altera o grafo de rotas.
 - **Reserva automática (sem sinais):** a rede é dividida em segmentos entre interconexões. Antes de entrar num segmento, cruzamento ou junção, o trem reserva o caminho até o próximo ponto onde pode parar. Se o caminho estiver reservado, ele espera no fim do segmento atual. Colisões são impossíveis por construção.
   - Como todo trilho é via dupla, o impasse de frente (dois trens em sentidos opostos no mesmo trecho) não existe. Um impasse residual só pode surgir em ciclos de trens esperando uns pelos outros em junções ou estações lotadas. Se acontecer, o jogo destaca os trens e o trecho envolvidos.
 - **Trem:** 1 locomotiva + de 1 a 4 vagões (2 no MVP). Trens não consomem combustível (simplificação).
@@ -216,7 +216,7 @@ A logística de trens cresce em cinco níveis, liberados por pesquisa. Cada nív
 | Criar aresta | arrastar a partir de um conector de saída até um de entrada. Durante o arraste, a câmera se move sozinha na borda da tela |
 | Editar/remover | tocar no nó ou na aresta abre o menu contextual (receita, upgrade, remover) |
 | Mover nó | segurar 0,5 s e arrastar. As arestas ligadas recalculam a rota; se alguma ficar sem rota ou longa demais, o movimento é recusado |
-| Traçar trilho | no modo Trilhos, arrastar a partir de uma estação ou de um trilho existente |
+| Traçar trilho | no modo Trilhos, arrastar de uma ponta de estação até a ponta de outra estação; a rota é automática |
 | Clique manual | tocar numa jazida |
 
 - Toda área tocável tem pelo menos 44×44 px na tela, qualquer que seja o zoom. Os conectores ganham uma área de toque ampliada.

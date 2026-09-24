@@ -57,11 +57,11 @@ _Avoid_: energy (reserved for power)
 ### Rail layer
 
 **Rail**:
-A double-track line on the rail layer, with one track in each direction. It may pass over edges but not through nodes, except a Station.
+A double-track, automatically routed line on the rail layer between two Station ends, with one track in each direction. It may pass over edges but not through nodes, except a Station.
 _Avoid_: track, railway (for a single piece)
 
 **Crossing**:
-The point where two rails intersect. It is either an **X** (trains go straight) or an **Interchange** (trains may switch rails).
+The point where two rails intersect. It is either an **X** (trains go straight; drawn as rails passing over each other) or an **Interchange** (trains may switch rails; drawn as a small rail roundabout).
 _Avoid_: junction (reserved for Y), intersection
 
 **Junction**:

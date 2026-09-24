@@ -545,7 +545,8 @@ onPointerUp() { if (this.result.ok) dispatch(new ConnectEdge(this.preview)); }
 
 ### Regras de trilho
 
-- Traçar um trilho sobre outro trilho cria um **X automático**. `ToggleCrossing` alterna entre X (sem troca de faixa) e **interchange** (troca entre todas as faixas). A troca reconstrói o grafo de segmentos da interconexão.
+- **Rota de trilho (issue #8):** `sim/rail/route.ts` usa A* em 8 direções sobre as células, sem cortar cantos por água, com desempate determinístico. Vai da ponta escolhida da estação de origem à ponta escolhida da estação de destino, e é a mesma função da prévia e do comando `PlaceRail`.
+- Uma rota de trilho sobre outro trilho cria um **X automático**. `ToggleCrossing` alterna entre X (sem troca de faixa) e **interchange** (troca entre todas as faixas). A troca reconstrói o grafo de segmentos da interconexão.
 - Trilho não atravessa água sem Ponte, nem nó que não seja Estação. Uma Ponte cruza água ou outro trilho em nível separado (sem interconexão).
 - **Comprimento de trem:** cada vagão e a locomotiva ocupam 1 célula. Um segmento só pode ser o destino de parada de um trem se `comprimento_segmento ≥ comprimento_trem`. A plataforma da Estação ocupa 1 célula por veículo do maior trem.
 - **Frenagem:** desaceleração de 8 células/s², o que determina o ponto de parada antes de um segmento não reservado.

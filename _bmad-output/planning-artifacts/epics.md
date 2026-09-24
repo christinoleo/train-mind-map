@@ -126,10 +126,10 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 #### Trens: trilhos e interconexões
 
 - **FR78** [MVP] A camada de trilhos é independente. Um botão (e a tecla T) alterna a camada em foco; a camada fora de foco fica esmaecida (alpha 0,3).
-- **FR79** [MVP] No modo Trilhos, arrastar a partir de uma Estação ou de um trilho existente traça trilho célula a célula, com curvas de 45° e 90°.
+- **FR79** [MVP] No modo Trilhos, arrastar de uma Estação até outra constrói trilho com rota automática (menor caminho em 8 direções, desviando de água e nós). A ponta onde o arraste começa e a ponta mais próxima de onde ele termina definem as pontas (esquerda ou direita) de saída e chegada (issue #8).
 - **FR80** [MVP] Todo trilho é via dupla: uma faixa de ida e uma de volta. Trens em sentidos opostos nunca disputam o mesmo trecho.
 - **FR81** [MVP] Trilhos passam por cima de arestas. Trilho não atravessa nó, exceto a Estação, nem água sem Ponte.
-- **FR82** Traçar um trilho atravessando outro cria automaticamente um cruzamento X. Tocar na interseção alterna entre X (trens seguem reto) e interchange (trens podem trocar de faixa em qualquer direção), e a troca reconstrói o grafo de rotas.
+- **FR82** Uma rota que atravessa outro trilho cria automaticamente um cruzamento X, desenhado só como os trilhos se cruzando. Tocar na interseção alterna para interchange (os trens podem trocar de trilho), desenhado como uma pequena rotatória, e isso altera o grafo de rotas.
 - **FR83** Junção (Y): um trilho se divide em dois e o trem escolhe o caminho pela rota.
 - **FR84** Ponte (liberada por pesquisa, era azul): passa sobre água ou sobre outro trilho em nível separado, sem criar interconexão.
 - **FR85** [MVP] A rede é dividida em segmentos entre pontos de interconexão (X, Y, Estação). A rota até a próxima parada é calculada por A* sobre o grafo de segmentos.

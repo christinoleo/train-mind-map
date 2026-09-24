@@ -140,3 +140,10 @@
   - a floating capsule HUD, with the palette in a bottom tray.
 - **Confirmed on the phone:** node states read clearly, items are distinguishable by colour plus shape, and the HUD is legible.
 - Pinch zoom was absent from the prototype by design (it had zoom buttons only). Real pinch comes from Epic 1 task #15 and was already validated in #2.
+
+## 2026-09-24 — v1.10 (Rail and station UX, wayfinder issue #8)
+
+- **Rail touch prototype** (branch `prototype/rail-ux`): it compared A (draw by hand), B (auto-route between stations) and C (tap A then B to create rail, line and train together). **B won**, with one addition: the player picks the platform ends (left or right) where the rail leaves and arrives. The drag start and the release point set them.
+- **Crossings:** an X is drawn as plain rails crossing, with no badge. An interchange is drawn as a small rail roundabout. Tapping toggles between them.
+- **Confirmed:** a horizontal 3-cell station platform, the X/interchange tap toggle, the Line panel (stops, departure conditions, throughput, + train) and the layer toggle with dimming.
+- ADR-0007 was extended to cover rails.
