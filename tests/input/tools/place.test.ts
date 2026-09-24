@@ -7,10 +7,12 @@ import { CommandQueue } from "../../../src/sim/commands/commandQueue";
 import type { PlaceNode } from "../../../src/sim/commands/placeNode";
 import type { FailReason } from "../../../src/sim/result";
 import { createGameState } from "../../../src/sim/state/gameState";
+import { fillCore } from "../../sim/support/stock";
 
 /** A tool over the MVP map with the camera at scale 1, origin at (0, 0). */
 function setup() {
   const state = createGameState(MVP_SCENARIO);
+  fillCore(state);
   const commands = new CommandQueue();
   const camera = new Camera();
   const dispatched: PlaceNode[] = [];

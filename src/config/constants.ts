@@ -10,6 +10,9 @@ export const MAX_TICKS_PER_FRAME = 5;
  */
 export const MAX_BACKLOG_MS = 10_000;
 
+/** How often the UI bridge publishes the state summary to the HUD (4 Hz). */
+export const UI_PUBLISH_MS = 250;
+
 /** Depth of the undo stack. */
 export const UNDO_DEPTH = 20;
 

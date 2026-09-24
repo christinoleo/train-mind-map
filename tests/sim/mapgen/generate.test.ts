@@ -96,7 +96,7 @@ describe("map generation", () => {
   it("keeps a known seed's map stable across releases", () => {
     // Changing noise, rng use or placement order changes every map, saves
     // included. Update this hash only on purpose.
-    expect(hashState(createGameState("pinned"))).toBe("11521cbc0f1260");
+    expect(hashState(createGameState("pinned"))).toBe("1f54ac99eff27d");
   });
 
   it("gives different maps for different seeds", () => {

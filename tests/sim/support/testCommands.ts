@@ -5,7 +5,7 @@ import { allocateId, type NodeId } from "../../../src/sim/state/ids";
 
 /** A Box at the map corner; the queue tests ignore where nodes sit. */
 export function bareNode(id: NodeId): FactoryNode {
-  return { id, kind: "box", x: 0, y: 0 };
+  return { id, kind: "box", x: 0, y: 0, items: {} };
 }
 
 /** Adds a bare node. Its inverse removes it again. */

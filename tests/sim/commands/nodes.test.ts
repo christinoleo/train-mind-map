@@ -15,11 +15,13 @@ import {
   serializeState,
 } from "../../../src/sim/state/serialize";
 import { tick } from "../../../src/sim/tick";
+import { fillCore } from "../support/stock";
 
 // The MVP map: the Core at (59, 59), iron ore at (65, 58) 5×5, the water wall
 // in columns 76–95, and cells 12–107 revealed on both axes.
 function setup() {
   const state = createGameState(MVP_SCENARIO);
+  fillCore(state);
   const commands = new CommandQueue();
   const events = new EventQueue();
   const seen: SimEvent[] = [];
@@ -59,11 +61,12 @@ describe("node catalog", () => {
 });
 
 describe("the starting state", () => {
-  it("holds the Core as node 1 on the map's Core cells", () => {
-    const { state } = setup();
+  it("holds the Core as node 1, empty, on the map's Core cells", () => {
+    const state = createGameState(MVP_SCENARIO);
     expect([...state.nodes.values()]).toEqual([
-      { id: CORE_ID, kind: "core", x: 59, y: 59 },
+      { id: CORE_ID, kind: "core", x: 59, y: 59, items: {} },
     ]);
+    expect(state.stock).toEqual({});
   });
 });
 
@@ -262,6 +265,7 @@ describe("RemoveNode", () => {
       kind: "box",
       x: 46,
       y: 46,
+      items: {},
     });
     expect(commands.undo(state)).toEqual(fail("occupied"));
   });

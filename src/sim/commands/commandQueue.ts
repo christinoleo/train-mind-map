@@ -91,7 +91,7 @@ export class CommandQueue {
         });
         continue;
       }
-      command.apply(state);
+      command.apply(state, emit);
       this.replayLog.push([state.tick, command]);
       if (undo) continue;
       this.undoStack.push(command.invert());

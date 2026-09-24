@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MAP_SIZE } from "../../src/config/constants";
-import { MAX_RING, SetRevealedRing } from "../../src/debug/cheats";
+import { GiveItems, MAX_RING, SetRevealedRing } from "../../src/debug/cheats";
 import { CommandQueue } from "../../src/sim/commands/commandQueue";
 import { EventQueue } from "../../src/sim/events";
 import { createGameState } from "../../src/sim/state/gameState";
@@ -32,5 +32,20 @@ describe("SetRevealedRing", () => {
     commands.undo(state);
     tick(state, commands, events.emit);
     expect(state.map.revealedRing).toBe(0);
+  });
+});
+
+describe("GiveItems", () => {
+  it("fills storage with every item, and undoes to the old contents", () => {
+    const state = createGameState("cheats");
+    const commands = new CommandQueue();
+    const events = new EventQueue();
+    commands.dispatch(state, new GiveItems(5));
+    tick(state, commands, events.emit);
+    expect(state.stock.gear).toBe(5);
+    expect(state.stock["iron-ore"]).toBe(5);
+    commands.undo(state);
+    tick(state, commands, events.emit);
+    expect(state.stock).toEqual({});
   });
 });

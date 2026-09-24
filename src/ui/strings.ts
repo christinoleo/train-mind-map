@@ -38,6 +38,11 @@ export const strings = {
     rail: "trilho",
     "red-science": "ciência vermelha",
   },
+  // The HUD capsule at the top of the screen.
+  hud: {
+    stock: "Estoque",
+    emptyStock: "Estoque vazio",
+  },
   // The node palette: the "+" button, the bottom tray and placement feedback.
   palette: {
     open: "Construir",
@@ -88,6 +93,7 @@ export const strings = {
     teleport: "Teleportar",
     go: "Ir",
     revealRing: "Anel revelado",
+    giveItems: "+100 de cada item",
     overlays: "Overlays",
     coreRings: "Anéis de depósito e raios de garantia",
     nodes: "nós",

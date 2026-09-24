@@ -1,3 +1,4 @@
+import type { Emit } from "../events";
 import type { Result } from "../result";
 import type { GameState } from "../state/gameState";
 
@@ -10,8 +11,11 @@ export interface Command {
   readonly type: string;
   /** Checks the command against the state. Expected failures return a reason. */
   validate(state: Readonly<GameState>): Result;
-  /** Applies a validated command and captures what `invert()` needs. */
-  apply(state: GameState): void;
+  /**
+   * Applies a validated command and captures what `invert()` needs. It may
+   * report what happened through `emit`.
+   */
+  apply(state: GameState, emit: Emit): void;
   /** The command that undoes the last `apply`. */
   invert(): Command;
 }

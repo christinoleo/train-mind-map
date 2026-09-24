@@ -26,3 +26,11 @@ export const ITEMS = [
 ] as const;
 
 export type ItemId = (typeof ITEMS)[number];
+
+/** A count per item type; absent types count zero. */
+export type ItemCounts = Partial<Record<ItemId, number>>;
+
+/** The item types `counts` names, with their counts. */
+export function itemEntries(counts: Readonly<ItemCounts>): [ItemId, number][] {
+  return Object.entries(counts) as [ItemId, number][];
+}

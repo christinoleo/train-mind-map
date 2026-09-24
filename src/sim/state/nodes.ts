@@ -42,6 +42,9 @@ export function createNode(
         recipe: recipe ?? null,
         production: newProduction(),
       };
+    case "core":
+    case "box":
+      return { id, kind, x, y, items: {} };
     default:
       return { id, kind, x, y };
   }
@@ -60,7 +63,7 @@ export function footprint(kind: NodeKind, x: number, y: number): Rect {
   return { x, y, w: size, h: size };
 }
 
-export function nodeRect(node: FactoryNode): Rect {
+export function nodeRect(node: Pick<FactoryNode, "kind" | "x" | "y">): Rect {
   return footprint(node.kind, node.x, node.y);
 }
 

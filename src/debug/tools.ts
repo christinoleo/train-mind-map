@@ -12,7 +12,7 @@ import type { EventQueue } from "../sim/events";
 import type { Result } from "../sim/result";
 import { resetGameState, type GameState } from "../sim/state/gameState";
 import { strings } from "../ui/strings";
-import { SetRevealedRing } from "./cheats";
+import { GiveItems, SetRevealedRing } from "./cheats";
 import { DebugPanel } from "./DebugPanel";
 import { drawCoreRings, OverlayManager } from "./overlays";
 import { PerfMonitor, type PerfSnapshot } from "./perf";
@@ -45,6 +45,8 @@ export interface GameConsole extends DebugGame {
     teleport(x: number, y: number): void;
     /** Queues a change of the outermost revealed ring. */
     revealRing(ring: number): Result;
+    /** Queues `perItem` of every item into storage, up to capacity. */
+    giveItems(perItem?: number): Result;
   };
   overlays: OverlayManager;
 }
@@ -93,6 +95,7 @@ export function installDebugTools(debug: DebugGame) {
       },
       teleport: renderer.centerOn,
       revealRing: (ring) => dispatch(new SetRevealedRing(ring)),
+      giveItems: (perItem = 100) => dispatch(new GiveItems(perItem)),
     },
     overlays,
   };
