@@ -4,7 +4,7 @@ game_type: "simulation + idle-incremental"
 platforms: ["navegador mobile (principal)", "navegador desktop"]
 created: 2026-09-24
 updated: 2026-09-24
-version: 1.5
+version: 1.7
 status: final
 ---
 
@@ -436,7 +436,7 @@ Detalhes e stories de alto nível em `epics.md`.
 
 **Sequência:** E1 → E2 → E3 → E6 (básico) → E4 (mínimo) → E5 (básico) → **MVP** → E4 (completo) → E5 (completo) → E7 → E8 → E9.
 
-**Meta do MVP (resolvido na issue #5):** o MVP não tem meta de vitória; a única meta do jogo completo é o foguete. A seed do MVP tem ferro, pedra e carvão perto do Núcleo, um **cobre pequeno** (3×3, uma vaga de extrator, 0,5 item/s) perto da base e um **cobre grande** atrás de um **corredor de terra entre lagos** com 1 célula de largura (menor que qualquer nó, então não cabe Caixa-relé) e ≥ 16 células de comprimento (maior que a aresta máxima de 12): só o trilho atravessa. Pesquisas do MVP, pagas com ciência vermelha: Divisor e Mesclador 10, Ferramentas 10, Caixas extras 20, Aresta 2 30, Ferrovia 50 (120 no total; Ferrovia por volta de 30 min) e, depois da Ferrovia, **Protótipo final** com 1.000 (~20 min), que exige ~0,85 placa de cobre/s, acima do cobre pequeno: o trem se torna necessário pela vazão. Ao concluir o Protótipo final, um aviso informa "fim do conteúdo do protótipo" e o jogo segue aberto.
+**Meta do MVP (resolvido na issue #5):** o MVP não tem meta de vitória; a única meta do jogo completo é o foguete. A seed do MVP tem ferro, pedra e carvão perto do Núcleo, um **cobre pequeno** (3×3, uma vaga de extrator, 0,5 item/s) perto da base e um **cobre grande** atrás de um **corredor de terra entre lagos** com 1 célula de largura (menor que qualquer nó, então não cabe Caixa-relé) e ≥ 16 células de comprimento (maior que a aresta máxima de 12): só o trilho atravessa. Pesquisas do MVP, pagas com ciência vermelha: Divisor e Mesclador 10, Ferramentas 10, Caixas extras 20, Aresta 2 30, Ferrovia 50 (120 no total; Ferrovia por volta de 30 min) e, depois da Ferrovia, **Protótipo final** com 1.000 (~20 min), que exige ~0,85 placa de cobre/s, acima do cobre pequeno: o trem se torna necessário pela vazão. Ao concluir o Protótipo final, um aviso informa "fim do conteúdo do protótipo" e o jogo segue aberto. **Mapa do MVP (issue #6):** o terreno é gerado pela seed `mvp-1`, e um **cenário** carimba por cima o layout fixo. O Núcleo (3×3) fica em (60,60). Ferro (5×5), pedra (4×4) e carvão (4×4) ficam a ~7–8 células, e o cobre pequeno (3×3) a ~10. Nas colunas x 76–95 há água em toda a altura revelada, exceto um corredor de terra em y=60 (1×20). O cobre grande (6×6) ocupa x 100–105, y 57–62, a ~43 células. A área de 96² fica revelada desde o início, e o MVP não tem pesquisa de expansão. O cenário limpa a água da base e da rota do trilho.
 
 ---
 
