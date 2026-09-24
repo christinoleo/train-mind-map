@@ -33,6 +33,8 @@ export interface Renderer {
   readonly layers: Layers;
   /** Centres the camera on cell (x, y), keeping the zoom. */
   centerOn(x: number, y: number): void;
+  /** Centres the camera on node `id`; false if it no longer exists. */
+  centerOnNode(id: NodeId): boolean;
   /** Shows the placement preview, or hides it with `null`. */
   setGhost(ghost: Ghost | null): void;
   /** Shows the edge being dragged, or hides it with `null`. */
@@ -191,6 +193,11 @@ export function createRenderer(
     layers,
     centerOn(x, y) {
       camera.centerOn((x + 0.5) * CELL_PX, (y + 0.5) * CELL_PX);
+    },
+    centerOnNode(id) {
+      const center = centerOf(id);
+      if (center) camera.centerOn(center.x, center.y);
+      return center !== null;
     },
     setGhost(next) {
       ghost = next;

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { MAX_TICKS_PER_FRAME, TICK_MS } from "../src/config/constants";
+import {
+  MAX_BACKLOG_MS,
+  MAX_TICKS_PER_FRAME,
+  TICK_MS,
+} from "../src/config/constants";
 import { createLoop } from "../src/loop";
 
 function harness(startTime = 0) {
@@ -7,9 +11,11 @@ function harness(startTime = 0) {
   let pending: ((time: number) => void) | undefined;
   let ticks = 0;
   const alphas: number[] = [];
+  const caughtUp: number[] = [];
   const loop = createLoop({
     step: () => void ticks++,
     frame: (alpha) => void alphas.push(alpha),
+    catchUp: (ms) => void caughtUp.push(ms),
     now: () => clock,
     requestFrame: (callback) => {
       pending = callback;
@@ -30,6 +36,7 @@ function harness(startTime = 0) {
     frameAt,
     ticks: () => ticks,
     alphas,
+    caughtUp,
     running: () => pending !== undefined,
   };
 }
@@ -88,5 +95,35 @@ describe("loop", () => {
     h.frameAt(TICK_MS);
     expect(h.ticks()).toBe(100);
     expect(h.loop.timings.ticks).toBe(100);
+  });
+
+  it(`catches up by ticks after a gap of up to ${MAX_BACKLOG_MS} ms`, () => {
+    const h = harness();
+    h.loop.start();
+    h.frameAt(MAX_BACKLOG_MS);
+    expect(h.caughtUp).toEqual([]);
+    expect(h.ticks()).toBe(MAX_TICKS_PER_FRAME);
+  });
+
+  it("hands a longer gap to the offline path", () => {
+    const h = harness();
+    h.loop.start();
+    h.frameAt(TICK_MS * 2);
+    h.frameAt(TICK_MS * 2 + 60_000);
+    expect(h.caughtUp).toEqual([60_000]);
+    expect(h.ticks()).toBe(2);
+    h.frameAt(TICK_MS * 3 + 60_000);
+    expect(h.ticks()).toBe(3);
+  });
+
+  it("hands the offline path real time, whatever the speed", () => {
+    const h = harness();
+    h.loop.start();
+    h.loop.speed = 10;
+    h.frameAt(60_000);
+    expect(h.caughtUp).toEqual([60_000]);
+    h.loop.speed = 0;
+    h.frameAt(120_000);
+    expect(h.caughtUp).toEqual([60_000]);
   });
 });

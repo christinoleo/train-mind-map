@@ -3,6 +3,8 @@ import {
   HINT_HALF_WIDTH_PX,
   HINT_MS,
   HINT_TOP_PX,
+  OFFLINE_BUDGET_MS,
+  OFFLINE_REPORT_MIN_MS,
   UI_PUBLISH_MS,
 } from "./config/constants";
 import { h, render } from "preact";
@@ -45,6 +47,7 @@ import { UpgradeEdge } from "./sim/commands/upgradeEdge";
 import { UpgradeNode } from "./sim/commands/upgradeNode";
 import { EventQueue } from "./sim/events";
 import { clamp } from "./sim/math";
+import { fastForward, type OfflineReport } from "./sim/offline/fastForward";
 import { ok, type FailReason, type Result } from "./sim/result";
 import { createGameState, type GameState } from "./sim/state/gameState";
 import type { EdgeId, NodeId } from "./sim/state/ids";
@@ -55,6 +58,7 @@ import { edgeMenuInfo, type EdgeMenuInfo } from "./ui/EdgeMenu";
 import type { HintView } from "./ui/Hint";
 import { BackupDialog } from "./ui/BackupDialog";
 import { nodeMenuInfo, type NodeMenuInfo } from "./ui/NodeMenu";
+import type { OfflineReportView } from "./ui/OfflineReport";
 import { Onboarding, type HintTarget } from "./ui/onboarding";
 import { researchInfo, type ResearchInfo } from "./ui/ResearchPanel";
 import { showOverlay } from "./ui/overlay";
@@ -99,6 +103,11 @@ const state =
     ? loadState(saved.save)
     : createGameState(MVP_SCENARIO);
 game = state;
+// The factory kept working while the game was closed (FR120).
+const bootReport =
+  saved.kind === "loaded"
+    ? reportView(makeUpFor(Date.now() - saved.save.savedAt))
+    : null;
 const commands = new CommandQueue();
 const events = new EventQueue();
 const app = await createApp(document.getElementById("pixi-container")!);
@@ -130,6 +139,7 @@ const ended = signal(false);
 const settingsOpen = signal(false);
 const exportNotice = signal(false);
 const onboardingHint = signal<HintView | null>(null);
+const offlineReport = signal<OfflineReportView | null>(bootReport);
 /** The hint the last tick asked for; each frame places it on the screen. */
 let hintTarget: HintTarget | null = null;
 // The hints wait for the settings, which say how many were seen already.
@@ -340,6 +350,51 @@ async function importSave(text: string): Promise<Result> {
   return ok();
 }
 
+/**
+ * Runs the offline path over an absence of `awayMs` (ADR-0003) and saves
+ * at once, so a reload before the next autosave cannot count the same
+ * absence twice.
+ */
+function makeUpFor(awayMs: number): OfflineReport {
+  const report = fastForward(state, awayMs, {
+    ms: OFFLINE_BUDGET_MS,
+    now: () => performance.now(),
+  });
+  slots
+    .save(state)
+    .catch((error: unknown) =>
+      log.error("save", "offline progress not saved", String(error)),
+    );
+  return report;
+}
+
+/**
+ * The report as the UI shows it, or `null` for an absence too short or a
+ * factory with nothing to tell (FR124).
+ */
+function reportView(report: OfflineReport): OfflineReportView | null {
+  const { elapsedMs, produced, bottleneck } = report;
+  if (elapsedMs < OFFLINE_REPORT_MIN_MS) return null;
+  const node = bottleneck && state.nodes.get(bottleneck.node);
+  if (Object.keys(produced).length === 0 && !node) return null;
+  return {
+    elapsedMs,
+    produced,
+    bottleneck: node ? { ...bottleneck, kind: node.kind } : null,
+  };
+}
+
+/** Makes up for an absence during play and shows its report. */
+function goOffline(ms: number) {
+  const view = reportView(makeUpFor(ms));
+  if (view) offlineReport.value = view;
+}
+
+/** Takes the camera to `id` and opens its menu. */
+function showNode(id: NodeId) {
+  if (renderer.centerOnNode(id)) selectedNode.value = id;
+}
+
 function undo() {
   const result = commands.undo(state);
   if (!result.ok) flashHint(result.reason);
@@ -360,6 +415,8 @@ loop = createLoop({
     stamina.value = state.stamina.points;
     hintTarget = onboarding?.update(state) ?? null;
   },
+  // A tab back from the background (FR125).
+  catchUp: goOffline,
   frame(alpha) {
     const now = performance.now();
     controls.tool?.frame?.(now - lastFrame);
@@ -456,6 +513,7 @@ render(
       },
     },
     onboardingHint,
+    offlineReport: { report: offlineReport, onBottleneck: showNode },
   }),
   document.getElementById("ui-root")!,
 );
@@ -476,6 +534,7 @@ if (import.meta.env.DEV || new URLSearchParams(location.search).has("debug")) {
     camera,
     controls,
     world: MVP_SCENARIO,
+    goOffline,
   });
 }
 

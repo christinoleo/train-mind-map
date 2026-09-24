@@ -115,6 +115,18 @@ export const strings = {
     used: "Desligado: a construção pode usar estes itens",
     kept: "Ligado: a construção não toca nesta Caixa",
   },
+  // The report shown on return from an absence (FR124).
+  offline: {
+    title: "Enquanto você esteve fora",
+    away: "Tempo fora",
+    produced: "Produzido",
+    nothing: "Nada chegou ao estoque.",
+    bottleneck: "Principal gargalo",
+    close: "Continuar",
+    hours: "h",
+    minutes: "min",
+    seconds: "s",
+  },
   // The research button and panel, and the notices of completed research.
   research: {
     glyph: "⚗",

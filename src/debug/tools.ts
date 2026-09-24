@@ -35,6 +35,8 @@ export interface DebugGame {
   controls: Controls;
   /** The world the game started on. */
   world: string | Scenario;
+  /** Runs the offline path over `ms` of absence and shows its report. */
+  goOffline(ms: number): void;
 }
 
 /** `window.game`: the live game for the DevTools console and for agents. */
@@ -66,6 +68,8 @@ export interface GameConsole extends DebugGame {
     revealRing(ring: number): Result;
     /** Queues `perItem` of every item into storage, up to capacity. */
     giveItems(perItem?: number): Result;
+    /** Simulates `hours` of absence through the offline path (FR155). */
+    offline(hours: number): void;
   };
   overlays: OverlayManager;
 }
@@ -147,6 +151,7 @@ export function installDebugTools(debug: DebugGame) {
       teleport: renderer.centerOn,
       revealRing: (ring) => dispatch(new SetRevealedRing(ring)),
       giveItems: (perItem = 100) => dispatch(new GiveItems(perItem)),
+      offline: (hours) => debug.goOffline(hours * 3_600_000),
     },
     overlays,
   };

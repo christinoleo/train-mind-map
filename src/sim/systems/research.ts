@@ -64,3 +64,13 @@ export const research: System = (state, { emit }) => {
     setStatus(node, advance(state, node, sat, emit), emit);
   }
 };
+
+/**
+ * `research` offline (FR122): Labs idle, with a pack under way held where
+ * it is, and the packs pile up in their buffers and edges.
+ */
+export const idleLabs: System = (state, { emit }) => {
+  for (const node of state.nodes.values()) {
+    if (node.kind === "lab") setStatus(node, "starved", emit);
+  }
+};

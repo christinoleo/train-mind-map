@@ -30,6 +30,12 @@ export interface LoopOptions {
   step(): void;
   /** Draws a frame; `alpha` in [0, 1] is how far time has moved past the last tick. */
   frame(alpha: number): void;
+  /**
+   * Makes up for a gap between frames longer than `MAX_BACKLOG_MS`, such as
+   * a backgrounded tab, through the offline path (FR125). Without it the
+   * gap is dropped past the backlog.
+   */
+  catchUp?(ms: number): void;
   now?: () => number;
   requestFrame?: (callback: (time: number) => void) => number;
   cancelFrame?: (handle: number) => void;
@@ -39,11 +45,12 @@ export interface LoopOptions {
  * Drives the simulation from `requestAnimationFrame` with a fixed-tick
  * accumulator. At speed 1 a frame runs at most `MAX_TICKS_PER_FRAME` ticks;
  * the rest carries over to later frames, up to `MAX_BACKLOG_MS`. Both limits
- * scale with the speed.
+ * scale with the speed. A longer gap between frames goes to `catchUp`.
  */
 export function createLoop({
   step,
   frame,
+  catchUp,
   now = () => performance.now(),
   requestFrame = (callback) => requestAnimationFrame(callback),
   cancelFrame = (handle) => cancelAnimationFrame(handle),
@@ -73,10 +80,16 @@ export function createLoop({
     const { speed } = loop;
     const limitScale = Math.max(speed, 1);
     // rAF's timestamp can predate the `now()` read in start().
-    accumulator = Math.min(
-      accumulator + Math.max(time - last, 0) * speed,
-      MAX_BACKLOG_MS * limitScale,
-    );
+    const gap = Math.max(time - last, 0);
+    // An absence is real time: the debug speed does not scale it, and a
+    // paused game makes up for nothing.
+    if (catchUp && speed > 0 && gap > MAX_BACKLOG_MS) catchUp(gap);
+    else {
+      accumulator = Math.min(
+        accumulator + gap * speed,
+        MAX_BACKLOG_MS * limitScale,
+      );
+    }
     last = time;
     const maxTicks = MAX_TICKS_PER_FRAME * limitScale;
     const tickStart = now();
