@@ -44,6 +44,28 @@ export function terrainAt(map: GameMap, x: number, y: number): Terrain {
   return map.terrain[cellIndex(x, y)];
 }
 
+/** The water cells inside `bounds`, merged into one-row runs. */
+export function waterRuns(
+  map: { readonly terrain: readonly Terrain[] },
+  bounds: Rect,
+): Rect[] {
+  const runs: Rect[] = [];
+  for (let y = bounds.y; y < bounds.y + bounds.h; y++) {
+    let start = -1;
+    const end = bounds.x + bounds.w;
+    for (let x = bounds.x; x < end; x++) {
+      const water = map.terrain[cellIndex(x, y)] === Terrain.Water;
+      if (water && start < 0) start = x;
+      if (!water && start >= 0) {
+        runs.push({ x: start, y, w: x - start, h: 1 });
+        start = -1;
+      }
+    }
+    if (start >= 0) runs.push({ x: start, y, w: end - start, h: 1 });
+  }
+  return runs;
+}
+
 /**
  * The ring a cell belongs to: 0 for the starting area, and one more for each
  * band of `RING_STEP` cells around it.

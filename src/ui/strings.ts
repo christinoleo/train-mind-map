@@ -53,9 +53,11 @@ export const strings = {
   // Why a command was refused, shown as a hint.
   reasons: {
     crosses_edge: "Cruza uma aresta",
+    crosses_node: "Atravessa um nó",
     indestructible: "O Núcleo não pode ser removido",
     locked: "Ainda não pesquisado",
     needs_deposit: "O Extrator precisa ficar sobre uma jazida",
+    no_route: "Sem rota",
     no_stamina: "Sem fôlego",
     no_stock: "Estoque insuficiente",
     not_found: "Não encontrado",
@@ -100,6 +102,7 @@ export const strings = {
     giveItems: "+100 de cada item",
     overlays: "Overlays",
     coreRings: "Anéis de depósito e raios de garantia",
+    hashBuckets: "Baldes do hash espacial",
     nodes: "nós",
     edges: "arestas",
     items: "itens",

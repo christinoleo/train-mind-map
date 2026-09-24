@@ -4,9 +4,11 @@
 
 export type FailReason =
   | "crosses_edge"
+  | "crosses_node"
   | "indestructible"
   | "locked"
   | "needs_deposit"
+  | "no_route"
   | "no_stamina"
   | "no_stock"
   | "not_found"
