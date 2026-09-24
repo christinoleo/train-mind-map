@@ -10,9 +10,8 @@ export const RAW_RESOURCES = [
 export type RawResource = (typeof RAW_RESOURCES)[number];
 
 /**
- * Every item the game knows so far: the raw resources plus the processed
- * items that construction costs name. The full list of about 31 items comes
- * with the recipes (Epic 3).
+ * Every item the game knows so far: the raw resources plus the products of
+ * the red-era recipes (FR49). Later eras add the rest of the 31 items.
  */
 export const ITEMS = [
   ...RAW_RESOURCES,
@@ -20,6 +19,10 @@ export const ITEMS = [
   "copper-plate",
   "brick",
   "gear",
+  "copper-cable",
+  "circuit",
+  "rail",
+  "red-science",
 ] as const;
 
 export type ItemId = (typeof ITEMS)[number];

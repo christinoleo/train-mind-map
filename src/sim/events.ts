@@ -1,11 +1,11 @@
 import type { FailReason } from "./result";
+import type { NodeStatus } from "./state/gameState";
+import type { NodeId } from "./state/ids";
 
 /** Everything the simulation reports. Names are in the past tense. */
-export type SimEvent = {
-  type: "CommandRejected";
-  command: string;
-  reason: FailReason;
-};
+export type SimEvent =
+  | { type: "CommandRejected"; command: string; reason: FailReason }
+  | { type: "NodeStatusChanged"; node: NodeId; status: NodeStatus };
 
 export type SimEventType = SimEvent["type"];
 export type SimEventOf<T extends SimEventType> = Extract<SimEvent, { type: T }>;

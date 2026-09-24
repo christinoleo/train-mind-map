@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createGameState } from "../../../src/sim/state/gameState";
 import { allocateId } from "../../../src/sim/state/ids";
+import { createNode } from "../../../src/sim/state/nodes";
 import {
   deserializeState,
   hashState,
@@ -19,7 +20,9 @@ describe("state serialization", () => {
   it("round-trips through JSON", () => {
     const state = createGameState("save");
     const id = allocateId(state.nextIds, "node");
-    state.nodes.set(id, { id, kind: "furnace", x: 1, y: 2 });
+    const furnace = createNode(id, "furnace", 1, 2, { recipe: "brick" });
+    if (furnace.kind === "furnace") furnace.production.input.stone = 3;
+    state.nodes.set(id, furnace);
     state.tick = 42;
 
     const json = JSON.stringify(serializeState(state));

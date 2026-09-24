@@ -148,6 +148,8 @@ describe("PlaceNode", () => {
       kind: "furnace",
       x: 55,
       y: 53,
+      recipe: null,
+      production: { status: "starved", input: {}, output: 0, progress: null },
     });
   });
 
@@ -173,6 +175,25 @@ describe("PlaceNode", () => {
     expect(seen).toEqual([
       { type: "CommandRejected", command: "PlaceNode", reason: "occupied" },
     ]);
+  });
+
+  it("starts a Furnace or Assembler on a chosen recipe", () => {
+    const { state, run } = setup();
+    expect(run(new PlaceNode("assembler-1", 45, 45, "gear"))).toEqual(ok());
+    expect(state.nodes.get(2 as NodeId)).toMatchObject({ recipe: "gear" });
+  });
+
+  it("refuses a recipe the node cannot run", () => {
+    const { state } = setup();
+    for (const [kind, recipe] of [
+      ["furnace", "gear"],
+      ["assembler-1", "iron-plate"],
+      ["box", "gear"],
+    ] as const) {
+      expect(new PlaceNode(kind, 45, 45, recipe).validate(state)).toEqual(
+        fail("wrong_recipe"),
+      );
+    }
   });
 
   it("is undone by removing the node", () => {
@@ -214,6 +235,21 @@ describe("RemoveNode", () => {
     commands.undo(state);
     step();
     expect(state.nodes.get(2 as NodeId)).toEqual(placed);
+  });
+
+  it("loses the items inside, so its undo brings the node back empty", () => {
+    const { state, commands, step, run } = setup();
+    run(new PlaceNode("extractor", 65, 58));
+    for (let t = 0; t < 30; t++) step();
+    expect(state.nodes.get(2 as NodeId)).toMatchObject({
+      production: { output: 1 },
+    });
+    run(new RemoveNode(2 as NodeId));
+    commands.undo(state);
+    step();
+    expect(state.nodes.get(2 as NodeId)).toMatchObject({
+      production: { output: 0, progress: 1 },
+    });
   });
 
   it("cannot be undone once another node took the cells", () => {
