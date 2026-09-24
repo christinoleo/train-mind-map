@@ -29,7 +29,7 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 - **FR6** [MVP] Existem 5 recursos brutos: minério de ferro, minério de cobre, carvão, pedra e petróleo.
 - **FR7** [MVP] A área inicial tem sempre ferro, cobre, carvão e pedra a ≤ 15 células do Núcleo. A garantia é verificada depois da geração; se falhar, o gerador tenta de novo com a sub-seed seguinte.
 - **FR8** O petróleo só aparece do anel 2 em diante e a ≥ 40 células do Núcleo.
-- **FR9** [MVP] Na seed fixa do MVP: ferro, pedra e carvão perto do Núcleo; um cobre pequeno 3×3 (uma vaga de extrator) perto da base; um cobre grande atrás de um corredor de terra entre lagos com 1 célula de largura e ≥ 16 células de comprimento, que só o trilho atravessa. Layout exato em GDD 1.6 (\"Mapa do MVP\"): seed `mvp-1` + cenário carimbado, 96² revelado desde o início.
+- **FR9** [MVP] Na seed fixa do MVP: ferro, pedra e carvão perto do Núcleo; um cobre pequeno 3×3 (uma vaga de extrator) perto da base; um cobre grande atrás de um corredor de terra entre lagos com 1 célula de largura e ≥ 16 células de comprimento, que só o trilho atravessa.
 - **FR10** [MVP] Lagos (água) bloqueiam nós e arestas; trilhos só atravessam água com Ponte. Nas expansões, os lagos formam corredores.
 - **FR11** [MVP] O Núcleo começa colocado no mapa.
 

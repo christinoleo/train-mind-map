@@ -2,8 +2,7 @@
 // returned, never thrown: commands validate into a Result and the UI turns the
 // reason into feedback. Bugs throw and reach the global error handler.
 
-export type FailReason =
-  "crosses_edge" | "no_stock" | "occupied" | "not_found" | "nothing_to_undo";
+export type FailReason = "crosses_edge" | "no_stock" | "occupied";
 
 export type Result<T = void> =
   { ok: true; value: T } | { ok: false; reason: FailReason };
