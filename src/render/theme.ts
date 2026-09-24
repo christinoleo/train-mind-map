@@ -104,6 +104,10 @@ export const ITEM_COLOR: Record<ItemId, number> = {
   "copper-plate": 0xd55e00,
   brick: 0xa0522d,
   gear: 0x8a93a6,
+  "copper-cable": 0xf0a868,
+  circuit: 0x009e73,
+  rail: 0x7a6a58,
+  "red-science": 0xe0455a,
 };
 
 /** How long construction items fly from storage to the site (FR72). */

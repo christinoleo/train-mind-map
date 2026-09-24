@@ -18,11 +18,7 @@ export type System = (state: GameState, ctx: SystemContext) => void;
  * edge flow, stations and trains, research, then stock and statistics.
  * Each is added here by the task that builds it.
  */
-export const SYSTEMS: readonly System[] = [
-  extraction,
-  production,
-  updateStock,
-];
+export const SYSTEMS: readonly System[] = [extraction, production, updateStock];
 
 /** Advances the state by one tick. */
 export function tick(
