@@ -1,11 +1,13 @@
-import { Container, type Application } from "pixi.js";
+import { Container, Graphics, type Application } from "pixi.js";
 import type { GameState } from "../sim/state/gameState";
 import type { Camera } from "../input/camera";
+import type { Ghost } from "../input/tools/place";
 import { createLayers, type Layers } from "./layers";
 import { applyLod } from "./lod";
-import { drawCore, drawDeposits, drawTerrain, revealedBounds } from "./mapView";
+import { drawDeposits, drawTerrain, revealedBounds } from "./mapView";
+import { drawGhostOutline, drawNodeCard, NodeViews } from "./nodes";
 import type { DeepReadonly } from "./readonly";
-import { CELL_PX, toWorld } from "./theme";
+import { CELL_PX, GHOST_ALPHA, toWorld } from "./theme";
 
 export interface Renderer {
   /** Draws one frame; `alpha` is the loop's interpolation factor. */
@@ -13,6 +15,8 @@ export interface Renderer {
   readonly layers: Layers;
   /** Centres the camera on cell (x, y), keeping the zoom. */
   centerOn(x: number, y: number): void;
+  /** Shows the placement preview, or hides it with `null`. */
+  setGhost(ghost: Ghost | null): void;
 }
 
 /**
@@ -28,6 +32,16 @@ export function createRenderer(
 ): Renderer {
   const world = app.stage.addChild(new Container({ label: "world" }));
   const layers = createLayers(world);
+  const nodeViews = new NodeViews(layers.nodes);
+  const ghostLayer = layers.overlays.addChild(
+    new Container({ label: "ghost", alpha: GHOST_ALPHA, visible: false }),
+  );
+  let ghostCard: Container | null = null;
+  const ghostOutline = ghostLayer.addChild(new Graphics());
+  let ghost: Ghost | null = null;
+  /** The ghost as drawn: its card is rebuilt only when kind or resource change. */
+  let drawnCard: string | null = null;
+  let drawnValid: boolean | null = null;
 
   let drawnMap: object | null = null;
   /** The map the camera was last fitted to; a context restore keeps the view. */
@@ -35,17 +49,34 @@ export function createRenderer(
   let drawnRing = -1;
   let contextLost = false;
 
+  const drawGhostLayer = () => {
+    ghostLayer.visible = ghost !== null;
+    if (!ghost) return;
+    const { kind, resource, valid } = ghost;
+    const look = `${kind}|${resource ?? ""}`;
+    if (look !== drawnCard) {
+      ghostCard?.destroy({ children: true });
+      ghostCard = ghostLayer.addChildAt(drawNodeCard(kind, resource), 0);
+      drawnCard = look;
+      drawnValid = null;
+    }
+    if (valid !== drawnValid) {
+      drawGhostOutline(ghostOutline, kind, valid);
+      drawnValid = valid;
+    }
+    ghostLayer.position.set(ghost.x * CELL_PX, ghost.y * CELL_PX);
+  };
+
   const rebuildMap = () => {
     const { map } = state;
     const bounds = revealedBounds(map);
-    for (const layer of [layers.terrain, layers.deposits, layers.nodes]) {
+    for (const layer of [layers.terrain, layers.deposits]) {
       for (const child of layer.removeChildren()) {
         child.destroy({ children: true });
       }
     }
     layers.terrain.addChild(drawTerrain(map, bounds));
     layers.deposits.addChild(drawDeposits(map, bounds));
-    layers.nodes.addChild(drawCore(map));
     // A new map starts fitted on screen; a grown one keeps the view.
     camera.setBounds(toWorld(bounds), fittedMap !== map);
     fittedMap = map;
@@ -61,6 +92,8 @@ export function createRenderer(
   app.canvas.addEventListener("webglcontextrestored", () => {
     contextLost = false;
     drawnMap = null;
+    nodeViews.clear();
+    drawnCard = null;
   });
 
   return {
@@ -69,6 +102,8 @@ export function createRenderer(
       const { map } = state;
       camera.setViewport(app.screen.width, app.screen.height);
       if (drawnMap !== map || drawnRing !== map.revealedRing) rebuildMap();
+      nodeViews.sync(state.nodes);
+      drawGhostLayer();
       world.scale.set(camera.scale);
       world.position.set(camera.x, camera.y);
       applyLod(layers, camera.lod);
@@ -77,6 +112,9 @@ export function createRenderer(
     layers,
     centerOn(x, y) {
       camera.centerOn((x + 0.5) * CELL_PX, (y + 0.5) * CELL_PX);
+    },
+    setGhost(next) {
+      ghost = next;
     },
   };
 }

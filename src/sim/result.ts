@@ -4,10 +4,16 @@
 
 export type FailReason =
   | "crosses_edge"
+  | "indestructible"
+  | "locked"
+  | "needs_deposit"
   | "no_stock"
-  | "occupied"
   | "not_found"
   | "nothing_to_undo"
+  | "occupied"
+  | "on_deposit"
+  | "on_water"
+  | "out_of_bounds"
   | "out_of_range";
 
 export type Result<T = void> =

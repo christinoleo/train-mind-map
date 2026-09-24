@@ -27,6 +27,14 @@ export interface GameMap {
   revealedRing: number;
 }
 
+/** The whole map, as a rect of cells. */
+export const MAP_RECT: Readonly<Rect> = {
+  x: 0,
+  y: 0,
+  w: MAP_SIZE,
+  h: MAP_SIZE,
+};
+
 /** Index of cell (x, y) in the row-major `terrain` array. */
 export function cellIndex(x: number, y: number): number {
   return y * MAP_SIZE + x;

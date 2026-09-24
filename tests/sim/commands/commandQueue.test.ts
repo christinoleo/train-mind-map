@@ -7,10 +7,12 @@ import { ok } from "../../../src/sim/result";
 import { createGameState } from "../../../src/sim/state/gameState";
 import type { NodeId } from "../../../src/sim/state/ids";
 import { tick } from "../../../src/sim/tick";
-import { AddNode, RemoveNode } from "../support/testCommands";
+import { AddNode, bareNode, RemoveNode } from "../support/testCommands";
 
 function setup() {
   const state = createGameState("queue");
+  // The tests count nodes, so they start without the Core.
+  state.nodes.clear();
   const commands = new CommandQueue();
   const events = new EventQueue();
   const seen: SimEvent[] = [];
@@ -152,7 +154,7 @@ describe("undo", () => {
     expect(commands.undo(state)).toEqual({ ok: false, reason: "not_found" });
     expect(commands.undoDepth).toBe(1);
 
-    state.nodes.set(id, { id });
+    state.nodes.set(id, bareNode(id));
     expect(commands.undo(state).ok).toBe(true);
     state.nodes.delete(id);
     step();

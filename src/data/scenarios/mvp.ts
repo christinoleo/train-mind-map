@@ -1,3 +1,4 @@
+import { NODES } from "../nodes";
 import type { CellBlock, Scenario } from "./scenario";
 
 /** The rail corridor through the water wall: 1 cell wide, 20 cells long. */
@@ -19,7 +20,7 @@ export const MVP_SCENARIO: Scenario = {
   // 96² revealed from the start; the MVP has no expansion research.
   revealedRing: 2,
   // Centred on cell (60, 60).
-  core: { x: 59, y: 59, w: 3, h: 3 },
+  core: { x: 59, y: 59, w: NODES.core.size, h: NODES.core.size },
   deposits: [
     // About 7 cells east of the Core.
     { resource: "iron-ore", x: 65, y: 58, w: 5, h: 5 },
