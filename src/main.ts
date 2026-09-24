@@ -1,5 +1,5 @@
 import { h, render } from "preact";
-import { DEFAULT_SEED } from "./config/constants";
+import { MVP_SCENARIO } from "./data/scenarios/mvp";
 import { createLoop, type Loop } from "./loop";
 import { installErrorHandler } from "./platform/errors";
 import { createApp } from "./render/app";
@@ -22,7 +22,7 @@ installErrorHandler({
   },
 });
 
-const state = createGameState(DEFAULT_SEED);
+const state = createGameState(MVP_SCENARIO);
 const commands = new CommandQueue();
 const events = new EventQueue();
 const app = await createApp(document.getElementById("pixi-container")!);

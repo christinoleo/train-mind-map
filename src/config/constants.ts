@@ -13,9 +13,6 @@ export const MAX_BACKLOG_MS = 10_000;
 /** Depth of the undo stack. */
 export const UNDO_DEPTH = 20;
 
-/** Seed of the fixed MVP map. */
-export const DEFAULT_SEED = "train-mind-map";
-
 /** Side of the square map, in cells. The whole map is generated at start. */
 export const MAP_SIZE = 120;
 

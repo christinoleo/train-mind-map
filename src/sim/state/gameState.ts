@@ -1,5 +1,7 @@
+import type { Scenario } from "../../data/scenarios/scenario";
 import { generateMap } from "../mapgen/generate";
 import { seedRng, type RngState } from "../mapgen/rng";
+import { applyScenario } from "../mapgen/scenario";
 import { initialNextIds, type EdgeId, type NextIds, type NodeId } from "./ids";
 import type { GameMap } from "./map";
 
@@ -24,11 +26,14 @@ export interface GameState {
   edges: Map<EdgeId, Edge>;
 }
 
-export function createGameState(seed: string): GameState {
+/** Starts a game on a free seed's map, or on a scenario stamped over its seed. */
+export function createGameState(world: string | Scenario): GameState {
+  const seed = typeof world === "string" ? world : world.seed;
+  const map = generateMap(seed);
   return {
     tick: 0,
     rng: seedRng(seed),
-    map: generateMap(seed),
+    map: typeof world === "string" ? map : applyScenario(map, world),
     nextIds: initialNextIds(),
     nodes: new Map(),
     edges: new Map(),

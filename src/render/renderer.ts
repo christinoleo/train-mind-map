@@ -14,8 +14,8 @@ export interface Renderer {
 
 /**
  * Draws `state` into `app`'s stage. It only reads the state (architecture
- * §Padrão 3). The map is rebuilt when the revealed area grows, and after the
- * WebGL context comes back from a loss.
+ * §Padrão 3). The map is rebuilt when the revealed area grows, when the map
+ * itself is replaced, and after the WebGL context comes back from a loss.
  */
 export function createRenderer(
   app: Application,
@@ -24,6 +24,7 @@ export function createRenderer(
   const world = app.stage.addChild(new Container({ label: "world" }));
   const layers = createLayers(world);
 
+  let drawnMap: object | null = null;
   let drawnRing = -1;
   /** The revealed area drawn last, in world units. */
   let drawnArea: Rect | null = null;
@@ -40,6 +41,7 @@ export function createRenderer(
     layers.terrain.addChild(drawTerrain(map, bounds));
     layers.deposits.addChild(drawDeposits(map, bounds));
     layers.nodes.addChild(drawCore(map));
+    drawnMap = map;
     drawnRing = map.revealedRing;
     drawnArea = toWorld(bounds);
     fittedWidth = 0;
@@ -68,7 +70,8 @@ export function createRenderer(
   return {
     frame() {
       if (contextLost) return;
-      if (drawnRing !== state.map.revealedRing) rebuildMap();
+      const { map } = state;
+      if (drawnMap !== map || drawnRing !== map.revealedRing) rebuildMap();
       fitCamera(drawnArea!);
       app.render();
     },
