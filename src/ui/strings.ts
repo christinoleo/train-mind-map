@@ -121,6 +121,18 @@ export const strings = {
       "final-prototype": "Protótipo final",
     },
   },
+  // The onboarding hints (FR139), each in a capsule pointing at its target.
+  hints: {
+    "tap-deposit": "Toque no ferro para minerar",
+    "place-extractor": "Construa um Extrator sobre uma jazida",
+    "connect-core": "Arraste da saída até o Núcleo",
+  },
+  // The settings button and menu.
+  settings: {
+    title: "Ajustes",
+    glyph: "⚙",
+    reviewHints: "Rever dicas",
+  },
   // The undo button.
   undo: {
     label: "Desfazer",

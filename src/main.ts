@@ -14,6 +14,7 @@ import { PlaceTool } from "./input/tools/place";
 import { TapTool } from "./input/tools/tap";
 import { createLoop, type Loop } from "./loop";
 import { installErrorHandler } from "./platform/errors";
+import { loadSettings, saveSettings } from "./platform/settings";
 import { createApp } from "./render/app";
 import { createRenderer } from "./render/renderer";
 import { CommandQueue } from "./sim/commands/commandQueue";
@@ -32,7 +33,9 @@ import { powerSummary, type PowerSummary } from "./sim/state/power";
 import { isStorageFull } from "./sim/state/stock";
 import { tick } from "./sim/tick";
 import { edgeMenuInfo, type EdgeMenuInfo } from "./ui/EdgeMenu";
+import type { HintView } from "./ui/Hint";
 import { nodeMenuInfo, type NodeMenuInfo } from "./ui/NodeMenu";
+import { Onboarding, type HintTarget } from "./ui/onboarding";
 import { researchInfo, type ResearchInfo } from "./ui/ResearchPanel";
 import { UiRoot } from "./ui/UiRoot";
 
@@ -77,6 +80,19 @@ const research = signal<ResearchInfo>(researchInfo(state));
 const completed = signal<ResearchId | null>(null);
 /** True while the end-of-content notice is open (FR110). */
 const ended = signal(false);
+const settingsOpen = signal(false);
+const onboardingHint = signal<HintView | null>(null);
+/** The hint the last tick asked for; each frame places it on the screen. */
+let hintTarget: HintTarget | null = null;
+// The hints wait for the settings, which say how many were seen already.
+let onboarding: Onboarding | undefined;
+void loadSettings().then((loaded) => {
+  let settings = loaded;
+  onboarding = new Onboarding(settings.hintsSeen, (hintsSeen) => {
+    settings = { ...settings, hintsSeen };
+    void saveSettings(settings);
+  });
+});
 /** Returns a function that shows a value in `target` for a moment. */
 function flasher<T>(target: Signal<T | null>): (value: T) => void {
   let timer: number | undefined;
@@ -90,6 +106,7 @@ let published = -Infinity;
 let lastFrame = performance.now();
 events.on("ConstructionPaid", renderer.showConstruction);
 events.on("ManualTapped", renderer.showTap);
+events.on("ManualTapped", () => onboarding?.tapped());
 const flashCompleted = flasher(completed);
 // The research jingle plays here too, once there is audio (FR116).
 events.on("ResearchDone", (event) => {
@@ -197,11 +214,20 @@ effect(() => {
   if (researchOpen.value) {
     selectedEdge.value = null;
     selectedNode.value = null;
+    settingsOpen.value = false;
+  }
+});
+effect(() => {
+  if (settingsOpen.value) {
+    selectedEdge.value = null;
+    selectedNode.value = null;
+    researchOpen.value = false;
   }
 });
 effect(() => {
   if (selectedEdge.value !== null || selectedNode.value !== null) {
     researchOpen.value = false;
+    settingsOpen.value = false;
   }
 });
 effect(() => {
@@ -256,12 +282,15 @@ loop = createLoop({
     canUndo.value = commands.undoDepth > 0;
     // Stamina drains per tap, so the bar follows it every tick.
     stamina.value = state.stamina.points;
+    hintTarget = onboarding?.update(state) ?? null;
   },
   frame(alpha) {
     const now = performance.now();
     controls.tool?.frame?.(now - lastFrame);
     lastFrame = now;
     renderer.frame(alpha);
+    // A world hint follows the camera.
+    publishIfChanged(onboardingHint, hintView(hintTarget));
     // The stock changes most ticks once the factory runs; the HUD follows
     // it at a readable rate.
     if (now - published >= UI_PUBLISH_MS) {
@@ -334,6 +363,11 @@ render(
       },
     },
     researchNotice: { completed, ended },
+    settings: {
+      open: settingsOpen,
+      onReviewHints: () => onboarding?.reset(),
+    },
+    onboardingHint,
   }),
   document.getElementById("ui-root")!,
 );
@@ -352,6 +386,25 @@ if (import.meta.env.DEV || new URLSearchParams(location.search).has("debug")) {
     controls,
     world: MVP_SCENARIO,
   });
+}
+
+/** Where `target` sits on the screen, kept on it. */
+function hintView(target: HintTarget | null): HintView | null {
+  if (!target) return null;
+  // Placing already, where the ghost's own hints take the palette's place.
+  if (target.at === "palette") return selected.peek() ? null : target;
+  const { width, height } = app.screen;
+  const { point } = target;
+  return {
+    id: target.id,
+    at: "screen",
+    x: Math.round(clamp(point.x * camera.scale + camera.x, 0, width)),
+    y: Math.round(clamp(point.y * camera.scale + camera.y, 0, height)),
+  };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }
 
 function samePower(a: PowerSummary, b: PowerSummary): boolean {

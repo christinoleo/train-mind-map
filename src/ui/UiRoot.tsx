@@ -3,9 +3,11 @@ import type { ComponentProps } from "preact";
 import type { ItemCounts } from "../data/items";
 import type { PowerSummary } from "../sim/state/power";
 import { EdgeMenu } from "./EdgeMenu";
+import { Hint, type HintView } from "./Hint";
 import { NodeMenu } from "./NodeMenu";
 import { Palette } from "./Palette";
 import { ResearchNotice, ResearchPanel } from "./ResearchPanel";
+import { SettingsMenu } from "./SettingsMenu";
 import { StockHud } from "./StockHud";
 import { UndoButton } from "./UndoButton";
 
@@ -17,6 +19,9 @@ type Props = ComponentProps<typeof Palette> & {
   undo: ComponentProps<typeof UndoButton>;
   research: ComponentProps<typeof ResearchPanel>;
   researchNotice: ComponentProps<typeof ResearchNotice>;
+  settings: ComponentProps<typeof SettingsMenu>;
+  /** The onboarding hint shown now, if any. */
+  onboardingHint: ReadonlySignal<HintView | null>;
   /** The global stock, published by the UI bridge. */
   stock: ReadonlySignal<ItemCounts>;
   /** The stamina points left. */
@@ -28,7 +33,8 @@ type Props = ComponentProps<typeof Palette> & {
 };
 
 // The DOM overlay layer above the canvas: the HUD capsule, the menus, the
-// undo and research buttons, the palette and the research notices.
+// undo, research and settings buttons, the palette, the onboarding hint
+// and the research notices.
 export function UiRoot({
   stock,
   stamina,
@@ -39,6 +45,8 @@ export function UiRoot({
   undo,
   research,
   researchNotice,
+  settings,
+  onboardingHint,
   ...palette
 }: Props) {
   return (
@@ -53,7 +61,9 @@ export function UiRoot({
       <NodeMenu {...nodeMenu} />
       <UndoButton {...undo} />
       <ResearchPanel {...research} />
+      <SettingsMenu {...settings} />
       <Palette {...palette} />
+      <Hint hint={onboardingHint} />
       <ResearchNotice {...researchNotice} />
     </>
   );
