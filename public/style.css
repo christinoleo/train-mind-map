@@ -389,6 +389,15 @@ canvas {
   color: #f5c542;
 }
 
+/* The round dark buttons: undo, research and settings. */
+#ui-root > :is(.undo, .research-toggle, .settings-toggle) {
+  border: 0;
+  border-radius: 50%;
+  background: rgba(19, 22, 28, 0.94);
+  color: #e4e7ee;
+  line-height: 1;
+}
+
 /* The undo button, at the bottom-left corner beside the palette. */
 #ui-root > .undo {
   position: fixed;
@@ -396,12 +405,7 @@ canvas {
   bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   width: 48px;
   height: 48px;
-  border: 0;
-  border-radius: 50%;
-  background: rgba(19, 22, 28, 0.94);
-  color: #e4e7ee;
   font-size: 1.5rem;
-  line-height: 1;
 }
 
 #ui-root > .undo:disabled {
@@ -433,12 +437,7 @@ canvas {
   bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   width: 48px;
   height: 48px;
-  border: 0;
-  border-radius: 50%;
-  background: rgba(19, 22, 28, 0.94);
-  color: #e4e7ee;
   font-size: 1.4rem;
-  line-height: 1;
 }
 
 #ui-root > .research-toggle[data-idle="true"] {
@@ -547,4 +546,61 @@ canvas {
   color: #15181f;
   font: inherit;
   font-weight: 700;
+}
+
+/* The settings button, beside undo at the bottom-left; the HUD grows to
+   the full width at the top as the stock fills. */
+#ui-root > .settings-toggle {
+  position: fixed;
+  left: 72px;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  width: 44px;
+  height: 44px;
+  font-size: 1.3rem;
+}
+
+/* An onboarding hint (FR139): a capsule in the node-editor style whose
+   arrow points down at its target. It lets touches through to the map. */
+#ui-root > .hint {
+  position: fixed;
+  z-index: 1;
+  margin: 0;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 7px 14px;
+  border: 1px solid #f5c542;
+  border-radius: 999px;
+  background: rgba(43, 48, 60, 0.96);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  color: #e4e7ee;
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+#ui-root > .hint::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 10px;
+  height: 10px;
+  border-right: 1px solid #f5c542;
+  border-bottom: 1px solid #f5c542;
+  background: inherit;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+/* Above a point on the map, with the arrow's tip on it. */
+#ui-root > .hint[data-at="screen"] {
+  transform: translate(-50%, calc(-100% - 10px));
+}
+
+/* Above the palette's "+" button, clear of its tray. */
+#ui-root > .hint[data-at="palette"] {
+  left: 50%;
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
 }

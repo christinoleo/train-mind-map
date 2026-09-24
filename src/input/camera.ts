@@ -6,6 +6,7 @@ import {
   MAX_ZOOM_SCALE,
 } from "../config/constants";
 import type { Rect } from "../sim/geometry/rect";
+import { clamp } from "../sim/math";
 
 /** Share of the screen the fitted area fills, leaving a margin around it. */
 export const FIT_MARGIN = 0.92;
@@ -112,6 +113,14 @@ export class Camera {
     };
   }
 
+  /** The screen point where the world point (`worldX`, `worldY`) is drawn. */
+  toScreen(worldX: number, worldY: number): { x: number; y: number } {
+    return {
+      x: worldX * this.scale + this.x,
+      y: worldY * this.scale + this.y,
+    };
+  }
+
   /** The world rect on screen, in world units. */
   viewRect(): Rect {
     const { x, y } = this.toWorld(0, 0);
@@ -162,8 +171,4 @@ function clampAxis(
     screen - pad - (start + size) * scale,
     pad - start * scale,
   );
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
 }
