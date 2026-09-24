@@ -22,6 +22,7 @@ import {
   type ContextLoss,
   type StressResults,
 } from "./metrics";
+import { heapMb } from "../perf";
 import { createPanel, type StressSettings } from "./panel";
 import {
   generateScene,
@@ -307,18 +308,10 @@ const gpu = ((): string | null => {
   return info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : null;
 })();
 
-interface MemoryInfo {
-  usedJSHeapSize: number;
-}
-
-function heapMb(): number | null {
-  const memory = (performance as Performance & { memory?: MemoryInfo }).memory;
-  return memory ? round(memory.usedJSHeapSize / 1048576) : null;
-}
-
 function results(): StressResults {
   const f = frames.stats();
   const u = updateTimes.stats();
+  const heap = heapMb();
   return {
     ticket: 3,
     date: new Date().toISOString(),
@@ -339,7 +332,7 @@ function results(): StressResults {
       max: round(f.maxMs),
     },
     updateMs: { avg: round(u.avgMs), p99: round(u.p99Ms) },
-    heapMb: heapMb(),
+    heapMb: heap === null ? null : round(heap),
     contextLosses,
   };
 }

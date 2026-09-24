@@ -39,3 +39,14 @@ export function createGameState(world: string | Scenario): GameState {
     edges: new Map(),
   };
 }
+
+/**
+ * Replaces `state` in place with a fresh game. The object keeps its identity,
+ * so whatever holds it (the renderer, the loop) sees the new map.
+ */
+export function resetGameState(
+  state: GameState,
+  world: string | Scenario,
+): void {
+  Object.assign(state, createGameState(world));
+}
