@@ -1,13 +1,23 @@
 import { Container, Graphics, type Application } from "pixi.js";
+import type { SimEventOf } from "../sim/events";
 import type { GameState } from "../sim/state/gameState";
+import type { NodeId } from "../sim/state/ids";
+import { nodeRect } from "../sim/state/nodes";
 import type { Camera } from "../input/camera";
 import type { Ghost } from "../input/tools/place";
+import { Flights } from "./flights";
 import { createLayers, type Layers } from "./layers";
 import { applyLod } from "./lod";
 import { drawDeposits, drawTerrain, revealedBounds } from "./mapView";
 import { drawGhostOutline, drawNodeCard, NodeViews } from "./nodes";
 import type { DeepReadonly } from "./readonly";
-import { CELL_PX, GHOST_ALPHA, toWorld } from "./theme";
+import {
+  BUILD_FLIGHT_STAGGER_MS,
+  CELL_PX,
+  GHOST_ALPHA,
+  ITEM_COLOR,
+  toWorld,
+} from "./theme";
 
 export interface Renderer {
   /** Draws one frame; `alpha` is the loop's interpolation factor. */
@@ -17,6 +27,8 @@ export interface Renderer {
   centerOn(x: number, y: number): void;
   /** Shows the placement preview, or hides it with `null`. */
   setGhost(ghost: Ghost | null): void;
+  /** Flies the items a construction took from storage to its site. */
+  showConstruction(paid: SimEventOf<"ConstructionPaid">): void;
 }
 
 /**
@@ -39,6 +51,7 @@ export function createRenderer(
   let ghostCard: Container | null = null;
   const ghostOutline = ghostLayer.addChild(new Graphics());
   let ghost: Ghost | null = null;
+  const flights = new Flights(layers.overlays);
   /** The ghost as drawn: its card is rebuilt only when kind or resource change. */
   let drawnCard: string | null = null;
   let drawnValid: boolean | null = null;
@@ -93,8 +106,17 @@ export function createRenderer(
     contextLost = false;
     drawnMap = null;
     nodeViews.clear();
+    flights.clear();
     drawnCard = null;
   });
+
+  /** The centre of node `id`, in world units, if it still exists. */
+  const centerOf = (id: NodeId) => {
+    const node = state.nodes.get(id);
+    if (!node) return null;
+    const { x, y, w, h } = toWorld(nodeRect(node));
+    return { x: x + w / 2, y: y + h / 2 };
+  };
 
   return {
     frame() {
@@ -104,6 +126,7 @@ export function createRenderer(
       if (drawnMap !== map || drawnRing !== map.revealedRing) rebuildMap();
       nodeViews.sync(state.nodes);
       drawGhostLayer();
+      flights.update(performance.now());
       world.scale.set(camera.scale);
       world.position.set(camera.x, camera.y);
       applyLod(layers, camera.lod);
@@ -115,6 +138,21 @@ export function createRenderer(
     },
     setGhost(next) {
       ghost = next;
+    },
+    showConstruction({ site, draws }) {
+      const to = centerOf(site);
+      if (!to) return;
+      const now = performance.now();
+      draws.forEach(({ storage, item }, i) => {
+        const from = centerOf(storage);
+        if (!from) return;
+        flights.launch(
+          from,
+          to,
+          ITEM_COLOR[item],
+          now + i * BUILD_FLIGHT_STAGGER_MS,
+        );
+      });
     },
   };
 }

@@ -1,6 +1,6 @@
 import type { ReadonlySignal, Signal } from "@preact/signals";
 import { useState } from "preact/hooks";
-import type { ItemId } from "../data/items";
+import { itemEntries } from "../data/items";
 import { NODES, type NodeKind } from "../data/nodes";
 import { CATEGORY_COLOR, cssColor } from "../render/theme";
 import type { FailReason } from "../sim/result";
@@ -85,7 +85,7 @@ function PlacementHint({ hint }: { hint: ReadonlySignal<FailReason | null> }) {
 }
 
 function CostList({ kind }: { kind: NodeKind }) {
-  const entries = Object.entries(NODES[kind].cost) as [ItemId, number][];
+  const entries = itemEntries(NODES[kind].cost);
   return (
     <span class="palette-cost">
       {entries.length === 0

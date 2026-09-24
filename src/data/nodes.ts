@@ -1,4 +1,4 @@
-import type { ItemId } from "./items";
+import type { ItemCounts } from "./items";
 
 /** Every node covers a square of this many cells per side (GDD §Nós, FR15). */
 export const NODE_SIZE = { min: 2, max: 3 } as const;
@@ -19,6 +19,15 @@ export const NODE_KINDS = [
 
 export type NodeKind = (typeof NODE_KINDS)[number];
 
+/** The kinds whose contents make up the global stock (FR68). */
+export type StorageKind = "core" | "box";
+
+/** How many items, of mixed types, each storage kind holds (GDD §Nós). */
+export const STORAGE_CAPACITY: Readonly<Record<StorageKind, number>> = {
+  core: 2000,
+  box: 500,
+};
+
 /** The category a node's header is coloured by (GDD §Arte). */
 export type NodeCategory =
   | "core"
@@ -37,7 +46,7 @@ export type NodeCategory =
  */
 export type Unlock = "start" | "research" | "never";
 
-export type Cost = Readonly<Partial<Record<ItemId, number>>>;
+export type Cost = Readonly<ItemCounts>;
 
 export interface NodeDef {
   /** Side of the square footprint, in cells. */

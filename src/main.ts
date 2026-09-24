@@ -1,5 +1,7 @@
 import { effect, signal } from "@preact/signals";
+import { UI_PUBLISH_MS } from "./config/constants";
 import { h, render } from "preact";
+import { ITEMS, type ItemCounts } from "./data/items";
 import type { NodeKind } from "./data/nodes";
 import { MVP_SCENARIO } from "./data/scenarios/mvp";
 import { Camera } from "./input/camera";
@@ -40,6 +42,9 @@ const renderer = createRenderer(app, state, camera);
 const unlocked = signal<readonly NodeKind[]>([...state.unlockedNodes]);
 const selected = signal<NodeKind | null>(null);
 const hint = signal<FailReason | null>(null);
+const stock = signal<ItemCounts>(state.stock);
+let published = -Infinity;
+events.on("ConstructionPaid", renderer.showConstruction);
 const placeTool = new PlaceTool({
   state,
   camera,
@@ -71,11 +76,22 @@ loop = createLoop({
     }
     placeTool.refresh();
   },
-  frame: renderer.frame,
+  frame(alpha) {
+    renderer.frame(alpha);
+    // The stock changes most ticks once the factory runs; the HUD follows
+    // it at a readable rate.
+    const now = performance.now();
+    if (now - published >= UI_PUBLISH_MS) {
+      // `updateStock` replaces the cache each tick, so it can be shared as is;
+      // publishing only on a change keeps the HUD from re-rendering idle.
+      if (!sameCounts(stock.value, state.stock)) stock.value = state.stock;
+      published = now;
+    }
+  },
 });
 
 render(
-  h(UiRoot, { unlocked, selected, hint }),
+  h(UiRoot, { unlocked, selected, hint, stock }),
   document.getElementById("ui-root")!,
 );
 if (!paused) loop.start();
@@ -92,4 +108,8 @@ if (import.meta.env.DEV || new URLSearchParams(location.search).has("debug")) {
     camera,
     controls,
   });
+}
+
+function sameCounts(a: ItemCounts, b: ItemCounts): boolean {
+  return ITEMS.every((item) => a[item] === b[item]);
 }

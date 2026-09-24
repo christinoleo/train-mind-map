@@ -1,5 +1,9 @@
-import type { ItemId, RawResource } from "../../data/items";
-import { STARTING_NODES, type NodeKind } from "../../data/nodes";
+import type { ItemCounts, ItemId, RawResource } from "../../data/items";
+import {
+  STARTING_NODES,
+  type NodeKind,
+  type StorageKind,
+} from "../../data/nodes";
 import type { CrafterKind, RecipeId } from "../../data/recipes";
 import type { Scenario } from "../../data/scenarios/scenario";
 import { generateMap } from "../mapgen/generate";
@@ -14,6 +18,7 @@ import {
 } from "./ids";
 import type { GameMap } from "./map";
 import { createNode } from "./nodes";
+import { sumStock } from "./stock";
 
 interface NodeBase {
   id: NodeId;
@@ -49,7 +54,8 @@ export type FactoryNode = NodeBase &
         recipe: RecipeId | null;
         production: Production;
       }
-    | { kind: Exclude<NodeKind, "extractor" | CrafterKind> }
+    | { kind: StorageKind; items: ItemCounts }
+    | { kind: Exclude<NodeKind, "extractor" | CrafterKind | StorageKind> }
   );
 
 /** A node that makes items. */
@@ -60,6 +66,10 @@ export type CrafterNode = Extract<FactoryNode, { kind: CrafterKind }>;
 
 export interface Edge {
   id: EdgeId;
+  /** The node whose output the edge leaves from. */
+  from: NodeId;
+  /** The node whose input the edge enters. */
+  to: NodeId;
 }
 
 /**
@@ -75,6 +85,11 @@ export interface GameState {
   edges: Map<EdgeId, Edge>;
   /** The node kinds the player may build. Research adds to it (Epic 4). */
   unlockedNodes: NodeKind[];
+  /**
+   * The global stock: everything the storage nodes hold, summed. A derived
+   * cache, recomputed at the end of each tick and never saved.
+   */
+  stock: ItemCounts;
 }
 
 /** Starts a game on a free seed's map, or on a scenario stamped over its seed. */
@@ -91,14 +106,16 @@ export function createGameState(world: string | Scenario): GameState {
     map.core.x,
     map.core.y,
   );
+  const nodes = new Map([[core.id, core]]);
   return {
     tick: 0,
     rng: seedRng(seed),
     map,
     nextIds,
-    nodes: new Map([[core.id, core]]),
+    nodes,
     edges: new Map(),
     unlockedNodes: [...STARTING_NODES],
+    stock: sumStock(nodes),
   };
 }
 

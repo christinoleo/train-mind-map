@@ -1,5 +1,5 @@
 import { CELL_PX } from "../config/constants";
-import type { RawResource } from "../data/items";
+import { RAW_RESOURCES, type ItemId, type RawResource } from "../data/items";
 import type { NodeCategory } from "../data/nodes";
 import type { Rect } from "../sim/geometry/rect";
 
@@ -94,3 +94,23 @@ export const RESOURCE_STYLE: Record<RawResource, ItemStyle> = {
   stone: { color: 0xf0e442, shape: "gear" },
   "crude-oil": { color: 0xcc79a7, shape: "flask" },
 };
+
+/** Each item's colour: its swatch in the stock HUD and its dot in flight. */
+export const ITEM_COLOR: Record<ItemId, number> = {
+  ...(Object.fromEntries(
+    RAW_RESOURCES.map((r) => [r, RESOURCE_STYLE[r].color]),
+  ) as Record<RawResource, number>),
+  "iron-plate": 0xb4c8dc,
+  "copper-plate": 0xd55e00,
+  brick: 0xa0522d,
+  gear: 0x8a93a6,
+  "copper-cable": 0xf0a868,
+  circuit: 0x009e73,
+  rail: 0x7a6a58,
+  "red-science": 0xe0455a,
+};
+
+/** How long construction items fly from storage to the site (FR72). */
+export const BUILD_FLIGHT_MS = 600;
+/** Delay between successive items leaving for the same site. */
+export const BUILD_FLIGHT_STAGGER_MS = 60;

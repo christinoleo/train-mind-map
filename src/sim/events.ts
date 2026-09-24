@@ -1,11 +1,18 @@
 import type { FailReason } from "./result";
 import type { NodeStatus } from "./state/gameState";
 import type { NodeId } from "./state/ids";
+import type { Draw } from "./state/stock";
 
 /** Everything the simulation reports. Names are in the past tense. */
 export type SimEvent =
   | { type: "CommandRejected"; command: string; reason: FailReason }
-  | { type: "NodeStatusChanged"; node: NodeId; status: NodeStatus };
+  | { type: "NodeStatusChanged"; node: NodeId; status: NodeStatus }
+  | {
+      /** Storage paid for a node's construction; `draws` says from where. */
+      type: "ConstructionPaid";
+      site: NodeId;
+      draws: Draw[];
+    };
 
 export type SimEventType = SimEvent["type"];
 export type SimEventOf<T extends SimEventType> = Extract<SimEvent, { type: T }>;

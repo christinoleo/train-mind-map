@@ -126,6 +126,12 @@ function AdminPanel({ game, subscribe }: Props) {
         ))}
       </div>
 
+      <div class="debug-row">
+        <button type="button" onClick={() => cheats.giveItems()}>
+          {t.giveItems}
+        </button>
+      </div>
+
       <fieldset class="debug-overlays">
         <legend>{t.overlays}</legend>
         {overlays.list().map(({ overlay, enabled }) => (
