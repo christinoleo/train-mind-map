@@ -2,6 +2,8 @@
 // platform. A train reserves its whole trip to its next stop before it
 // leaves, so two trains never share a stretch of track, and a train never
 // stops between stops, where two trains head on could wait for each other.
+// A Station has one platform, though: trains standing in each other's next
+// stops, such as [a, c] and [c, a], still wait for each other for good.
 
 import type { GameState, Hold, Train, Trip } from "../state/gameState";
 import type { TrainId } from "../state/ids";

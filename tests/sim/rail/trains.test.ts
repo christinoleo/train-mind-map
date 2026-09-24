@@ -377,9 +377,15 @@ describe("reservation (FR86, ADR-0005)", () => {
     const t = train([a, c]);
     while (t.station !== null) step();
     expect(run(new RemoveRail(ab))).toEqual(fail("has_trains"));
-    expect(run(new RemoveNode(b))).toEqual(ok());
-    // b was on the way, not a stop; a is a stop.
+    // b is on the way, not a stop, but its rails carry the trip.
+    expect(run(new RemoveNode(b))).toEqual(fail("has_trains"));
+    expect(state.rails.size).toBe(2);
+    // a is a stop.
     expect(run(new RemoveNode(a))).toEqual(fail("has_trains"));
+    // Once the train stands at c, b and its rails can go.
+    while (t.station !== c) step();
+    expect(run(new RemoveNode(b))).toEqual(ok());
+    // a has no rails left, but is still a stop.
     expect(run(new MoveNode(a, 40, 40))).toEqual(fail("has_trains"));
     expect(state.trains.size).toBe(1);
   });

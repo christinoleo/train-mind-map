@@ -4,7 +4,7 @@ import type { Emit } from "../events";
 import { buildPlanarIndex } from "../geometry/planar";
 import { fail, ok, type Result } from "../result";
 import { railsOf } from "../rail/rails";
-import { isStationInUse } from "../rail/trains";
+import { isRailInUse, isStationInUse } from "../rail/trains";
 import { checkRestore, edgesOf } from "../state/edges";
 import type { Edge, FactoryNode, GameState, Rail } from "../state/gameState";
 import type { NodeId } from "../state/ids";
@@ -46,7 +46,11 @@ export class RemoveNode implements Command {
     const node = state.nodes.get(this.id);
     if (!node) return fail("not_found");
     if (node.kind === "core") return fail("indestructible");
-    return isStationInUse(state, this.id) ? fail("has_trains") : ok();
+    // A Station takes its rails with it, and a trip under way may cross them.
+    const inUse =
+      isStationInUse(state, this.id) ||
+      railsOf(state, this.id).some((rail) => isRailInUse(state, rail.id));
+    return inUse ? fail("has_trains") : ok();
   }
 
   apply(state: GameState) {
