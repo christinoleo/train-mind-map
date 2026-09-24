@@ -173,4 +173,16 @@ describe("undo", () => {
     while (commands.undo(state).ok) step();
     expect(state.nodes.size).toBe(5);
   });
+
+  it("clears the queue, the undo stack and the replay log", () => {
+    const { state, commands, step } = setup();
+    commands.dispatch(state, new AddNode());
+    step();
+    commands.dispatch(state, new AddNode());
+    commands.clear();
+    step();
+    expect(state.nodes.size).toBe(1);
+    expect(commands.undoDepth).toBe(0);
+    expect(commands.replayLog).toEqual([]);
+  });
 });

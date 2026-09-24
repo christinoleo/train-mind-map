@@ -36,6 +36,8 @@ declare global {
 export function installDebugTools(game: DebugGame) {
   window.game = game;
   window.regenerate = (world = MVP_SCENARIO) => {
+    // The old game's commands and undo stack would act on the new one.
+    game.commands.clear();
     Object.assign(game.state, createGameState(world));
   };
   window.crash = () => {
