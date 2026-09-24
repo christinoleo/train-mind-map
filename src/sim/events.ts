@@ -1,4 +1,5 @@
 import type { RawResource } from "../data/items";
+import type { Rect } from "./geometry/rect";
 import type { FailReason } from "./result";
 import type { NodeStatus } from "./state/gameState";
 import type { NodeId } from "./state/ids";
@@ -9,9 +10,12 @@ export type SimEvent =
   | { type: "CommandRejected"; command: string; reason: FailReason }
   | { type: "NodeStatusChanged"; node: NodeId; status: NodeStatus }
   | {
-      /** Storage paid for a node's construction; `draws` says from where. */
+      /**
+       * Storage paid for building a node or an edge on the cells `site`;
+       * `draws` says from where.
+       */
       type: "ConstructionPaid";
-      site: NodeId;
+      site: Rect;
       draws: Draw[];
     }
   | {

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { NODE_KINDS, NODES } from "../../src/data/nodes";
-import { connectorPoints } from "../../src/render/nodes";
+import { connectorPoints } from "../../src/render/connectors";
 import { CELL_PX } from "../../src/render/theme";
+import { connectorRows } from "../../src/sim/state/edges";
 
 describe("connectorPoints", () => {
   it.each(NODE_KINDS)(
@@ -20,4 +21,14 @@ describe("connectorPoints", () => {
       }
     },
   );
+});
+
+describe("connector rows", () => {
+  it.each(NODE_KINDS)("centres %s's connectors on their edge rows", (kind) => {
+    const { size, inputs } = NODES[kind];
+    const rows = connectorRows(inputs, size);
+    connectorPoints(kind).inputs.forEach((p, i) => {
+      expect(Math.floor(p.y / CELL_PX)).toBe(rows[i]);
+    });
+  });
 });

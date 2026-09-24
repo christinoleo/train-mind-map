@@ -84,6 +84,13 @@ export function revealedSize(ring: number): number {
   return INITIAL_REVEALED_SIZE + 2 * RING_STEP * ring;
 }
 
+/** The revealed square when `ring` is the outermost revealed ring, in cells. */
+export function ringRect(ring: number): Rect {
+  const side = Math.min(revealedSize(ring), MAP_SIZE);
+  const start = (MAP_SIZE - side) / 2;
+  return { x: start, y: start, w: side, h: side };
+}
+
 export function isRevealed(map: GameMap, x: number, y: number): boolean {
   return cellRing(x, y) <= map.revealedRing;
 }

@@ -3,14 +3,17 @@
 // reason into feedback. Bugs throw and reach the global error handler.
 
 export type FailReason =
+  | "connector_taken"
   | "crosses_edge"
   | "crosses_node"
   | "indestructible"
   | "locked"
+  | "max_level"
   | "needs_deposit"
   | "no_route"
   | "no_stamina"
   | "no_stock"
+  | "no_target"
   | "not_found"
   | "not_tappable"
   | "nothing_to_undo"
@@ -19,6 +22,7 @@ export type FailReason =
   | "on_water"
   | "out_of_bounds"
   | "out_of_range"
+  | "same_node"
   | "storage_full"
   | "wrong_recipe";
 

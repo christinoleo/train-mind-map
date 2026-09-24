@@ -12,6 +12,7 @@ import {
   type GameState,
 } from "../../../src/sim/state/gameState";
 import type { EdgeId, NodeId } from "../../../src/sim/state/ids";
+import { nodeRect } from "../../../src/sim/state/nodes";
 import { deposit, isStorage } from "../../../src/sim/state/stock";
 import { tick } from "../../../src/sim/tick";
 
@@ -63,7 +64,15 @@ function items(state: GameState, id: NodeId) {
 
 /** Makes `from` a buffer: a storage node with an output edge. */
 function addOutputEdge(state: GameState, from: NodeId, to: NodeId) {
-  state.edges.set(1 as EdgeId, { id: 1 as EdgeId, from, to });
+  state.edges.set(1 as EdgeId, {
+    id: 1 as EdgeId,
+    from,
+    fromPort: 0,
+    to,
+    toPort: 0,
+    level: 1,
+    path: [{ x: 0, y: 0 }],
+  });
 }
 
 const furnace = () => new PlaceNode("furnace", 55, 53);
@@ -102,7 +111,7 @@ describe("paying for construction (FR69, FR70)", () => {
     expect(paid).toEqual([
       {
         type: "ConstructionPaid",
-        site: PLACED,
+        site: { x: 55, y: 53, w: 2, h: 2 },
         draws: [
           { storage: NEAR, item: "stone", count: 4 },
           { storage: CORE, item: "stone", count: 6 },
@@ -173,7 +182,7 @@ describe("refunds (FR21)", () => {
     step();
     expect(items(state, FAR).items).toEqual({});
     expect(state.stock).toEqual({});
-    expect(paid.at(-1)?.site).toBe(FAR);
+    expect(paid.at(-1)?.site).toEqual(nodeRect(items(state, FAR)));
   });
 
   it("cannot undo a removal once its refund is spent", () => {

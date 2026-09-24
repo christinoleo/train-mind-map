@@ -5,7 +5,8 @@ import { ITEMS, type ItemCounts } from "./data/items";
 import type { NodeKind } from "./data/nodes";
 import { MVP_SCENARIO } from "./data/scenarios/mvp";
 import { Camera } from "./input/camera";
-import { Controls } from "./input/controls";
+import { Controls, type Tool } from "./input/controls";
+import { ConnectTool } from "./input/tools/connect";
 import { PlaceTool } from "./input/tools/place";
 import { TapTool } from "./input/tools/tap";
 import { createLoop, type Loop } from "./loop";
@@ -13,10 +14,14 @@ import { installErrorHandler } from "./platform/errors";
 import { createApp } from "./render/app";
 import { createRenderer } from "./render/renderer";
 import { CommandQueue } from "./sim/commands/commandQueue";
+import { RemoveEdge } from "./sim/commands/removeEdge";
+import { UpgradeEdge } from "./sim/commands/upgradeEdge";
 import { EventQueue } from "./sim/events";
 import type { FailReason } from "./sim/result";
 import { createGameState } from "./sim/state/gameState";
+import type { EdgeId } from "./sim/state/ids";
 import { tick } from "./sim/tick";
+import { edgeMenuInfo, type EdgeMenuInfo } from "./ui/EdgeMenu";
 import { UiRoot } from "./ui/UiRoot";
 
 // Installed first so boot failures, map generation included, show the crash
@@ -45,7 +50,10 @@ const selected = signal<NodeKind | null>(null);
 const hint = signal<FailReason | null>(null);
 const stock = signal<ItemCounts>(state.stock);
 const stamina = signal(state.stamina.points);
+const selectedEdge = signal<EdgeId | null>(null);
+const edgeMenu = signal<EdgeMenuInfo | null>(null);
 let published = -Infinity;
+let lastFrame = performance.now();
 events.on("ConstructionPaid", renderer.showConstruction);
 events.on("ManualTapped", renderer.showTap);
 const placeTool = new PlaceTool({
@@ -61,13 +69,41 @@ const tapTool = new TapTool({
   dispatch: (command) => commands.dispatch(state, command),
   showHint: (reason) => (hint.value = reason),
 });
+const connectTool = new ConnectTool({
+  state,
+  camera,
+  viewport: () => app.screen,
+  dispatch: (command) => commands.dispatch(state, command),
+  showPreview: renderer.setEdgePreview,
+  selectEdge: (id) => (selectedEdge.value = id),
+});
+// With nothing to place, a drag from an output connector connects, a tap on
+// an edge opens its menu, and any other tap mines by hand.
+const buildTool: Tool = {
+  tap(p) {
+    if (!connectTool.tap(p)) tapTool.tap(p);
+  },
+  dragStart: (p, from, held) => connectTool.dragStart(p, from, held),
+  dragMove: (p) => connectTool.dragMove(p),
+  dragEnd: (p) => connectTool.dragEnd(p),
+  frame: (dtMs) => connectTool.frame(dtMs),
+  refresh() {
+    tapTool.refresh();
+    connectTool.refresh();
+  },
+  cancel() {
+    tapTool.cancel();
+    connectTool.cancel();
+  },
+};
 events.on("CommandRejected", ({ command, reason }) => {
   if (command === "ManualTap") tapTool.rejected(reason);
 });
 effect(() => {
   const kind = selected.value;
   if (kind) {
-    tapTool.cancel();
+    buildTool.cancel();
+    selectedEdge.value = null;
     placeTool.select(kind, {
       x: app.screen.width / 2,
       y: app.screen.height / 2,
@@ -75,9 +111,23 @@ effect(() => {
     controls.tool = placeTool;
   } else {
     placeTool.deselect();
-    controls.tool = tapTool;
+    controls.tool = buildTool;
   }
 });
+effect(() => {
+  renderer.setSelectedEdge(selectedEdge.value);
+  publishEdgeMenu();
+});
+
+/** Publishes the selected edge to its menu, closing it once the edge is gone. */
+function publishEdgeMenu() {
+  const id = selectedEdge.peek();
+  const info = id === null ? null : edgeMenuInfo(state, id);
+  if (id !== null && !info) selectedEdge.value = null;
+  if (JSON.stringify(info) !== JSON.stringify(edgeMenu.peek())) {
+    edgeMenu.value = info;
+  }
+}
 
 loop = createLoop({
   step() {
@@ -88,14 +138,17 @@ loop = createLoop({
       unlocked.value = [...state.unlockedNodes];
     }
     controls.tool?.refresh?.();
+    publishEdgeMenu();
     // Stamina drains per tap, so the bar follows it every tick.
     stamina.value = state.stamina.points;
   },
   frame(alpha) {
+    const now = performance.now();
+    controls.tool?.frame?.(now - lastFrame);
+    lastFrame = now;
     renderer.frame(alpha);
     // The stock changes most ticks once the factory runs; the HUD follows
     // it at a readable rate.
-    const now = performance.now();
     if (now - published >= UI_PUBLISH_MS) {
       // `updateStock` replaces the cache each tick, so it can be shared as is;
       // publishing only on a change keeps the HUD from re-rendering idle.
@@ -106,7 +159,29 @@ loop = createLoop({
 });
 
 render(
-  h(UiRoot, { unlocked, selected, hint, stock, stamina }),
+  h(UiRoot, {
+    unlocked,
+    selected,
+    hint,
+    stock,
+    stamina,
+    edgeMenu: {
+      edge: edgeMenu,
+      onUpgrade() {
+        const id = selectedEdge.value;
+        const next = edgeMenu.value?.upgrade?.level;
+        if (id !== null && next) {
+          commands.dispatch(state, new UpgradeEdge(id, next));
+        }
+      },
+      onRemove() {
+        const id = selectedEdge.value;
+        if (id !== null) commands.dispatch(state, new RemoveEdge(id));
+        selectedEdge.value = null;
+      },
+      onClose: () => (selectedEdge.value = null),
+    },
+  }),
   document.getElementById("ui-root")!,
 );
 if (!paused) loop.start();

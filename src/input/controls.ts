@@ -16,6 +16,8 @@ export interface Tool {
   dragEnd?(p: GesturePoint): void;
   /** Re-checks the tool's feedback against the state after each tick. */
   refresh?(): void;
+  /** Runs once per drawn frame, `dtMs` after the last. */
+  frame?(dtMs: number): void;
   /** Abandons the tool's work in progress (two fingers, Esc). */
   cancel(): void;
 }

@@ -1,6 +1,6 @@
 import { Container, Graphics } from "pixi.js";
 import { MAP_GEN } from "../data/mapgen";
-import { ringBounds } from "../render/mapView";
+import { ringRect } from "../sim/state/map";
 import type { DeepReadonly } from "../render/readonly";
 import { CELL_PX, RESOURCE_STYLE, toWorld } from "../render/theme";
 import { buildPlanarIndex } from "../sim/geometry/planar";
@@ -103,7 +103,7 @@ export class OverlayManager {
 export function drawCoreRings(state: StateView): Container {
   const g = new Graphics({ label: "overlay:core-rings" });
   for (let ring = 0; ring < MAP_GEN.rings.length; ring++) {
-    const r = toWorld(ringBounds(ring));
+    const r = toWorld(ringRect(ring));
     g.rect(r.x, r.y, r.w, r.h);
   }
   g.stroke({ color: 0xffffff, alpha: 0.6, width: 2, pixelLine: true });

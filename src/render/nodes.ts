@@ -5,6 +5,7 @@ import { NODES, type NodeKind } from "../data/nodes";
 import type { FactoryNode } from "../sim/state/gameState";
 import type { NodeId } from "../sim/state/ids";
 import { strings } from "../ui/strings";
+import { connectorPoints } from "./connectors";
 import { drawGlyph } from "./mapView";
 import type { DeepReadonly } from "./readonly";
 import {
@@ -24,30 +25,6 @@ const CARD_RADIUS = PALETTE.cardRadius * CELL_PX;
 /** Side of a `kind` card, in world units. */
 function cardSide(kind: NodeKind): number {
   return NODES[kind].size * CELL_PX;
-}
-
-interface Point {
-  x: number;
-  y: number;
-}
-
-/**
- * Where a card's connectors sit, relative to its top-left corner and in world
- * units: inputs on the left edge, outputs on the right, spread evenly down the
- * body below the header (FR15).
- */
-export function connectorPoints(kind: NodeKind): {
-  inputs: Point[];
-  outputs: Point[];
-} {
-  const { inputs, outputs } = NODES[kind];
-  const side = cardSide(kind);
-  const spread = (n: number, x: number) =>
-    Array.from({ length: n }, (_, i) => ({
-      x,
-      y: HEADER + ((i + 0.5) * (side - HEADER)) / n,
-    }));
-  return { inputs: spread(inputs, 0), outputs: spread(outputs, side) };
 }
 
 /**

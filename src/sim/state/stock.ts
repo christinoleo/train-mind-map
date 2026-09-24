@@ -1,4 +1,9 @@
-import { itemEntries, type ItemCounts, type ItemId } from "../../data/items";
+import {
+  addCounts,
+  itemEntries,
+  type ItemCounts,
+  type ItemId,
+} from "../../data/items";
 import {
   STORAGE_CAPACITY,
   type Cost,
@@ -40,10 +45,7 @@ export function storedCount(node: Readonly<StorageNode>): number {
 export function sumStock(nodes: ReadonlyMap<NodeId, FactoryNode>): ItemCounts {
   const stock: ItemCounts = {};
   for (const node of nodes.values()) {
-    if (!isStorage(node)) continue;
-    for (const [item, count] of itemEntries(node.items)) {
-      stock[item] = (stock[item] ?? 0) + count;
-    }
+    if (isStorage(node)) addCounts(stock, node.items);
   }
   return stock;
 }

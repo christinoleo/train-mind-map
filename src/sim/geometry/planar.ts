@@ -169,6 +169,18 @@ export class PlanarIndex {
     return blocked[(y % size) * size + (x % size)] === 1;
   }
 
+  /** What occupies cell (x, y), if anything. */
+  obstacleAt(x: number, y: number): Obstacle | undefined {
+    const cell = { x, y };
+    return this.hash
+      .query({ x, y, w: 1, h: 1 })
+      .find((o) =>
+        o.kind === "edge"
+          ? pointOnSegment(cell, o.a, o.b)
+          : containsCell(o.rect, x, y),
+      );
+  }
+
   /**
    * Which cells of `rect` a node, water or an edge occupies: 1 where one
    * does, row by row. It reads each bucket once, for the router.
@@ -251,14 +263,12 @@ export class PlanarIndex {
   }
 }
 
-/**
- * The planar index of a game: its water and nodes. Edges join it once they
- * carry routes.
- */
+/** The planar index of a game: its water, nodes and edges. */
 export function buildPlanarIndex(state: Readonly<GameState>): PlanarIndex {
   const index = new PlanarIndex(state.map);
   for (const node of state.nodes.values()) {
     index.addNode(node.id, nodeRect(node));
   }
+  for (const edge of state.edges.values()) index.addEdge(edge.id, edge.path);
   return index;
 }

@@ -44,6 +44,9 @@ export const PALETTE = {
   inputRing: 0xcfd5e2,
   /** An amber dot marks an output connector. */
   output: 0xffb547,
+  /** An edge's stroke, until the items on it tint it (Epic 3). */
+  edge: 0xcfd5e2,
+  edgeAlpha: 0.4,
 } as const;
 
 /** A 0xRRGGBB colour as a CSS hex string, for DOM and canvas 2D use. */

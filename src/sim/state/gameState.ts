@@ -1,3 +1,4 @@
+import type { EdgeLevel } from "../../data/edges";
 import type { ItemCounts, ItemId, RawResource } from "../../data/items";
 import {
   STARTING_NODES,
@@ -6,6 +7,7 @@ import {
 } from "../../data/nodes";
 import type { CrafterKind, RecipeId } from "../../data/recipes";
 import type { Scenario } from "../../data/scenarios/scenario";
+import type { Point } from "../geometry/planar";
 import { generateMap } from "../mapgen/generate";
 import { seedRng, type RngState } from "../mapgen/rng";
 import { applyScenario } from "../mapgen/scenario";
@@ -69,8 +71,15 @@ export interface Edge {
   id: EdgeId;
   /** The node whose output the edge leaves from. */
   from: NodeId;
+  /** Which of its output connectors, counted from the top. */
+  fromPort: number;
   /** The node whose input the edge enters. */
   to: NodeId;
+  /** Which of its input connectors, counted from the top. */
+  toPort: number;
+  level: EdgeLevel;
+  /** The route: its first cell, each bend and its last cell (ADR-0007). */
+  path: Point[];
 }
 
 /**
@@ -90,6 +99,8 @@ export interface GameState {
   stamina: Stamina;
   /** The Ferramentas research level, which sets the items per tap (Epic 4). */
   tapLevel: number;
+  /** The highest edge level research has unlocked (Epic 4). */
+  edgeLevel: EdgeLevel;
   /**
    * The global stock: everything the storage nodes hold, summed. A derived
    * cache, recomputed at the end of each tick and never saved.
@@ -122,6 +133,7 @@ export function createGameState(world: string | Scenario): GameState {
     unlockedNodes: [...STARTING_NODES],
     stamina: newStamina(),
     tapLevel: 0,
+    edgeLevel: 1,
     stock: sumStock(nodes),
   };
 }
