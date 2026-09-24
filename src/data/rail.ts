@@ -1,3 +1,5 @@
+import type { Cost } from "./nodes";
+
 /** Items one wagon carries, all of one type (GDD §Trens). */
 export const WAGON_CAPACITY = 50;
 
@@ -24,3 +26,36 @@ export const STATION = {
 
 /** Rail items one cell of rail costs (FR45). */
 export const RAIL_CELL_COST = 1;
+
+/** What a locomotive costs to build (GDD §Trens). */
+export const LOCOMOTIVE_COST = {
+  "iron-plate": 20,
+  gear: 20,
+  circuit: 10,
+} as const satisfies Cost;
+
+/** What one wagon costs to build (GDD §Trens). */
+export const WAGON_COST = {
+  "iron-plate": 20,
+  gear: 10,
+} as const satisfies Cost;
+
+/** Cells each vehicle, the locomotive or a wagon, takes on the track (FR91). */
+export const VEHICLE_CELLS = 1;
+
+/**
+ * How trains move (FR90): up to `maxSpeed` cells/s, from 0 to top speed in
+ * `accelSeconds`, braking at `brake` cells/s². Braking sets where a train
+ * must start to slow before a stretch it could not reserve.
+ */
+export const TRAIN_MOTION = {
+  maxSpeed: 8,
+  accelSeconds: 3,
+  brake: 8,
+} as const;
+
+/**
+ * How long a train stays at a stop before it tries to leave. A placeholder
+ * until Lines bring departure conditions (#52).
+ */
+export const TRAIN_DWELL_MS = 2000;

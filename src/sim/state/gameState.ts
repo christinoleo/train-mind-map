@@ -20,6 +20,7 @@ import {
   type NextIds,
   type NodeId,
   type RailId,
+  type TrainId,
 } from "./ids";
 import type { GameMap } from "./map";
 import { createNode } from "./nodes";
@@ -177,6 +178,89 @@ export interface Rail {
 }
 
 /**
+ * What a train is doing (FR94). `unloading` belongs to the Lines' loading
+ * and unloading (#52); until then a train dwells at a stop in `loading`.
+ */
+export type TrainState =
+  "loading" | "departing" | "moving" | "waiting_reservation" | "unloading";
+
+/**
+ * Something a train reserves (ADR-0005): a Segment, one directed track of a
+ * rail, or a Station's platform. Its key names it in the reservation table.
+ */
+export interface Hold {
+  key: string;
+  /**
+   * Where along the trip the train's tail leaves it, in cells from the
+   * trip's start, where the train lets it go; `null` while the train
+   * stands at a stop, which it holds until it leaves.
+   */
+  release: number | null;
+}
+
+/**
+ * One stretch of a trip: a Segment into a Station, and the Station's
+ * platform, where the train can stop. The train reserves both at once.
+ */
+export interface Leg {
+  /** The rail the Segment is a track of. */
+  rail: RailId;
+  /** The Segment's key in the reservation table. */
+  segment: string;
+  /** The platform's key in the reservation table. */
+  platform: string;
+  /** The Station at the leg's end. */
+  station: NodeId;
+  /** Where the Segment ends, at the Station's rail port, along the trip. */
+  enter: number;
+  /** Where the train stops on the platform, along the trip. */
+  stop: number;
+  /** Where the train leaves the platform to go on, or `stop` at the trip's end. */
+  exit: number;
+}
+
+/**
+ * A train's way from one stop to the next, over rails and through the
+ * Stations between. Positions along it are in cells from its start.
+ */
+export interface Trip {
+  /** The line the train runs along, in cells, from the start's platform. */
+  line: Point[];
+  legs: Leg[];
+  /** Where the train leaves its start's platform. */
+  exit: number;
+}
+
+/**
+ * A train (FR88): a locomotive and its wagons, running between Stations
+ * safely by reservation (FR86). Positions are those of the locomotive's
+ * front, along the current trip.
+ */
+export interface Train {
+  id: TrainId;
+  wagons: number;
+  /** The Stations it stops at, in order, over and over. */
+  stops: NodeId[];
+  /** Which of `stops` it is at, or heading to while it travels. */
+  stop: number;
+  state: TrainState;
+  /** The Station it stands in at a stop, or `null` while it travels. */
+  station: NodeId | null;
+  /** The trip under way, or the last one, or `null` before the first. */
+  trip: Trip | null;
+  /** Front of the locomotive along `trip`, in cells. */
+  pos: number;
+  /** `pos` at the start of the tick, which the render interpolates from. */
+  prevPos: number;
+  /** In cells per second. */
+  speed: number;
+  /** Ticks left at the stop before it tries to leave. */
+  dwell: number;
+  /** What it has reserved (FR86). */
+  holds: Hold[];
+}
+
+/**
  * The whole simulation state, as plain data. Later systems extend it; it never
  * holds render objects, and it changes only through commands.
  */
@@ -189,6 +273,13 @@ export interface GameState {
   edges: Map<EdgeId, Edge>;
   /** The rail layer's rails (Epic 5). */
   rails: Map<RailId, Rail>;
+  /** The trains, running on the rails (Epic 5). */
+  trains: Map<TrainId, Train>;
+  /**
+   * The reservation table (FR86): which train holds each Segment and
+   * platform. A derived cache of the trains' holds, never saved.
+   */
+  reservations: Map<string, TrainId>;
   /** The node kinds the player may build. Research adds to it (Epic 4). */
   unlockedNodes: NodeKind[];
   /** The manual taps left, and the recharge towards the next (FR75). */
@@ -233,6 +324,8 @@ export function createGameState(world: string | Scenario): GameState {
     nodes,
     edges: new Map(),
     rails: new Map(),
+    trains: new Map(),
+    reservations: new Map(),
     unlockedNodes: [...STARTING_NODES],
     stamina: newStamina(),
     tapLevel: 0,

@@ -74,8 +74,10 @@ export class RailPortViews {
   }
 }
 
+/** Half the gap between a rail's two tracks, in cells. */
+export const TRACK_SIDE = 0.17;
 /** Half the gap between a rail's two tracks, in world units. */
-const TRACK_GAP = CELL_PX * 0.17;
+const TRACK_GAP = CELL_PX * TRACK_SIDE;
 const TRACK_WIDTH = CELL_PX * 0.07;
 const TRACK_COLOR = 0xc9ced8;
 /** Sleepers cross both tracks, one every `SLEEPER_STEP`. */
@@ -94,7 +96,7 @@ function normal(a: Point, b: Point): Point {
  * `line` shifted sideways by `d`, to its left for a positive `d`, with its
  * corners mitred so the shifted line stays parallel.
  */
-function offsetLine(line: readonly Point[], d: number): Point[] {
+export function offsetLine(line: readonly Point[], d: number): Point[] {
   return line.map((p, i) => {
     const before = i > 0 ? normal(line[i - 1], p) : null;
     const after = i < line.length - 1 ? normal(p, line[i + 1]) : null;

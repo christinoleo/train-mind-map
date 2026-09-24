@@ -8,9 +8,11 @@ import type { Loop } from "../loop";
 import type { Renderer } from "../render/renderer";
 import type { Command } from "../sim/commands/command";
 import type { CommandQueue } from "../sim/commands/commandQueue";
+import { PlaceTrain } from "../sim/commands/placeTrain";
 import type { EventQueue } from "../sim/events";
 import { ok, type Result } from "../sim/result";
 import { resetGameState, type GameState } from "../sim/state/gameState";
+import type { NodeId } from "../sim/state/ids";
 import { strings } from "../ui/strings";
 import { GiveItems, SetRevealedRing } from "./cheats";
 import { DebugPanel } from "./DebugPanel";
@@ -18,6 +20,7 @@ import {
   drawCoreRings,
   drawHashBuckets,
   drawPowerMeshes,
+  drawReservations,
   OverlayManager,
 } from "./overlays";
 import { PerfMonitor, type PerfSnapshot } from "./perf";
@@ -70,6 +73,11 @@ export interface GameConsole extends DebugGame {
     giveItems(perItem?: number): Result;
     /** Simulates `hours` of absence through the offline path (FR155). */
     offline(hours: number): void;
+    /**
+     * Queues a train that runs over the Stations `stops`, round and round,
+     * until Lines place them (#52).
+     */
+    placeTrain(...stops: number[]): Result;
   };
   overlays: OverlayManager;
 }
@@ -108,6 +116,12 @@ export function installDebugTools(debug: DebugGame) {
     id: "power-meshes",
     label: strings.debug.powerMeshes,
     draw: drawPowerMeshes,
+    live: true,
+  });
+  overlays.register({
+    id: "reservations",
+    label: strings.debug.reservations,
+    draw: drawReservations,
     live: true,
   });
   // Like the map layers, overlays drop every GPU handle from the lost context.
@@ -152,6 +166,7 @@ export function installDebugTools(debug: DebugGame) {
       revealRing: (ring) => dispatch(new SetRevealedRing(ring)),
       giveItems: (perItem = 100) => dispatch(new GiveItems(perItem)),
       offline: (hours) => debug.goOffline(hours * 3_600_000),
+      placeTrain: (...stops) => dispatch(new PlaceTrain(stops as NodeId[])),
     },
     overlays,
   };
