@@ -100,12 +100,26 @@ export function isOccupied(state: Readonly<GameState>, rect: Rect): boolean {
   return false;
 }
 
-/** True when a rail runs through a cell of `rect` (FR81). */
+/**
+ * True when a rail runs through a cell of `rect`, or through a corner of it:
+ * a diagonal step needs both cells beside it free (FR81).
+ */
 export function railCrosses(state: Readonly<GameState>, rect: Rect): boolean {
   for (const rail of state.rails.values()) {
     if (!overlaps(pathBounds(rail.path), rect)) continue;
-    for (const c of railCells(rail.path)) {
+    const cells = railCells(rail.path);
+    for (let i = 0; i < cells.length; i++) {
+      const c = cells[i];
       if (containsCell(rect, c.x, c.y)) return true;
+      const prev = cells[i - 1];
+      if (prev && prev.x !== c.x && prev.y !== c.y) {
+        if (
+          containsCell(rect, c.x, prev.y) ||
+          containsCell(rect, prev.x, c.y)
+        ) {
+          return true;
+        }
+      }
     }
   }
   return false;

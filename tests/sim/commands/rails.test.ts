@@ -22,7 +22,7 @@ import {
   type RailId,
 } from "../../../src/sim/state/ids";
 import { cellIndex, Terrain } from "../../../src/sim/state/map";
-import { createNode } from "../../../src/sim/state/nodes";
+import { createNode, railCrosses } from "../../../src/sim/state/nodes";
 import { updateStock } from "../../../src/sim/systems/stock";
 import { tick } from "../../../src/sim/tick";
 import { fillCore } from "../support/stock";
@@ -266,5 +266,34 @@ describe("rails and nodes", () => {
     expect(new MoveNode(west, 66, 50).validate(state)).toEqual(
       fail("has_rails"),
     );
+  });
+
+  it("keeps a passing rail off another Station's free rail port", () => {
+    const { state, run, put } = setup();
+    const top = put("station", 40, 40);
+    const middle = put("station", 40, 45);
+    const bottom = put("station", 40, 50);
+    expect(run(new PlaceRail(end(top, LEFT), end(bottom, LEFT)))).toEqual(ok());
+    const cells = railCells(onlyRail(state).path);
+    expect(cells).not.toContainEqual({ x: 39, y: 46 });
+    const west = put("station", 30, 45);
+    expect(planRail(state, end(middle, LEFT), end(west, RIGHT)).check.ok).toBe(
+      true,
+    );
+  });
+
+  it("keeps nodes off the corners a diagonal rail cuts", () => {
+    const { state, run, put } = setup();
+    const a = put("station", 40, 40);
+    const b = put("station", 50, 50);
+    expect(run(new PlaceRail(end(a, RIGHT), end(b, LEFT)))).toEqual(ok());
+    const cells = railCells(onlyRail(state).path);
+    const i = cells.findIndex(
+      (c, k) => k > 0 && c.x !== cells[k - 1].x && c.y !== cells[k - 1].y,
+    );
+    expect(i).toBeGreaterThan(0);
+    const corner = { x: cells[i].x, y: cells[i - 1].y, w: 1, h: 1 };
+    expect(cells).not.toContainEqual({ x: corner.x, y: corner.y });
+    expect(railCrosses(state, corner)).toBe(true);
   });
 });

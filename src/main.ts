@@ -271,9 +271,12 @@ events.on("CommandRejected", ({ command, reason }) => {
     flashHint(reason);
   }
 });
+/** The tool the map gets with nothing to place: the focused layer's. */
+function mapTool(): Tool {
+  return focus.peek() === "rails" ? railTool : buildTool;
+}
 effect(() => {
   const kind = selected.value;
-  const rails = focus.value === "rails";
   buildTool.cancel();
   railTool.cancel();
   if (kind) {
@@ -287,7 +290,7 @@ effect(() => {
     controls.tool = placeTool;
   } else {
     placeTool.deselect();
-    controls.tool = rails ? railTool : buildTool;
+    controls.tool = mapTool();
   }
 });
 // The rail layer in focus dims the factory, and its tool takes the map:
@@ -295,6 +298,12 @@ effect(() => {
 effect(() => {
   const rails = focus.value === "rails";
   renderer.setFocus(focus.value);
+  // A node being placed keeps its ghost; the layer's tool waits for it.
+  if (selected.peek() === null) {
+    buildTool.cancel();
+    railTool.cancel();
+    controls.tool = mapTool();
+  }
   if (rails) {
     selectedEdge.value = null;
     selectedNode.value = null;

@@ -62,21 +62,27 @@ export function railsOf(state: Readonly<GameState>, id: NodeId): Rail[] {
 
 /**
  * The rail layer's obstacles over the revealed area: which cells water, a
- * node or a rail occupies, row by row over `bounds`. Rails pass over edges,
- * so edges are left out (FR81).
+ * node or a rail occupies, row by row over `bounds`, and the cells of the
+ * Stations' rail ports, kept for the rails that start or end there. Rails
+ * pass over edges, so edges are left out (FR81).
  */
 export interface RailGrid {
   bounds: Rect;
   blocked: Uint8Array;
   /** Why a rail cannot use a cell, when something occupies it. */
   reason(p: Point): FailReason | undefined;
+  /** True when `p` is a free rail port's cell, open only to its own rail. */
+  isPort(p: Point): boolean;
 }
+
+/** What occupies a cell of a `RailGrid`: 4 is a free rail port's cell. */
+const PORT = 4;
 
 /** The rail layer's obstacles in `state`. */
 export function buildRailGrid(state: Readonly<GameState>): RailGrid {
   const bounds = ringRect(state.map.revealedRing);
   const { x: bx, y: by, w, h } = bounds;
-  // What occupies each cell: 1 water, 2 a node, 3 a rail.
+  // What occupies each cell: 1 water, 2 a node, 3 a rail, 4 a rail port.
   const what = new Uint8Array(w * h);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -98,16 +104,49 @@ export function buildRailGrid(state: Readonly<GameState>): RailGrid {
   for (const rail of state.rails.values()) {
     for (const c of railCells(rail.path)) mark(c.x, c.y, 3);
   }
-  const REASONS = [undefined, "on_water", "crosses_node", "crosses_rail"];
+  // A rail passing a Station must leave its rail ports free for their own.
+  for (const node of state.nodes.values()) {
+    if (node.kind !== "station") continue;
+    for (const { cell } of railPorts(node)) {
+      if (!containsCell(bounds, cell.x, cell.y)) continue;
+      const i = (cell.y - by) * w + (cell.x - bx);
+      if (what[i] === 0) what[i] = PORT;
+    }
+  }
+  const REASONS = [
+    undefined,
+    "on_water",
+    "crosses_node",
+    "crosses_rail",
+    "crosses_node",
+  ];
+  const at = (p: Point) =>
+    containsCell(bounds, p.x, p.y) ? what[(p.y - by) * w + (p.x - bx)] : 0;
   return {
     bounds,
     // Any occupant blocks the cell.
     blocked: what,
     reason(p) {
       if (!containsCell(bounds, p.x, p.y)) return "out_of_bounds";
-      return REASONS[what[(p.y - by) * w + (p.x - bx)]] as FailReason;
+      return REASONS[at(p)] as FailReason;
     },
+    isPort: (p) => at(p) === PORT,
   };
+}
+
+/**
+ * Why a rail with ends `ends` cannot use cell `p` of `grid`, if it cannot: a
+ * rail port's cell is open to a rail that starts or ends on it.
+ */
+function reasonFor(
+  grid: RailGrid,
+  p: Point,
+  ends: readonly Point[],
+): FailReason | undefined {
+  if (grid.isPort(p) && ends.some((e) => e.x === p.x && e.y === p.y)) {
+    return undefined;
+  }
+  return grid.reason(p);
 }
 
 /** A rail checked against the state: its route and cost, or why it fails. */
@@ -134,8 +173,15 @@ export function routeFromPort(
   to: Point,
   end: number | null = null,
 ): Result<RailRoute> {
+  const ends = [from.cell, to];
+  // Its own ends are open to it, rail ports or not.
+  const blocked = grid.blocked.slice();
+  const { x: bx, y: by } = grid.bounds;
+  for (const p of ends) {
+    if (grid.isPort(p)) blocked[(p.y - by) * grid.bounds.w + (p.x - bx)] = 0;
+  }
   const routed = routeRail(
-    grid.blocked,
+    blocked,
     grid.bounds,
     from.cell,
     outward(from),
@@ -143,7 +189,11 @@ export function routeFromPort(
     end,
   );
   if (routed.ok) return routed;
-  return fail(grid.reason(from.cell) ?? grid.reason(to) ?? routed.reason);
+  return fail(
+    reasonFor(grid, from.cell, ends) ??
+      reasonFor(grid, to, ends) ??
+      routed.reason,
+  );
 }
 
 /**
@@ -217,10 +267,12 @@ export function checkRailRestore(
   const [a, b] = ends.value;
   if (!joins(rail.path, a.cell, b.cell)) return fail("no_route");
   const cells = railCells(rail.path);
-  const free = (x: number, y: number) => grid.reason({ x, y }) === undefined;
+  const own = [a.cell, b.cell];
+  const free = (x: number, y: number) =>
+    reasonFor(grid, { x, y }, own) === undefined;
   for (let i = 0; i < cells.length; i++) {
     const c = cells[i];
-    if (!free(c.x, c.y)) return fail(grid.reason(c)!);
+    if (!free(c.x, c.y)) return fail(reasonFor(grid, c, own)!);
     const prev = cells[i - 1];
     if (prev && prev.x !== c.x && prev.y !== c.y) {
       if (!free(c.x, prev.y) || !free(prev.x, c.y)) return fail("no_route");
