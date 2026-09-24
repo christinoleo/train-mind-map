@@ -1,5 +1,6 @@
 import { Container, Graphics, type Application } from "pixi.js";
 import type { SimEventOf } from "../sim/events";
+import type { Rect } from "../sim/geometry/rect";
 import type { GameState } from "../sim/state/gameState";
 import type { NodeId } from "../sim/state/ids";
 import { nodeRect } from "../sim/state/nodes";
@@ -12,10 +13,12 @@ import { drawDeposits, drawTerrain, revealedBounds } from "./mapView";
 import { drawGhostOutline, drawNodeCard, NodeViews } from "./nodes";
 import type { DeepReadonly } from "./readonly";
 import {
+  BUILD_FLIGHT_MS,
   BUILD_FLIGHT_STAGGER_MS,
   CELL_PX,
   GHOST_ALPHA,
   ITEM_COLOR,
+  TAP_FLIGHT_MS,
   toWorld,
 } from "./theme";
 
@@ -29,6 +32,8 @@ export interface Renderer {
   setGhost(ghost: Ghost | null): void;
   /** Flies the items a construction took from storage to its site. */
   showConstruction(paid: SimEventOf<"ConstructionPaid">): void;
+  /** Pops the tapped cell and flies its item to the Core. */
+  showTap(tap: SimEventOf<"ManualTapped">): void;
 }
 
 /**
@@ -110,12 +115,17 @@ export function createRenderer(
     drawnCard = null;
   });
 
+  /** The centre of a rect of cells, in world units. */
+  const rectCenter = (cells: Rect) => {
+    const { x, y, w, h } = toWorld(cells);
+    return { x: x + w / 2, y: y + h / 2 };
+  };
+
   /** The centre of node `id`, in world units, if it still exists. */
   const centerOf = (id: NodeId) => {
     const node = state.nodes.get(id);
     if (!node) return null;
-    const { x, y, w, h } = toWorld(nodeRect(node));
-    return { x: x + w / 2, y: y + h / 2 };
+    return rectCenter(nodeRect(node));
   };
 
   return {
@@ -151,8 +161,18 @@ export function createRenderer(
           to,
           ITEM_COLOR[item],
           now + i * BUILD_FLIGHT_STAGGER_MS,
+          BUILD_FLIGHT_MS,
         );
       });
+    },
+    showTap({ x, y, item, core }) {
+      const to = centerOf(core);
+      if (!to) return;
+      const from = rectCenter({ x, y, w: 1, h: 1 });
+      const now = performance.now();
+      const color = ITEM_COLOR[item];
+      flights.pop(from, color, now);
+      flights.launch(from, to, color, now, TAP_FLIGHT_MS);
     },
   };
 }

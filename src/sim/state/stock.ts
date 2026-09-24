@@ -16,6 +16,19 @@ export function isStorage(node: FactoryNode): node is StorageNode {
   return node.kind in STORAGE_CAPACITY;
 }
 
+/** The Core, which the game places at the start and which is never removed. */
+export function coreNode(state: Readonly<GameState>): StorageNode {
+  for (const node of state.nodes.values()) {
+    if (node.kind === "core") return node;
+  }
+  throw new Error("The game has no Core");
+}
+
+/** How many more items `node` has room for. */
+export function storageRoom(node: Readonly<StorageNode>): number {
+  return STORAGE_CAPACITY[node.kind] - storedCount(node);
+}
+
 /** How many items, of every type together, `node` holds. */
 export function storedCount(node: Readonly<StorageNode>): number {
   let total = 0;
@@ -107,8 +120,7 @@ export function deposit(state: GameState, items: Cost, site: Rect): ItemCounts {
   for (const [item, count] of itemEntries(items)) {
     let left = count;
     for (const storage of order) {
-      const room = STORAGE_CAPACITY[storage.kind] - storedCount(storage);
-      const put = Math.min(left, room);
+      const put = Math.min(left, storageRoom(storage));
       if (put <= 0) continue;
       storage.items[item] = (storage.items[item] ?? 0) + put;
       stored[item] = (stored[item] ?? 0) + put;

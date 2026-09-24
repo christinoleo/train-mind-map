@@ -114,3 +114,8 @@ export const ITEM_COLOR: Record<ItemId, number> = {
 export const BUILD_FLIGHT_MS = 600;
 /** Delay between successive items leaving for the same site. */
 export const BUILD_FLIGHT_STAGGER_MS = 60;
+
+/** How long a tapped item flies from its deposit to the Core (FR74). */
+export const TAP_FLIGHT_MS = 400;
+/** How long the pop on a tapped cell lasts. */
+export const TAP_POP_MS = 300;

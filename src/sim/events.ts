@@ -1,3 +1,4 @@
+import type { RawResource } from "../data/items";
 import type { FailReason } from "./result";
 import type { NodeStatus } from "./state/gameState";
 import type { NodeId } from "./state/ids";
@@ -12,6 +13,18 @@ export type SimEvent =
       type: "ConstructionPaid";
       site: NodeId;
       draws: Draw[];
+    }
+  | {
+      /**
+       * A manual tap on cell (x, y) sent `count` of `item` to the Core. It is
+       * the audio hook too: the "tic" plays on it (FR74).
+       */
+      type: "ManualTapped";
+      x: number;
+      y: number;
+      item: RawResource;
+      count: number;
+      core: NodeId;
     };
 
 export type SimEventType = SimEvent["type"];

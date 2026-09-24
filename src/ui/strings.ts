@@ -42,6 +42,7 @@ export const strings = {
   hud: {
     stock: "Estoque",
     emptyStock: "Estoque vazio",
+    stamina: "Fôlego",
   },
   // The node palette: the "+" button, the bottom tray and placement feedback.
   palette: {
@@ -55,14 +56,17 @@ export const strings = {
     indestructible: "O Núcleo não pode ser removido",
     locked: "Ainda não pesquisado",
     needs_deposit: "O Extrator precisa ficar sobre uma jazida",
+    no_stamina: "Sem fôlego",
     no_stock: "Estoque insuficiente",
     not_found: "Não encontrado",
+    not_tappable: "Petróleo não se coleta à mão",
     nothing_to_undo: "Nada para desfazer",
     occupied: "Espaço ocupado",
     on_deposit: "Só o Extrator fica sobre jazidas",
     on_water: "Não dá para construir na água",
     out_of_bounds: "Fora da área revelada",
     out_of_range: "Fora do limite",
+    storage_full: "O Núcleo está cheio",
     wrong_recipe: "Esta receita não roda neste nó",
   },
   // The rendering stress-test page (stress.html), used on real phones.

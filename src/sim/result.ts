@@ -7,14 +7,17 @@ export type FailReason =
   | "indestructible"
   | "locked"
   | "needs_deposit"
+  | "no_stamina"
   | "no_stock"
   | "not_found"
+  | "not_tappable"
   | "nothing_to_undo"
   | "occupied"
   | "on_deposit"
   | "on_water"
   | "out_of_bounds"
   | "out_of_range"
+  | "storage_full"
   | "wrong_recipe";
 
 export type Result<T = void> =

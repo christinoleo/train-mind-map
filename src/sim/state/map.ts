@@ -4,7 +4,7 @@ import {
   RING_STEP,
 } from "../../config/constants";
 import type { RawResource } from "../../data/items";
-import type { Rect } from "../geometry/rect";
+import { allCells, containsRect, type Rect } from "../geometry/rect";
 
 export const Terrain = { Land: 0, Water: 1 } as const;
 export type Terrain = (typeof Terrain)[keyof typeof Terrain];
@@ -64,4 +64,17 @@ export function revealedSize(ring: number): number {
 
 export function isRevealed(map: GameMap, x: number, y: number): boolean {
   return cellRing(x, y) <= map.revealedRing;
+}
+
+/** True when every cell of `rect` is on the map and revealed. */
+export function isRevealedRect(map: GameMap, rect: Rect): boolean {
+  return (
+    containsRect(MAP_RECT, rect) &&
+    allCells(rect, (x, y) => isRevealed(map, x, y))
+  );
+}
+
+/** The deposit that wholly contains `rect`, if any. */
+export function depositUnder(map: GameMap, rect: Rect): Deposit | undefined {
+  return map.deposits.find((d) => containsRect(d, rect));
 }

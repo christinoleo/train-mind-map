@@ -14,6 +14,8 @@ export interface Tool {
   dragStart?(p: GesturePoint, from: GesturePoint, held: boolean): boolean;
   dragMove?(p: GesturePoint, dx: number, dy: number): void;
   dragEnd?(p: GesturePoint): void;
+  /** Re-checks the tool's feedback against the state after each tick. */
+  refresh?(): void;
   /** Abandons the tool's work in progress (two fingers, Esc). */
   cancel(): void;
 }

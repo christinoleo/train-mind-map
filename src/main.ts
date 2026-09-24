@@ -7,6 +7,7 @@ import { MVP_SCENARIO } from "./data/scenarios/mvp";
 import { Camera } from "./input/camera";
 import { Controls } from "./input/controls";
 import { PlaceTool } from "./input/tools/place";
+import { TapTool } from "./input/tools/tap";
 import { createLoop, type Loop } from "./loop";
 import { installErrorHandler } from "./platform/errors";
 import { createApp } from "./render/app";
@@ -43,8 +44,10 @@ const unlocked = signal<readonly NodeKind[]>([...state.unlockedNodes]);
 const selected = signal<NodeKind | null>(null);
 const hint = signal<FailReason | null>(null);
 const stock = signal<ItemCounts>(state.stock);
+const stamina = signal(state.stamina.points);
 let published = -Infinity;
 events.on("ConstructionPaid", renderer.showConstruction);
+events.on("ManualTapped", renderer.showTap);
 const placeTool = new PlaceTool({
   state,
   camera,
@@ -52,9 +55,19 @@ const placeTool = new PlaceTool({
   showGhost: renderer.setGhost,
   showHint: (reason) => (hint.value = reason),
 });
+const tapTool = new TapTool({
+  state,
+  camera,
+  dispatch: (command) => commands.dispatch(state, command),
+  showHint: (reason) => (hint.value = reason),
+});
+events.on("CommandRejected", ({ command, reason }) => {
+  if (command === "ManualTap") tapTool.rejected(reason);
+});
 effect(() => {
   const kind = selected.value;
   if (kind) {
+    tapTool.cancel();
     placeTool.select(kind, {
       x: app.screen.width / 2,
       y: app.screen.height / 2,
@@ -62,7 +75,7 @@ effect(() => {
     controls.tool = placeTool;
   } else {
     placeTool.deselect();
-    controls.tool = null;
+    controls.tool = tapTool;
   }
 });
 
@@ -74,7 +87,9 @@ loop = createLoop({
     if (unlocked.value.length !== state.unlockedNodes.length) {
       unlocked.value = [...state.unlockedNodes];
     }
-    placeTool.refresh();
+    controls.tool?.refresh?.();
+    // Stamina drains per tap, so the bar follows it every tick.
+    stamina.value = state.stamina.points;
   },
   frame(alpha) {
     renderer.frame(alpha);
@@ -91,7 +106,7 @@ loop = createLoop({
 });
 
 render(
-  h(UiRoot, { unlocked, selected, hint, stock }),
+  h(UiRoot, { unlocked, selected, hint, stock, stamina }),
   document.getElementById("ui-root")!,
 );
 if (!paused) loop.start();
