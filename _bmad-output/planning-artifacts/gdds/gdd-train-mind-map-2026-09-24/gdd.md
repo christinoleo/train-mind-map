@@ -4,7 +4,7 @@ game_type: "simulation + idle-incremental"
 platforms: ["navegador mobile (principal)", "navegador desktop"]
 created: 2026-09-24
 updated: 2026-09-24
-version: 1.4
+version: 1.5
 status: final
 ---
 
@@ -328,7 +328,7 @@ Não há upgrades de "multiplicador" genéricos. Todo upgrade é físico e espac
 |---|---|
 | 1º extrator automático | ≤ 2 min |
 | 1ª ciência vermelha automatizada | ≤ 15 min |
-| 1º trem rodando | 45–75 min |
+| 1º trem rodando | 25–45 min no MVP (45–75 min no jogo completo) |
 | Petróleo | cerca de 3 h |
 | Foguete | 8–12 h ativas (cerca de 4–7 dias com idle) |
 
@@ -436,7 +436,7 @@ Detalhes e stories de alto nível em `epics.md`.
 
 **Sequência:** E1 → E2 → E3 → E6 (básico) → E4 (mínimo) → E5 (básico) → **MVP** → E4 (completo) → E5 (completo) → E7 → E8 → E9.
 
-**Meta do MVP:** uma seed fixa com ferro, pedra e carvão perto do Núcleo e cobre a ≥ 30 células. Cadeia até a ciência vermelha, Laboratório com 5 pesquisas (Divisor e Mesclador, Aresta 2, Ferramentas, Ferrovia, Caixas extras) e 1 linha com 2 estações e 2 vagões. No MVP a Ferrovia custa ciência vermelha (no jogo completo ela é da era verde). Custos em ciência vermelha: Divisor e Mesclador 10, Ferramentas 10, Caixas extras 20, Aresta 2 30, Ferrovia 50 (total de 120). A seed do MVP não tem água entre o cobre e o Núcleo, porque a Ponte não faz parte do MVP. Objetivo: concluir as 5 pesquisas.
+**Meta do MVP (resolvido na issue #5):** o MVP não tem meta de vitória; a única meta do jogo completo é o foguete. A seed do MVP tem ferro, pedra e carvão perto do Núcleo, um **cobre pequeno** (3×3, uma vaga de extrator, 0,5 item/s) perto da base e um **cobre grande** atrás de um **corredor de terra entre lagos** com 1 célula de largura (menor que qualquer nó, então não cabe Caixa-relé) e ≥ 16 células de comprimento (maior que a aresta máxima de 12): só o trilho atravessa. Pesquisas do MVP, pagas com ciência vermelha: Divisor e Mesclador 10, Ferramentas 10, Caixas extras 20, Aresta 2 30, Ferrovia 50 (120 no total; Ferrovia por volta de 30 min) e, depois da Ferrovia, **Protótipo final** com 1.000 (~20 min), que exige ~0,85 placa de cobre/s, acima do cobre pequeno: o trem se torna necessário pela vazão. Ao concluir o Protótipo final, um aviso informa "fim do conteúdo do protótipo" e o jogo segue aberto.
 
 ---
 

@@ -13,7 +13,7 @@ inputDocuments:
 
 Este documento traz a divisão completa em épicos e stories do train-mind-map. Ele decompõe os requisitos do GDD (v1.4), de um documento de UX (se existir) e da arquitetura em stories implementáveis.
 
-> **Legenda:** `[MVP]` marca os requisitos que fazem parte do MVP definido no GDD: seed fixa com ferro, pedra e carvão perto do Núcleo e cobre a ≥ 30 células; cadeia até a ciência vermelha; Laboratório com 5 pesquisas (Divisor e Mesclador, Aresta 2, Ferramentas, Ferrovia, Caixas extras); 1 linha com 2 estações e trem de 2 vagões; save básico e offline com teto de 8 h; objetivo "concluir as 5 pesquisas". Os números são valores iniciais de balanceamento e ficam em `src/data/` ou `src/config/constants.ts`.
+> **Legenda:** `[MVP]` marca os requisitos que fazem parte do MVP definido no GDD 1.5 (seção "Meta do MVP").
 
 ## Requirements Inventory
 
@@ -29,7 +29,7 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 - **FR6** [MVP] Existem 5 recursos brutos: minério de ferro, minério de cobre, carvão, pedra e petróleo.
 - **FR7** [MVP] A área inicial tem sempre ferro, cobre, carvão e pedra a ≤ 15 células do Núcleo. A garantia é verificada depois da geração; se falhar, o gerador tenta de novo com a sub-seed seguinte.
 - **FR8** O petróleo só aparece do anel 2 em diante e a ≥ 40 células do Núcleo.
-- **FR9** [MVP] Na seed fixa do MVP, ferro, pedra e carvão ficam perto do Núcleo e o cobre fica a ≥ 30 células dele.
+- **FR9** [MVP] Na seed fixa do MVP: ferro, pedra e carvão perto do Núcleo; um cobre pequeno 3×3 (uma vaga de extrator) perto da base; um cobre grande atrás de um corredor de terra entre lagos com 1 célula de largura e ≥ 16 células de comprimento, que só o trilho atravessa.
 - **FR10** [MVP] Lagos (água) bloqueiam nós e arestas; trilhos só atravessam água com Ponte. Nas expansões, os lagos formam corredores.
 - **FR11** [MVP] O Núcleo começa colocado no mapa.
 
@@ -166,7 +166,7 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 #### Pesquisa e progressão
 
 - **FR109** [MVP] O Laboratório consome pacotes de ciência para avançar a pesquisa ativa; o jogador escolhe a próxima pesquisa numa tela de pesquisa.
-- **FR110** [MVP] Pesquisas do MVP, pagas com ciência vermelha: Divisor e Mesclador, Aresta 2, Ferramentas, Ferrovia, Caixas extras. Custos: 10, 30, 10, 50 e 20 ciências vermelhas, respectivamente (total de 120). A meta do MVP é concluir as 5. A seed do MVP não tem água entre o cobre e o Núcleo (sem Ponte no MVP).
+- **FR110** [MVP] Pesquisas do MVP, pagas com ciência vermelha: Divisor e Mesclador 10, Ferramentas 10, Caixas extras 20, Aresta 2 30, Ferrovia 50 e, depois da Ferrovia, Protótipo final 1.000. Não há meta de vitória no MVP: ao concluir o Protótipo final, um aviso informa "fim do conteúdo do protótipo" e o jogo segue aberto.
 - **FR111** A árvore completa tem cerca de 20 tecnologias em 3 eras, com fila de pesquisa. Custo de 10 a 1.000 pacotes por tecnologia, crescendo ~1,6× por tecnologia dentro de cada era.
 - **FR112** Era vermelha: Divisor e Mesclador, Aresta 2, Ferramentas, Caixas extras, Expansão 1.
 - **FR113** Era verde: Ferrovia (T1), Logística ferroviária (T2), Montadora 2, Filtro, conectores extras, Expansão 2 e petróleo, teto offline +4 h (→ 12 h).
@@ -261,7 +261,7 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 - **NFR16** Robustez: perda de contexto WebGL no iOS Safari é recuperada sem perder a partida.
 - **NFR17** Áudio: no máximo 8 vozes simultâneas de SFX; SFX iguais em menos de 50 ms são agregados.
 - **NFR18** Manutenibilidade: todo número de gameplay vem de `src/data/` ou `src/config/constants.ts`; toda regra do GDD com número tem ao menos um teste unitário.
-- **NFR19** Ritmo (métricas de playtest): 1º extrator automático em ≤ 2 min sem ajuda; 1ª ciência vermelha automatizada em ≤ 15 min; 1º trem em 45–75 min; petróleo em ~3 h; foguete em 8–12 h ativas; as 5 pesquisas do MVP concluíveis numa seed fixa em 45–75 min.
+- **NFR19** Ritmo (métricas de playtest): 1º extrator automático em ≤ 2 min sem ajuda; 1ª ciência vermelha automatizada em ≤ 15 min; 1º trem em 25–45 min no MVP; petróleo em ~3 h; foguete em 8–12 h ativas; as 5 pesquisas do MVP concluíveis numa seed fixa em 45–75 min.
 - **NFR20** Critérios de sucesso do MVP: ≥ 4 de 5 testadores dizem que o trem foi o momento mais divertido; ≥ 3 de 5 voltam no dia seguinte; tentativas de aresta inválida por minuto caem com o tempo.
 - **NFR21** O tamanho do bundle principal exclui o código de debug e replay (chunk separado, carregado sob demanda).
 
@@ -512,7 +512,7 @@ O jogador pesquisa no Laboratório (as 4 pesquisas do MVP que não são ferrovi�
 
 O jogador pesquisa a Ferrovia, traça trilho de via dupla, coloca duas Estações e põe um trem de 2 vagões numa linha com condições de partida, levando cobre distante até a base sem colisões.
 **FRs:** FR41, FR45, FR78, FR79, FR80, FR81, FR85, FR86, FR88, FR89, FR90, FR91, FR92, FR93, FR94, FR95, FR96, FR97, FR140, FR157 (reservas)
-**Notas:** marco do MVP, com a meta "concluir as 5 pesquisas" e playtest com 3 a 5 pessoas.
+**Notas:** marco do MVP, sem meta de vitória (fim do conteúdo ao concluir o Protótipo final) e playtest com 3 a 5 pessoas.
 
 ---
 **▲ MVP (Épicos 1–5) ▲**

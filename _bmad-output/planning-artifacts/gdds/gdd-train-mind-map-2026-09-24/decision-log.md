@@ -76,3 +76,11 @@
 - **Fixed lines with T5 (user):** they coexist. Each train is either in line mode or in dispatcher mode.
 - **Where the fun lies (user):** "I like trains in Factorio because the three are factors that complement each other": designing the layout, programming the automation, and watching the network run itself. Added to Pillar 3.
 - The architecture doc was updated (`sim/rail/rules.ts`, `sim/rail/dispatch.ts`, rule commands, `ui/RulesEditor`). The epics were updated (E5 now carries the automation scope).
+
+## 2026-09-24 — v1.5 (MVP pacing, wayfinder issue #5)
+
+- **Finding:** with the old numbers the train was pointless in the MVP. A chain of edges with 2 relay Boxes spans 30 cells for about 50 ore, versus about 185 processed items for a train, and MVP copper demand (~0.1/s) sat far below edge capacity. Raising demand alone does not fix it, because edges can run in parallel.
+- **Decision (user):** edges are limited by length and by throughput, and the train wins on throughput. MVP demand goes up after the Ferrovia research: a sixth research, "Protótipo final", costs 1000 red science (about 20 min) and needs ~0.85 copper plates/s.
+- **Map:** a small copper deposit (3×3, one Extractor, 0.5/s) sits near the base; a big copper deposit sits behind a 1-cell-wide land corridor between lakes that is at least 16 cells long. No relay Box fits, edges cannot span it, and only rail passes.
+- **MVP goal (user):** no win goal. The only goal in the full game is the rocket. When "Protótipo final" completes, an "end of prototype content" notice appears and the game stays open.
+- **Pacing (user):** keep the Ferrovia at about 30 min. The first-train target for the MVP is 25–45 min.

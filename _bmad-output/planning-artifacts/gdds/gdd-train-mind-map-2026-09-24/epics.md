@@ -74,7 +74,7 @@ Este documento desdobra a seção "Épicos de Desenvolvimento" do `gdd.md`. As s
 
 ---
 
-**Marco MVP:** uma seed fixa com cobre a ≥ 30 células, Laboratório com 5 pesquisas (Divisor e Mesclador, Aresta 2, Ferramentas, Ferrovia, Caixas extras) e a meta "concluir as 5 pesquisas". Depois do playtest vem a decisão de seguir.
+**Marco MVP:** ver "Meta do MVP" no GDD 1.5 (sem meta de vitória; 6 pesquisas, incluindo o Protótipo final; cobre grande só por trem, atrás de um corredor). Depois do playtest vem a decisão de seguir.
 
 ---
 
