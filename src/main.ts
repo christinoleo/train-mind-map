@@ -18,6 +18,7 @@ import { createRenderer } from "./render/renderer";
 import { CommandQueue } from "./sim/commands/commandQueue";
 import { RemoveEdge } from "./sim/commands/removeEdge";
 import { RemoveNode } from "./sim/commands/removeNode";
+import { SetBoxConstruction } from "./sim/commands/setBoxConstruction";
 import { SetRecipe } from "./sim/commands/setRecipe";
 import { UpgradeEdge } from "./sim/commands/upgradeEdge";
 import { UpgradeNode } from "./sim/commands/upgradeNode";
@@ -26,6 +27,7 @@ import type { FailReason } from "./sim/result";
 import { createGameState, type GameState } from "./sim/state/gameState";
 import type { EdgeId, NodeId } from "./sim/state/ids";
 import { powerSummary, type PowerSummary } from "./sim/state/power";
+import { isStorageFull } from "./sim/state/stock";
 import { tick } from "./sim/tick";
 import { edgeMenuInfo, type EdgeMenuInfo } from "./ui/EdgeMenu";
 import { nodeMenuInfo, type NodeMenuInfo } from "./ui/NodeMenu";
@@ -64,6 +66,7 @@ const selectedEdge = signal<EdgeId | null>(null);
 const edgeMenu = signal<EdgeMenuInfo | null>(null);
 const selectedNode = signal<NodeId | null>(null);
 const nodeMenu = signal<NodeMenuInfo | null>(null);
+const storageFull = signal(false);
 const canUndo = signal(false);
 let published = -Infinity;
 let lastFrame = performance.now();
@@ -228,6 +231,7 @@ loop = createLoop({
       if (!sameCounts(stock.value, state.stock)) stock.value = state.stock;
       const summary = powerSummary(state.power);
       if (!samePower(power.value, summary)) power.value = summary;
+      storageFull.value = isStorageFull(state.nodes);
       published = now;
     }
   },
@@ -241,6 +245,7 @@ render(
     stock,
     stamina,
     power,
+    storageFull,
     edgeMenu: {
       edge: edgeMenu,
       onUpgrade() {
@@ -262,6 +267,12 @@ render(
       onRecipe(recipe) {
         const id = selectedNode.value;
         if (id !== null) commands.dispatch(state, new SetRecipe(id, recipe));
+      },
+      onConstruction(noConstruction) {
+        const id = selectedNode.value;
+        if (id !== null) {
+          commands.dispatch(state, new SetBoxConstruction(id, noConstruction));
+        }
       },
       onUpgrade() {
         const id = selectedNode.value;

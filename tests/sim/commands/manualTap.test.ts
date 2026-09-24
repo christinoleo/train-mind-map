@@ -10,7 +10,8 @@ import { fail, ok } from "../../../src/sim/result";
 import { createGameState } from "../../../src/sim/state/gameState";
 import type { NodeId } from "../../../src/sim/state/ids";
 import { STAMINA_RECHARGE_TICKS } from "../../../src/sim/state/stamina";
-import { coreNode } from "../../../src/sim/state/stock";
+import { coreNode, storedItems } from "../../../src/sim/state/stock";
+import { createNode } from "../../../src/sim/state/nodes";
 import { tick } from "../../../src/sim/tick";
 import { fillCore } from "../support/stock";
 
@@ -42,7 +43,7 @@ describe("ManualTap", () => {
   it("sends 1 item of the deposit's resource to the Core", () => {
     const { state, seen, tap } = setup();
     expect(tap()).toEqual(ok());
-    expect(coreNode(state).items).toEqual({ "iron-ore": 1 });
+    expect(storedItems(coreNode(state))).toEqual({ "iron-ore": 1 });
     expect(state.stock).toEqual({ "iron-ore": 1 });
     expect(seen).toEqual([
       {
@@ -65,7 +66,7 @@ describe("ManualTap", () => {
     ]) {
       expect(tap(x, y)).toEqual(ok());
     }
-    expect(coreNode(state).items).toEqual({
+    expect(storedItems(coreNode(state))).toEqual({
       "iron-ore": 1,
       "copper-ore": 1,
       coal: 1,
@@ -84,13 +85,7 @@ describe("ManualTap", () => {
     });
     expect(tap(46, 46)).toEqual(fail("not_tappable"));
     fillCore(state);
-    state.nodes.set(9 as NodeId, {
-      id: 9 as NodeId,
-      kind: "box",
-      x: 45,
-      y: 45,
-      items: {},
-    });
+    state.nodes.set(9 as NodeId, createNode(9 as NodeId, "box", 45, 45));
     expect(tap(46, 46)).toEqual(fail("occupied"));
     expect(state.stamina.points).toBe(STAMINA.max);
   });
@@ -107,7 +102,7 @@ describe("ManualTap", () => {
 
   it("refuses a tap once the Core is full", () => {
     const { state, tap } = setup();
-    coreNode(state).items = { stone: STORAGE_CAPACITY.core };
+    coreNode(state).items = [{ item: "stone", count: STORAGE_CAPACITY.core }];
     expect(tap()).toEqual(fail("storage_full"));
     expect(state.stamina.points).toBe(STAMINA.max);
   });
@@ -116,7 +111,7 @@ describe("ManualTap", () => {
     const { state, tap } = setup();
     state.tapLevel = 2;
     tap();
-    expect(coreNode(state).items).toEqual({ "iron-ore": 4 });
+    expect(storedItems(coreNode(state))).toEqual({ "iron-ore": 4 });
     expect(state.stamina.points).toBe(STAMINA.max - 1);
   });
 
@@ -146,7 +141,7 @@ describe("stamina", () => {
     for (let i = 0; i < STAMINA.max; i++) expect(tap()).toEqual(ok());
     expect(state.stamina.points).toBe(0);
     expect(tap()).toEqual(fail("no_stamina"));
-    expect(coreNode(state).items).toEqual({ "iron-ore": STAMINA.max });
+    expect(storedItems(coreNode(state))).toEqual({ "iron-ore": STAMINA.max });
     expect(seen.filter((e) => e.type === "ManualTapped")).toHaveLength(20);
   });
 
@@ -160,7 +155,7 @@ describe("stamina", () => {
       ok(),
     );
     step();
-    expect(coreNode(state).items).toEqual({ "iron-ore": 1 });
+    expect(storedItems(coreNode(state))).toEqual({ "iron-ore": 1 });
     expect(seen.at(-1)).toEqual({
       type: "CommandRejected",
       command: "ManualTap",

@@ -1,7 +1,7 @@
 import { ITEMS, type ItemCounts } from "../data/items";
 import type { Command } from "../sim/commands/command";
 import { fail, ok } from "../sim/result";
-import type { GameState } from "../sim/state/gameState";
+import type { GameState, ItemRun } from "../sim/state/gameState";
 import type { NodeId } from "../sim/state/ids";
 import { cellRing } from "../sim/state/map";
 import { deposit, isStorage } from "../sim/state/stock";
@@ -38,7 +38,7 @@ export class SetRevealedRing implements Command {
 }
 
 /** What every storage node holds, by id. */
-type StorageContents = Map<NodeId, ItemCounts>;
+type StorageContents = Map<NodeId, ItemRun[]>;
 
 function storageContents(state: GameState): StorageContents {
   const contents: StorageContents = new Map();

@@ -51,6 +51,12 @@ export interface Production {
   progress: number | null;
 }
 
+/** Items of one type that arrived in a row, in a storage node. */
+export interface ItemRun {
+  item: ItemId;
+  count: number;
+}
+
 /** A placed node. Kinds that carry their own data add it here. */
 export type FactoryNode = NodeBase &
   (
@@ -61,7 +67,27 @@ export type FactoryNode = NodeBase &
         recipe: RecipeId | null;
         production: Production;
       }
-    | { kind: StorageKind; items: ItemCounts }
+    | {
+        kind: "core";
+        /** What it holds, in order of arrival, the oldest first (FR29). */
+        items: ItemRun[];
+      }
+    | {
+        kind: "box";
+        items: ItemRun[];
+        /** "Não usar em construção": construction never draws from it (FR71). */
+        noConstruction: boolean;
+      }
+    | {
+        kind: "splitter" | "merger";
+        /**
+         * The connector whose turn is next in the round robin: an output of
+         * a Splitter (FR37), an input of a Merger (FR38).
+         */
+        next: number;
+        /** An item waits at it that no output can take (FR37). */
+        blocked: boolean;
+      }
     | {
         kind: "generator";
         /** Fuel items waiting in the input buffer. */
@@ -72,7 +98,12 @@ export type FactoryNode = NodeBase &
     | {
         kind: Exclude<
           NodeKind,
-          "extractor" | CrafterKind | StorageKind | "generator"
+          | "extractor"
+          | CrafterKind
+          | StorageKind
+          | "generator"
+          | "splitter"
+          | "merger"
         >;
       }
   );
