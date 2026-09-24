@@ -7,6 +7,12 @@ export default defineConfig({
   server: {
     port: 8080,
   },
+  build: {
+    rolldownOptions: {
+      // stress.html is the rendering stress test for real phones (ticket #3).
+      input: ["index.html", "stress.html"],
+    },
+  },
   test: {
     include: ["tests/**/*.test.ts"],
   },

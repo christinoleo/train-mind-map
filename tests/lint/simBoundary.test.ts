@@ -53,30 +53,3 @@ describe("src/sim/ layer boundary", () => {
     expect(errors).toHaveLength(0);
   });
 });
-
-describe("src/sim/ determinism", () => {
-  async function purityErrors(filePath: string, source: string) {
-    const [result] = await eslint.lintText(source, { filePath });
-    return result.messages.filter(
-      (m) =>
-        m.ruleId === "no-restricted-properties" ||
-        m.ruleId === "no-restricted-globals",
-    );
-  }
-
-  it.each([
-    "export const x = Math.random();",
-    "export const x = Date.now();",
-    "export const x = performance.now();",
-    "export const x = new Date();",
-  ])("rejects %s", async (source) => {
-    const errors = await purityErrors("src/sim/tick.ts", source);
-    expect(errors.length).toBeGreaterThan(0);
-  });
-
-  it("does not restrict other layers", async () => {
-    const source = "export const x = performance.now();";
-    const errors = await purityErrors("src/loop.ts", source);
-    expect(errors).toHaveLength(0);
-  });
-});

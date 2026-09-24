@@ -9,4 +9,21 @@ export const strings = {
     exported: "Save copiado para a área de transferência",
     exportFailed: "Não foi possível copiar o save",
   },
+  // The rendering stress-test page (stress.html), used on real phones.
+  stress: {
+    items: "Itens",
+    trains: "Trens",
+    lod: "LOD",
+    on: "ligado",
+    off: "desligado",
+    loseContext: "Forçar perda de contexto",
+    contextLost: "contexto perdido",
+    contextRestored: "contexto recuperado",
+    copy: "copiar resultados",
+    copied: "Resultados copiados",
+    copyFailed: "Não foi possível copiar; selecione o texto abaixo",
+    noWebgl: "Este teste precisa de WebGL, indisponível neste navegador.",
+    hide: "ocultar",
+    show: "mostrar",
+  },
 } as const;
