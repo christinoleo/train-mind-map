@@ -99,10 +99,11 @@ export function debit(state: GameState, cost: Cost, site: Rect): Draw[] {
 
 /**
  * Puts `items` into storage near `site`, in `storageOrder`, up to each
- * node's capacity. Whatever finds no room is lost.
+ * node's capacity, and returns what went in. Whatever finds no room is lost.
  */
-export function deposit(state: GameState, items: Cost, site: Rect): void {
+export function deposit(state: GameState, items: Cost, site: Rect): ItemCounts {
   const order = storageOrder(state, site);
+  const stored: ItemCounts = {};
   for (const [item, count] of itemEntries(items)) {
     let left = count;
     for (const storage of order) {
@@ -110,10 +111,12 @@ export function deposit(state: GameState, items: Cost, site: Rect): void {
       const put = Math.min(left, room);
       if (put <= 0) continue;
       storage.items[item] = (storage.items[item] ?? 0) + put;
+      stored[item] = (stored[item] ?? 0) + put;
       left -= put;
       if (left === 0) break;
     }
   }
+  return stored;
 }
 
 function withdraw(storage: StorageNode, item: ItemId, count: number): void {
