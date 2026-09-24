@@ -15,6 +15,7 @@ import { createLayers, type Layers } from "./layers";
 import { applyLod } from "./lod";
 import { drawDeposits, drawTerrain, revealedBounds } from "./mapView";
 import { drawGhostOutline, drawNodeCard, NodeViews } from "./nodes";
+import { drawRailPorts, RailPortViews } from "./rails";
 import type { DeepReadonly } from "./readonly";
 import {
   BUILD_FLIGHT_MS,
@@ -60,6 +61,7 @@ export function createRenderer(
   const world = app.stage.addChild(new Container({ label: "world" }));
   const layers = createLayers(world);
   const nodeViews = new NodeViews(layers.nodes);
+  const railPortViews = new RailPortViews(layers.rails);
   const edgeViews = new EdgeViews(layers.edges);
   const itemViews = new ItemViews(layers.items, app.renderer);
   const edgePreviewView = new EdgePreviewView(layers.overlays);
@@ -91,6 +93,7 @@ export function createRenderer(
     if (look !== drawnCard) {
       ghostCard?.destroy({ children: true });
       ghostCard = ghostLayer.addChildAt(drawNodeCard(kind, resource), 0);
+      drawRailPorts(ghostCard.addChild(new Graphics()), kind);
       drawnCard = look;
       drawnValid = null;
     }
@@ -127,6 +130,7 @@ export function createRenderer(
     contextLost = false;
     drawnMap = null;
     nodeViews.clear();
+    railPortViews.clear();
     edgeViews.clear();
     itemViews.clear();
     flights.clear();
@@ -160,6 +164,7 @@ export function createRenderer(
       camera.setViewport(width, height);
       if (drawnMap !== map || drawnRing !== map.revealedRing) rebuildMap();
       nodeViews.sync(state.nodes, moving);
+      railPortViews.sync(state.nodes, moving);
       edgeViews.sync(
         state.edges,
         state.nodes,

@@ -60,7 +60,7 @@ export interface ItemRun {
   count: number;
 }
 
-/** A placed node. Kinds that carry their own data add it here. */
+/** A placed node, with the data its kind carries. */
 export type FactoryNode = NodeBase &
   (
     | { kind: "extractor"; resource: RawResource; production: Production }
@@ -99,28 +99,27 @@ export type FactoryNode = NodeBase &
         research: ResearchId | null;
       }
     | {
+        /**
+         * Its buffer between edges and trains (FR92), in order of arrival,
+         * the oldest first. It is not storage: the global stock leaves it out.
+         */
+        kind: "station";
+        items: ItemRun[];
+      }
+    | {
         kind: "generator";
         /** Fuel items waiting in the input buffer. */
         fuel: number;
         /** Ticks left on the fuel item burning now, or 0. */
         burn: number;
       }
-    | {
-        kind: Exclude<
-          NodeKind,
-          | "extractor"
-          | CrafterKind
-          | StorageKind
-          | "generator"
-          | "splitter"
-          | "merger"
-          | "lab"
-        >;
-      }
   );
 
 /** A node that makes items. */
 export type ProducerNode = Extract<FactoryNode, { production: Production }>;
+
+/** A Station, which buffers items between edges and trains (FR41). */
+export type StationNode = Extract<FactoryNode, { kind: "station" }>;
 
 /** A Lab, which consumes science packs for the active research (FR40). */
 export type LabNode = Extract<FactoryNode, { kind: "lab" }>;

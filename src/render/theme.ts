@@ -70,7 +70,7 @@ export const CATEGORY_COLOR: Record<NodeCategory, number> = {
   storage: 0x6fcf97,
   logistics: 0x5ec8c8,
   research: 0xf28fb8,
-  rail: 0xc9a27a,
+  rail: 0xff9f1c,
 };
 
 /** Outline of the placement ghost: green where it fits, red where it does not. */

@@ -6,7 +6,13 @@ import { edgeUnits, spacingUnits } from "../state/edges";
 import type { Edge, FactoryNode, GameState } from "../state/gameState";
 import type { NodeId } from "../state/ids";
 import { acceptItem, takeOutput } from "../state/production";
-import { isStorage, storageRoom, store, takeOldest } from "../state/stock";
+import {
+  bufferCapacity,
+  isBuffer,
+  store,
+  storedCount,
+  takeOldest,
+} from "../state/stock";
 import type { Emit } from "../events";
 import type { System } from "../tick";
 
@@ -147,14 +153,14 @@ function merge(node: RouterNode, links: Links) {
 function take(node: FactoryNode, port: number, links: Links) {
   if (node.kind === "splitter") return split(node, port, links);
   if (node.kind === "merger") return merge(node, links);
-  if (isStorage(node)) return takeOldest(node);
+  if (isBuffer(node)) return takeOldest(node);
   return takeOutput(node);
 }
 
 /** Hands `item` to `node`; returns whether it entered. */
 function deliver(state: GameState, node: FactoryNode, item: ItemId): boolean {
-  if (!isStorage(node)) return acceptItem(node, item);
-  if (storageRoom(state, node) === 0) return false;
+  if (!isBuffer(node)) return acceptItem(node, item);
+  if (storedCount(node) >= bufferCapacity(state, node)) return false;
   store(node, item, 1);
   return true;
 }
@@ -185,8 +191,9 @@ function updateRouter(node: RouterNode, links: Links, emit: Emit) {
  * Items move along every edge (FR55–FR57): out of the source node and into
  * the target node. Producers fill their input buffers and empty their output
  * buffers; the Core and Boxes store what arrives while they have room and
- * send out the oldest (FR28, FR29); Splitters and Mergers pass items straight
- * through. A full node refuses, and the edges behind it back up (FR73).
+ * send out the oldest (FR28, FR29), and so do Stations, into their buffer
+ * (FR92); Splitters and Mergers pass items straight through. A full node
+ * refuses, and the edges behind it back up (FR73).
  */
 export const flow: System = (state, { emit }) => {
   const links = linksOf(state);

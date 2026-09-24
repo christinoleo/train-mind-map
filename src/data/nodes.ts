@@ -152,9 +152,9 @@ export const NODES: Readonly<Record<NodeKind, NodeDef>> = {
     cost: { "iron-plate": 20, "copper-plate": 10, brick: 10 },
     unlock: "start",
   },
-  // Placed like any node; its rail behaviour comes with Epic 5.
+  // A regular card that also has rail ports (FR41); see `STATION` in rail.ts.
   station: {
-    size: 3,
+    size: 2,
     inputs: 3,
     outputs: 3,
     category: "rail",

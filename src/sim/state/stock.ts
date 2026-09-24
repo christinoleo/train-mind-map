@@ -10,15 +10,33 @@ import {
   type StorageKind,
 } from "../../data/nodes";
 import type { Rect } from "../geometry/rect";
-import type { FactoryNode, GameState } from "./gameState";
+import { stationCapacity } from "../rail/station";
+import type { FactoryNode, GameState, StationNode } from "./gameState";
 import type { NodeId } from "./ids";
 import { nodeRect } from "./nodes";
 
 /** A node that stores items for the global stock: the Core or a Box. */
 export type StorageNode = Extract<FactoryNode, { kind: StorageKind }>;
 
+/** A node that holds items in order of arrival: storage or a Station. */
+export type BufferNode = StorageNode | StationNode;
+
+type ItemHolder = Pick<BufferNode, "items">;
+
 export function isStorage(node: FactoryNode): node is StorageNode {
   return node.kind in STORAGE_CAPACITY;
+}
+
+export function isBuffer(node: FactoryNode): node is BufferNode {
+  return isStorage(node) || node.kind === "station";
+}
+
+/** How many items, of every type together, `node` holds at most. */
+export function bufferCapacity(
+  state: Readonly<GameState>,
+  node: Readonly<BufferNode>,
+): number {
+  return isStorage(node) ? storageCapacity(state, node) : stationCapacity();
 }
 
 /** The Core, which the game places at the start and which is never removed. */
@@ -46,14 +64,14 @@ export function storageRoom(
 }
 
 /** How many items, of every type together, `node` holds. */
-export function storedCount(node: Readonly<StorageNode>): number {
+export function storedCount(node: Readonly<ItemHolder>): number {
   let total = 0;
   for (const run of node.items) total += run.count;
   return total;
 }
 
 /** What `node` holds, counted by type. */
-export function storedItems(node: Readonly<StorageNode>): ItemCounts {
+export function storedItems(node: Readonly<ItemHolder>): ItemCounts {
   const counts: ItemCounts = {};
   for (const { item, count } of node.items) {
     counts[item] = (counts[item] ?? 0) + count;
@@ -63,9 +81,9 @@ export function storedItems(node: Readonly<StorageNode>): ItemCounts {
 
 /**
  * Puts `count` of `item` into `node`, behind what it already holds. The
- * caller has checked `storageRoom`.
+ * caller has checked that it has room.
  */
-export function store(node: StorageNode, item: ItemId, count: number): void {
+export function store(node: ItemHolder, item: ItemId, count: number): void {
   const last = node.items.at(-1);
   if (last?.item === item) last.count += count;
   else node.items.push({ item, count });
@@ -73,9 +91,9 @@ export function store(node: StorageNode, item: ItemId, count: number): void {
 
 /**
  * Takes the item that has waited longest out of `node`, if it holds any: a
- * storage node with an output delivers in order of arrival (FR29).
+ * storage node or Station with an output delivers in order of arrival (FR29).
  */
-export function takeOldest(node: StorageNode): ItemId | undefined {
+export function takeOldest(node: ItemHolder): ItemId | undefined {
   const first = node.items[0];
   if (!first) return undefined;
   if (--first.count === 0) node.items.shift();
