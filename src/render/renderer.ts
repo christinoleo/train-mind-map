@@ -2,14 +2,17 @@ import { Container, type Application } from "pixi.js";
 import type { Rect } from "../sim/geometry/rect";
 import type { GameState } from "../sim/state/gameState";
 import { fitArea } from "./camera";
-import { createLayers } from "./layers";
+import { createLayers, type Layers } from "./layers";
 import { drawCore, drawDeposits, drawTerrain, revealedBounds } from "./mapView";
 import type { DeepReadonly } from "./readonly";
-import { toWorld } from "./theme";
+import { CELL_PX, toWorld } from "./theme";
 
 export interface Renderer {
   /** Draws one frame; `alpha` is the loop's interpolation factor. */
   frame(alpha: number): void;
+  readonly layers: Layers;
+  /** Centres the camera on cell (x, y), keeping the zoom. */
+  centerOn(x: number, y: number): void;
 }
 
 /**
@@ -64,7 +67,7 @@ export function createRenderer(
   });
   app.canvas.addEventListener("webglcontextrestored", () => {
     contextLost = false;
-    drawnRing = -1;
+    drawnMap = null;
   });
 
   return {
@@ -74,6 +77,15 @@ export function createRenderer(
       if (drawnMap !== map || drawnRing !== map.revealedRing) rebuildMap();
       fitCamera(drawnArea!);
       app.render();
+    },
+    layers,
+    centerOn(x, y) {
+      const scale = world.scale.x;
+      const { width, height } = app.screen;
+      world.position.set(
+        width / 2 - (x + 0.5) * CELL_PX * scale,
+        height / 2 - (y + 0.5) * CELL_PX * scale,
+      );
     },
   };
 }

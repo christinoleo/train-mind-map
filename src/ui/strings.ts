@@ -26,4 +26,26 @@ export const strings = {
     hide: "ocultar",
     show: "mostrar",
   },
+  // The debug tools (?debug=1 or a dev build): performance overlay and the
+  // superadmin panel.
+  debug: {
+    admin: "admin",
+    close: "fechar",
+    seed: "Seed",
+    regenerate: "Regenerar",
+    speed: "Velocidade",
+    teleport: "Teleportar",
+    go: "Ir",
+    revealRing: "Anel revelado",
+    overlays: "Overlays",
+    coreRings: "Anéis de depósito e raios de garantia",
+    nodes: "nós",
+    edges: "arestas",
+    items: "itens",
+    trains: "trens",
+    tick: "tick",
+    render: "render",
+    heap: "heap",
+    notAvailable: "n/d",
+  },
 } as const;

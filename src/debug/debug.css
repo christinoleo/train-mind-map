@@ -1,0 +1,105 @@
+/* The debug tools' overlay and superadmin panel. This file loads with the
+   debug chunk only. */
+#debug-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  font:
+    12px/1.4 ui-monospace,
+    monospace;
+  color: #f2f6fc;
+}
+
+#debug-root button,
+#debug-root input,
+#debug-root .debug-panel {
+  pointer-events: auto;
+}
+
+.debug-perf {
+  position: absolute;
+  top: env(safe-area-inset-top, 0);
+  left: env(safe-area-inset-left, 0);
+  margin: 4px;
+  padding: 4px 6px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 4px;
+  white-space: pre;
+}
+
+.debug-toggle {
+  position: absolute;
+  top: env(safe-area-inset-top, 0);
+  right: env(safe-area-inset-right, 0);
+  margin: 4px;
+}
+
+.debug-panel {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 48px);
+  right: env(safe-area-inset-right, 0);
+  max-width: calc(100vw - 8px);
+  max-height: calc(100% - 56px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  margin: 0 4px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(7, 20, 41, 0.92);
+  border: 1px solid #8fb4e3;
+  border-radius: 6px;
+}
+
+.debug-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+#debug-root button,
+#debug-root input {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 0 8px;
+  border: 1px solid #8fb4e3;
+  border-radius: 4px;
+  background: #12305a;
+  color: inherit;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+#debug-root input {
+  width: 9em;
+}
+
+#debug-root input[type="number"] {
+  width: 5em;
+}
+
+#debug-root input[type="checkbox"] {
+  min-height: 0;
+  width: auto;
+}
+
+#debug-root button.active {
+  background: #f0a030;
+  color: #0b1e3a;
+}
+
+.debug-overlays {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  border: 1px solid rgba(143, 180, 227, 0.4);
+  border-radius: 4px;
+}
+
+#debug-root button:disabled {
+  opacity: 0.4;
+}

@@ -40,5 +40,5 @@ if (!paused) loop.start();
 
 if (import.meta.env.DEV || new URLSearchParams(location.search).has("debug")) {
   const { installDebugTools } = await import("./debug/tools");
-  installDebugTools({ state, commands, events, loop, app });
+  installDebugTools({ state, commands, events, loop, app, renderer });
 }

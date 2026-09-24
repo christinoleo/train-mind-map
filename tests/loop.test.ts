@@ -3,13 +3,14 @@ import { MAX_TICKS_PER_FRAME, TICK_MS } from "../src/config/constants";
 import { createLoop } from "../src/loop";
 
 function harness(startTime = 0) {
+  let clock = startTime;
   let pending: ((time: number) => void) | undefined;
   let ticks = 0;
   const alphas: number[] = [];
   const loop = createLoop({
     step: () => void ticks++,
     frame: (alpha) => void alphas.push(alpha),
-    now: () => startTime,
+    now: () => clock,
     requestFrame: (callback) => {
       pending = callback;
       return 1;
@@ -21,6 +22,7 @@ function harness(startTime = 0) {
   const frameAt = (time: number) => {
     const callback = pending!;
     pending = undefined;
+    clock = time;
     callback(time);
   };
   return {
@@ -65,5 +67,26 @@ describe("loop", () => {
     h.loop.start();
     h.frameAt(20);
     expect(h.alphas).toEqual([0]);
+  });
+
+  it("scales the ticks by the speed", () => {
+    const h = harness();
+    h.loop.start();
+    h.loop.speed = 10;
+    h.frameAt(TICK_MS);
+    expect(h.ticks()).toBe(10);
+    h.loop.speed = 0;
+    h.frameAt(TICK_MS * 100);
+    expect(h.ticks()).toBe(10);
+    expect(h.alphas).toEqual([0, 0]);
+  });
+
+  it(`lets speed raise the per-frame cap past ${MAX_TICKS_PER_FRAME}`, () => {
+    const h = harness();
+    h.loop.start();
+    h.loop.speed = 100;
+    h.frameAt(TICK_MS);
+    expect(h.ticks()).toBe(100);
+    expect(h.loop.timings.ticks).toBe(100);
   });
 });

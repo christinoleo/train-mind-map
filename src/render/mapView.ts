@@ -18,11 +18,16 @@ import {
 
 type MapView = DeepReadonly<GameMap>;
 
-/** The revealed square, in cells. Nothing outside it is drawn. */
-export function revealedBounds(map: MapView): Rect {
-  const side = Math.min(revealedSize(map.revealedRing), MAP_SIZE);
+/** The square that `ring` reveals, in cells, clipped to the map. */
+export function ringBounds(ring: number): Rect {
+  const side = Math.min(revealedSize(ring), MAP_SIZE);
   const start = (MAP_SIZE - side) / 2;
   return { x: start, y: start, w: side, h: side };
+}
+
+/** The revealed square, in cells. Nothing outside it is drawn. */
+export function revealedBounds(map: MapView): Rect {
+  return ringBounds(map.revealedRing);
 }
 
 /** True when `rect` lies wholly inside `bounds`. */
