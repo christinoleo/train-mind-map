@@ -1,7 +1,18 @@
 import type { RawResource } from "../data/items";
+import type { Rect } from "../sim/geometry/rect";
 
 /** World units per map cell. The camera scales the world to the screen. */
 export const CELL_PX = 16;
+
+/** `r`, given in cells, in world units. */
+export function toWorld(r: Rect): Rect {
+  return {
+    x: r.x * CELL_PX,
+    y: r.y * CELL_PX,
+    w: r.w * CELL_PX,
+    h: r.h * CELL_PX,
+  };
+}
 
 /** Blueprint palette (GDD §Direção de Arte): dark technical-paper blue. */
 export const BLUEPRINT = {
@@ -24,7 +35,7 @@ export const BLUEPRINT = {
 export type ResourceShape =
   "square" | "circle" | "triangle" | "diamond" | "drop";
 
-export interface ResourceStyle {
+interface ResourceStyle {
   color: number;
   shape: ResourceShape;
 }

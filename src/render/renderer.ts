@@ -1,15 +1,15 @@
 import { Container, type Application } from "pixi.js";
+import type { Rect } from "../sim/geometry/rect";
 import type { GameState } from "../sim/state/gameState";
 import { fitArea } from "./camera";
-import { createLayers, type Layers } from "./layers";
+import { createLayers } from "./layers";
 import { drawCore, drawDeposits, drawTerrain, revealedBounds } from "./mapView";
 import type { DeepReadonly } from "./readonly";
-import { CELL_PX } from "./theme";
+import { toWorld } from "./theme";
 
 export interface Renderer {
   /** Draws one frame; `alpha` is the loop's interpolation factor. */
   frame(alpha: number): void;
-  readonly layers: Layers;
 }
 
 /**
@@ -25,7 +25,10 @@ export function createRenderer(
   const layers = createLayers(world);
 
   let drawnRing = -1;
-  let fitted = { ring: -1, width: 0, height: 0 };
+  /** The revealed area drawn last, in world units. */
+  let drawnArea: Rect | null = null;
+  let fittedWidth = 0;
+  let fittedHeight = 0;
   let contextLost = false;
 
   const rebuildMap = () => {
@@ -38,31 +41,18 @@ export function createRenderer(
     layers.deposits.addChild(drawDeposits(map, bounds));
     layers.nodes.addChild(drawCore(map));
     drawnRing = map.revealedRing;
+    drawnArea = toWorld(bounds);
+    fittedWidth = 0;
   };
 
-  const fitCamera = () => {
+  const fitCamera = (area: Rect) => {
     const { width, height } = app.screen;
-    const ring = state.map.revealedRing;
-    if (
-      fitted.ring === ring &&
-      fitted.width === width &&
-      fitted.height === height
-    )
-      return;
-    const b = revealedBounds(state.map);
-    const fit = fitArea(
-      {
-        x: b.x * CELL_PX,
-        y: b.y * CELL_PX,
-        w: b.w * CELL_PX,
-        h: b.h * CELL_PX,
-      },
-      width,
-      height,
-    );
+    if (fittedWidth === width && fittedHeight === height) return;
+    const fit = fitArea(area, width, height);
     world.scale.set(fit.scale);
     world.position.set(fit.x, fit.y);
-    fitted = { ring, width, height };
+    fittedWidth = width;
+    fittedHeight = height;
   };
 
   // Pixi resets its GPU caches on restore; the scene is rebuilt on top so no
@@ -76,11 +66,10 @@ export function createRenderer(
   });
 
   return {
-    layers,
     frame() {
       if (contextLost) return;
       if (drawnRing !== state.map.revealedRing) rebuildMap();
-      fitCamera();
+      fitCamera(drawnArea!);
       app.render();
     },
   };

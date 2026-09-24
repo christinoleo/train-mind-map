@@ -2,7 +2,7 @@ import { Application, type ApplicationOptions } from "pixi.js";
 import { BLUEPRINT } from "./theme";
 
 /** Highest device pixel ratio the canvas renders at. */
-export const MAX_RESOLUTION = 2;
+const MAX_RESOLUTION = 2;
 
 /**
  * The Pixi `app.init` options shared by the game and the rendering stress

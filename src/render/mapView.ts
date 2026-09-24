@@ -12,6 +12,7 @@ import {
   BLUEPRINT,
   CELL_PX,
   RESOURCE_STYLE,
+  toWorld,
   type ResourceShape,
 } from "./theme";
 
@@ -39,22 +40,23 @@ export function waterRuns(map: MapView, bounds: Rect): Rect[] {
   const runs: Rect[] = [];
   for (let y = bounds.y; y < bounds.y + bounds.h; y++) {
     let start = -1;
-    for (let x = bounds.x; x <= bounds.x + bounds.w; x++) {
-      const water =
-        x < bounds.x + bounds.w &&
-        map.terrain[cellIndex(x, y)] === Terrain.Water;
+    const end = bounds.x + bounds.w;
+    for (let x = bounds.x; x < end; x++) {
+      const water = map.terrain[cellIndex(x, y)] === Terrain.Water;
       if (water && start < 0) start = x;
       if (!water && start >= 0) {
         runs.push({ x: start, y, w: x - start, h: 1 });
         start = -1;
       }
     }
+    if (start >= 0) runs.push({ x: start, y, w: end - start, h: 1 });
   }
   return runs;
 }
 
 function cellRect(g: Graphics, r: Rect): Graphics {
-  return g.rect(r.x * CELL_PX, r.y * CELL_PX, r.w * CELL_PX, r.h * CELL_PX);
+  const { x, y, w, h } = toWorld(r);
+  return g.rect(x, y, w, h);
 }
 
 /** Land, lakes, the cell grid and a frame around the revealed area. */
@@ -64,10 +66,11 @@ export function drawTerrain(map: MapView, bounds: Rect): Graphics {
   for (const run of waterRuns(map, bounds)) cellRect(g, run);
   g.fill(BLUEPRINT.water);
 
-  const x0 = bounds.x * CELL_PX;
-  const y0 = bounds.y * CELL_PX;
-  const x1 = (bounds.x + bounds.w) * CELL_PX;
-  const y1 = (bounds.y + bounds.h) * CELL_PX;
+  const world = toWorld(bounds);
+  const x0 = world.x;
+  const y0 = world.y;
+  const x1 = x0 + world.w;
+  const y1 = y0 + world.h;
   for (const major of [false, true]) {
     g.beginPath();
     for (let i = 1; i < bounds.w; i++) {
@@ -136,11 +139,7 @@ function drawIcon(
 
 /** The Core as a placeholder node card: header, body and connectors. */
 export function drawCore(map: MapView): Graphics {
-  const { x, y, w, h } = map.core;
-  const px = x * CELL_PX;
-  const py = y * CELL_PX;
-  const pw = w * CELL_PX;
-  const ph = h * CELL_PX;
+  const { x: px, y: py, w: pw, h: ph } = toWorld(map.core);
   const header = ph * 0.3;
   const g = new Graphics({ label: "core" });
   g.roundRect(px, py, pw, ph, 4).fill(BLUEPRINT.coreBody);
