@@ -2,8 +2,8 @@ import type { RawResource } from "../data/items";
 import type { ResearchId } from "../data/research";
 import type { Rect } from "./geometry/rect";
 import type { FailReason } from "./result";
-import type { NodeStatus } from "./state/gameState";
-import type { NodeId } from "./state/ids";
+import type { NodeStatus, TrainState } from "./state/gameState";
+import type { NodeId, TrainId } from "./state/ids";
 import type { Draw } from "./state/stock";
 
 /** Everything the simulation reports. Names are in the past tense. */
@@ -38,6 +38,13 @@ export type SimEvent =
        */
       type: "ResearchDone";
       research: ResearchId;
+    }
+  | { type: "TrainStateChanged"; train: TrainId; state: TrainState }
+  | {
+      /** A train stopped at `station`, a stop of its own. */
+      type: "TrainArrived";
+      train: TrainId;
+      station: NodeId;
     };
 
 export type SimEventType = SimEvent["type"];

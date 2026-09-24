@@ -7,6 +7,7 @@ import { power } from "./systems/power";
 import { production } from "./systems/production";
 import { research } from "./systems/research";
 import { stamina } from "./systems/stamina";
+import { trains } from "./systems/trains";
 import { updateStock } from "./systems/stock";
 
 export interface SystemContext {
@@ -29,6 +30,7 @@ export const SYSTEMS: readonly System[] = [
   extraction,
   production,
   flow,
+  trains,
   research,
   updateStock,
 ];

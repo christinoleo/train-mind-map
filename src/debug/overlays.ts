@@ -9,6 +9,12 @@ import { nodeRect } from "../sim/state/nodes";
 import { isShort, meshOfEdge } from "../sim/state/power";
 import { edgeLineOf } from "../render/connectors";
 import { strokeLine } from "../render/edges";
+import { offsetLine } from "../render/rails";
+import {
+  parsePlatformKey,
+  parseSegmentKey,
+  segmentOf,
+} from "../sim/rail/segments";
 
 type StateView = DeepReadonly<GameState>;
 
@@ -183,6 +189,43 @@ export function drawPowerMeshes(state: StateView): Container {
     const line = edgeLineOf(edge, state.nodes);
     if (!mesh || !line) continue;
     strokeLine(g, line, colorOf.get(mesh)!, 0.9, CELL_PX * 0.2);
+  }
+  return g;
+}
+
+/**
+ * The reservation table (FR157): each reserved Segment drawn over its track,
+ * right of the way it runs, and each reserved platform outlined, in the
+ * colour of the train that holds it.
+ */
+export function drawReservations(state: StateView): Container {
+  const g = new Graphics({ label: "overlay:reservations" });
+  for (const [key, train] of state.reservations) {
+    const color = MESH_COLORS[(train - 1) % MESH_COLORS.length];
+    const segment = parseSegmentKey(key);
+    const rail = segment && state.rails.get(segment.rail);
+    if (segment && rail) {
+      const line = segmentOf(rail, segment.forward).line.map((p) => ({
+        x: p.x * CELL_PX,
+        y: p.y * CELL_PX,
+      }));
+      // A negative offset is right of the way it runs, onto its own track.
+      strokeLine(
+        g,
+        offsetLine(line, -0.3 * CELL_PX),
+        color,
+        0.9,
+        CELL_PX * 0.2,
+      );
+      continue;
+    }
+    const station = parsePlatformKey(key);
+    const node = station !== null ? state.nodes.get(station) : undefined;
+    if (!node) continue;
+    const r = toWorld(nodeRect(node));
+    g.rect(r.x, r.y, r.w, r.h)
+      .fill({ color, alpha: 0.25 })
+      .stroke({ color, width: 3 });
   }
   return g;
 }

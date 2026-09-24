@@ -10,6 +10,7 @@ import {
 import { pathBounds } from "../state/edges";
 import type { FactoryNode, GameState, Rail } from "../state/gameState";
 import type { RailId } from "../state/ids";
+import { isRailInUse } from "../rail/trains";
 import { canAfford, debit, deposit } from "../state/stock";
 import type { Command } from "./command";
 
@@ -62,7 +63,8 @@ export class RemoveRail implements Command {
   constructor(readonly id: RailId) {}
 
   validate(state: Readonly<GameState>): Result {
-    return state.rails.has(this.id) ? ok() : fail("not_found");
+    if (!state.rails.has(this.id)) return fail("not_found");
+    return isRailInUse(state, this.id) ? fail("has_trains") : ok();
   }
 
   apply(state: GameState) {

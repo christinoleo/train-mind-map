@@ -11,6 +11,7 @@ export type FailReason =
   | "crosses_rail"
   | "immovable"
   | "has_rails"
+  | "has_trains"
   | "indestructible"
   | "locked"
   | "max_level"

@@ -17,6 +17,7 @@ import { drawDeposits, drawTerrain, revealedBounds } from "./mapView";
 import { drawGhostOutline, drawNodeCard, NodeViews } from "./nodes";
 import { drawRailPorts, RailPortViews, RailViews } from "./rails";
 import type { DeepReadonly } from "./readonly";
+import { TrainViews } from "./trains";
 import {
   BUILD_FLIGHT_MS,
   BUILD_FLIGHT_STAGGER_MS,
@@ -70,6 +71,7 @@ export function createRenderer(
   const nodeViews = new NodeViews(layers.nodes);
   const railPortViews = new RailPortViews(layers.rails);
   const railViews = new RailViews(layers.rails);
+  const trainViews = new TrainViews(layers.trains);
   let selectedRail: RailId | null = null;
   applyFocus(layers, "factory", UNFOCUSED_ALPHA);
   const edgeViews = new EdgeViews(layers.edges);
@@ -142,6 +144,7 @@ export function createRenderer(
     nodeViews.clear();
     railPortViews.clear();
     railViews.clear();
+    trainViews.clear();
     edgeViews.clear();
     itemViews.clear();
     flights.clear();
@@ -177,6 +180,7 @@ export function createRenderer(
       nodeViews.sync(state.nodes, moving);
       railPortViews.sync(state.nodes, moving);
       railViews.sync(state.rails, selectedRail);
+      trainViews.update(state.trains, state.nodes, alpha);
       edgeViews.sync(
         state.edges,
         state.nodes,

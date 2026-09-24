@@ -1,11 +1,12 @@
 import type { GameState } from "./gameState";
 import { newPower } from "./power";
+import { reservationsOf } from "../rail/reservation";
 import { sumStock } from "./stock";
 
 type Pairs<T> = T extends Map<infer K, infer V> ? [K, V][] : T;
 
 /** The state that is saved: all of it but the derived caches. */
-type SavedState = Omit<GameState, "stock" | "power">;
+type SavedState = Omit<GameState, "stock" | "power" | "reservations">;
 
 /** GameState with every Map stored as an array of pairs, so it survives JSON. */
 export type SerializedState = { [K in keyof SavedState]: Pairs<SavedState[K]> };
@@ -13,12 +14,13 @@ export type SerializedState = { [K in keyof SavedState]: Pairs<SavedState[K]> };
 /** The saved state with Maps as pairs, still sharing its data with `state`. */
 export function toPairs(state: GameState): SerializedState {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { stock, power, ...saved } = state;
+  const { stock, power, reservations, ...saved } = state;
   return {
     ...saved,
     nodes: [...state.nodes],
     edges: [...state.edges],
     rails: [...state.rails],
+    trains: [...state.trains],
   };
 }
 
@@ -29,11 +31,14 @@ export function serializeState(state: GameState): SerializedState {
 export function deserializeState(data: SerializedState): GameState {
   const copy = structuredClone(data);
   const nodes = new Map(copy.nodes);
+  const trains = new Map(copy.trains);
   return {
     ...copy,
     nodes,
     edges: new Map(copy.edges),
     rails: new Map(copy.rails),
+    trains,
+    reservations: reservationsOf(trains),
     stock: sumStock(nodes),
     power: newPower(),
   };

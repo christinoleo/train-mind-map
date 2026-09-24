@@ -42,7 +42,7 @@ function PerfOverlay({ game, subscribe }: Props) {
     <pre class="debug-perf">
       {`FPS ${perf.fps.toFixed(0)} · ${game.loop.speed}×\n`}
       {`${t.tick} ${perf.tickMs.toFixed(2)} ms · ${t.render} ${perf.renderMs.toFixed(2)} ms\n`}
-      {`${t.nodes} ${state.nodes.size} · ${t.edges} ${state.edges.size} · ${t.items} ${items} · ${t.trains} 0\n`}
+      {`${t.nodes} ${state.nodes.size} · ${t.edges} ${state.edges.size} · ${t.items} ${items} · ${t.trains} ${state.trains.size}\n`}
       {`${t.heap} ${heap} MB`}
     </pre>
   );

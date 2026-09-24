@@ -16,7 +16,7 @@ import {
 import { log, type LogEntry } from "./log";
 
 /** Bumped whenever the saved state changes shape; add a migration with it. */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const SAVE_KEYS = {
   /** The latest save. */
@@ -68,6 +68,18 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
       ...save,
       schemaVersion: 3,
       state: { ...state, rails: [], nextIds: { ...state.nextIds, rail: 1 } },
+    };
+  },
+  // Schema 4: trains (Epic 5), with none yet.
+  3: (save) => {
+    const state = save.state as { nextIds?: object } | undefined;
+    if (typeof state !== "object" || state === null) {
+      return { ...save, schemaVersion: 4 };
+    }
+    return {
+      ...save,
+      schemaVersion: 4,
+      state: { ...state, trains: [], nextIds: { ...state.nextIds, train: 1 } },
     };
   },
 };
@@ -161,6 +173,7 @@ function isSaveFile(save: RawSave): save is RawSave & SaveFile {
     Array.isArray(state.nodes) &&
     Array.isArray(state.edges) &&
     Array.isArray(state.rails) &&
+    Array.isArray(state.trains) &&
     Array.isArray(state.map?.terrain)
   );
 }
