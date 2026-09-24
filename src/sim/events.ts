@@ -1,4 +1,5 @@
 import type { RawResource } from "../data/items";
+import type { ResearchId } from "../data/research";
 import type { Rect } from "./geometry/rect";
 import type { FailReason } from "./result";
 import type { NodeStatus } from "./state/gameState";
@@ -29,6 +30,14 @@ export type SimEvent =
       item: RawResource;
       count: number;
       core: NodeId;
+    }
+  | {
+      /**
+       * The Labs completed `research`, and its content is unlocked. It is the
+       * audio hook for the research jingle too (FR116).
+       */
+      type: "ResearchDone";
+      research: ResearchId;
     };
 
 export type SimEventType = SimEvent["type"];

@@ -1,10 +1,5 @@
 import type { ReadonlySignal } from "@preact/signals";
-import {
-  NODES,
-  STORAGE_CAPACITY,
-  type Cost,
-  type NodeKind,
-} from "../data/nodes";
+import { NODES, type Cost, type NodeKind } from "../data/nodes";
 import { RECIPE_IDS, type RecipeId } from "../data/recipes";
 import { UpgradeNode, nodeUpgradeCost } from "../sim/commands/upgradeNode";
 import type { FailReason } from "../sim/result";
@@ -12,7 +7,7 @@ import type { GameState } from "../sim/state/gameState";
 import type { NodeId } from "../sim/state/ids";
 import { canRun } from "../sim/state/nodes";
 import { isCrafter } from "../sim/state/production";
-import { isStorage, storedCount } from "../sim/state/stock";
+import { isStorage, storageCapacity, storedCount } from "../sim/state/stock";
 import { Menu, RemoveAction, UpgradeAction } from "./Menu";
 import { strings } from "./strings";
 
@@ -69,7 +64,7 @@ export function nodeMenuInfo(
     storage: isStorage(node)
       ? {
           stored: storedCount(node),
-          capacity: STORAGE_CAPACITY[node.kind],
+          capacity: storageCapacity(state, node),
           noConstruction: node.kind === "box" ? node.noConstruction : null,
         }
       : null,

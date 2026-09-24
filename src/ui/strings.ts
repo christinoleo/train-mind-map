@@ -92,6 +92,35 @@ export const strings = {
     used: "Desligado: a construção pode usar estes itens",
     kept: "Ligado: a construção não toca nesta Caixa",
   },
+  // The research button and panel, and the notices of completed research.
+  research: {
+    glyph: "⚗",
+    title: "Pesquisa",
+    none: "Nenhuma pesquisa ativa: escolha uma",
+    done: "Concluída",
+    requires: "Requer",
+    unlocks: "Libera",
+    packs: "pacotes",
+    tap: "toque rende",
+    items: "itens",
+    edge: "aresta nível",
+    boxCapacity: "Caixa guarda",
+    nothing: "nada: é o fim do protótipo",
+    completed: "Pesquisa concluída",
+    endTitle: "Fim do conteúdo do protótipo",
+    endBody:
+      "Você concluiu o Protótipo final. O jogo continua aberto: a fábrica segue rodando.",
+    endClose: "Continuar",
+    names: {
+      "splitter-merger": "Divisor e Mesclador",
+      "tools-1": "Ferramentas I",
+      "tools-2": "Ferramentas II",
+      "extra-boxes": "Caixas extras",
+      "edge-2": "Aresta 2",
+      railway: "Ferrovia",
+      "final-prototype": "Protótipo final",
+    },
+  },
   // The undo button.
   undo: {
     label: "Desfazer",
@@ -120,6 +149,7 @@ export const strings = {
     on_water: "Não dá para construir na água",
     out_of_bounds: "Fora da área revelada",
     out_of_range: "Fora do limite",
+    researched: "Já pesquisado",
     same_node: "Ligue a outro nó",
     storage_full: "O Núcleo está cheio",
     wrong_recipe: "Esta receita não roda neste nó",

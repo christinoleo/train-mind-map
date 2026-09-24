@@ -24,6 +24,7 @@ export type FailReason =
   | "on_water"
   | "out_of_bounds"
   | "out_of_range"
+  | "researched"
   | "same_node"
   | "storage_full"
   | "wrong_recipe";

@@ -9,6 +9,7 @@ import {
   type RecipeId,
 } from "../../data/recipes";
 import { GENERATOR } from "../../data/power";
+import { LAB, SCIENCE_PACKS } from "../../data/research";
 import { TICK_MS } from "../../config/constants";
 import type { Emit } from "../events";
 import type {
@@ -40,6 +41,8 @@ export function secondsToTicks(seconds: number): number {
 type Batch = Pick<Recipe, "inputs" | "output" | "count"> & { ticks: number };
 
 function batchOf(node: ProducerNode): Batch | undefined {
+  // A Lab makes nothing; the research system runs it.
+  if (node.kind === "lab") return undefined;
   if (node.kind === "extractor") {
     return {
       inputs: {},
@@ -81,10 +84,17 @@ function smeltingFor(item: ItemId): RecipeId | undefined {
  * Hands `item` to `node`'s input buffers, from any input connector (FR25).
  * The item enters only when the active recipe consumes it and its buffer,
  * 2× what one batch needs, has room (FR24). An empty Furnace switches to the
- * smelting recipe of whatever arrives. A Generator takes its fuel (FR67).
- * Returns whether the item entered.
+ * smelting recipe of whatever arrives. A Generator takes its fuel (FR67),
+ * and a Lab science packs (FR40). Returns whether the item entered.
  */
 export function acceptItem(node: FactoryNode, item: ItemId): boolean {
+  if (node.kind === "lab") {
+    const { input } = node.production;
+    const have = input[item] ?? 0;
+    if (!SCIENCE_PACKS.includes(item) || have >= LAB.buffer) return false;
+    input[item] = have + 1;
+    return true;
+  }
   if (node.kind === "generator") {
     if (item !== GENERATOR.fuel || node.fuel >= GENERATOR.buffer) return false;
     node.fuel++;
@@ -124,6 +134,38 @@ function consume(p: Production, inputs: Batch["inputs"]): boolean {
 }
 
 /**
+ * Works one tick on the batch under way in `p`, which takes `ticks` at full
+ * speed, at `satisfaction` of full speed (FR64). Returns "done" once the
+ * batch's ticks are complete; finishing it is the caller's.
+ */
+export function work(
+  p: Production,
+  ticks: number,
+  satisfaction: number,
+): "working" | "no_power" | "done" {
+  if (p.progress === null || p.progress >= ticks - PROGRESS_EPSILON) {
+    return "done";
+  }
+  if (satisfaction === 0) return "no_power";
+  p.progress += satisfaction;
+  // Sums of fractions such as 10/12 fall a hair short of the whole; the
+  // tolerance keeps them from costing an extra tick per batch.
+  return p.progress < ticks - PROGRESS_EPSILON ? "working" : "done";
+}
+
+/** Records `node`'s new status and reports it when it changed (FR23). */
+export function setStatus(
+  node: ProducerNode,
+  status: NodeStatus,
+  emit: Emit,
+): void {
+  const p = node.production;
+  if (status === p.status) return;
+  p.status = status;
+  emit({ type: "NodeStatusChanged", node: node.id, status });
+}
+
+/**
  * Works one tick on `p`, at `satisfaction` of full speed (FR64). A batch
  * starts once its inputs are in, and its output lands only when the output
  * buffer, 1 batch, has room (FR26).
@@ -138,13 +180,8 @@ function advance(
     if (!consume(p, batch.inputs)) return "starved";
     p.progress = 0;
   }
-  if (p.progress < batch.ticks - PROGRESS_EPSILON) {
-    if (satisfaction === 0) return "no_power";
-    p.progress += satisfaction;
-    // Sums of fractions such as 10/12 fall a hair short of the whole; the
-    // tolerance keeps them from costing an extra tick per batch.
-    if (p.progress < batch.ticks - PROGRESS_EPSILON) return "working";
-  }
+  const worked = work(p, batch.ticks, satisfaction);
+  if (worked !== "done") return worked;
   if (p.output > 0) return "blocked";
   p.output = batch.count;
   p.progress = null;
@@ -160,9 +197,5 @@ export function stepProduction(
   satisfaction: number,
   emit: Emit,
 ): void {
-  const p = node.production;
-  const status = advance(p, batchOf(node), satisfaction);
-  if (status === p.status) return;
-  p.status = status;
-  emit({ type: "NodeStatusChanged", node: node.id, status });
+  setStatus(node, advance(node.production, batchOf(node), satisfaction), emit);
 }

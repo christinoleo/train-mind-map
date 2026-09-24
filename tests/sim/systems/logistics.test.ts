@@ -214,10 +214,10 @@ describe("storage nodes on edges (FR28, FR29, FR73)", () => {
     const core = coreNode(w.state);
     const box = fullBox(w);
     store(core, "stone", STORAGE_CAPACITY.core - 1);
-    expect(isStorageFull(w.state.nodes)).toBe(false);
+    expect(isStorageFull(w.state)).toBe(false);
     store(core, "stone", 1);
-    expect(isStorageFull(w.state.nodes)).toBe(true);
+    expect(isStorageFull(w.state)).toBe(true);
     box.items[0].count--;
-    expect(isStorageFull(w.state.nodes)).toBe(false);
+    expect(isStorageFull(w.state)).toBe(false);
   });
 });

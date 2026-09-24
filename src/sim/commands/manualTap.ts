@@ -28,7 +28,9 @@ export class ManualTap implements Command {
     const tapped = this.resource(state);
     if (!tapped.ok) return tapped;
     if (state.stamina.points < 1) return fail("no_stamina");
-    return storageRoom(coreNode(state)) > 0 ? ok() : fail("storage_full");
+    return storageRoom(state, coreNode(state)) > 0
+      ? ok()
+      : fail("storage_full");
   }
 
   apply(state: GameState, emit: Emit) {
@@ -37,7 +39,7 @@ export class ManualTap implements Command {
     const item = tapped.value;
     const core = coreNode(state);
     // A Core with less room than the yield takes what fits.
-    const count = Math.min(tapYield(state), storageRoom(core));
+    const count = Math.min(tapYield(state), storageRoom(state, core));
     state.stamina.points--;
     store(core, item, count);
     const { x, y } = this;

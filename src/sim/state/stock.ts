@@ -29,9 +29,20 @@ export function coreNode(state: Readonly<GameState>): StorageNode {
   throw new Error("The game has no Core");
 }
 
+/** How many items `node` holds at most; research may raise it. */
+export function storageCapacity(
+  state: Readonly<GameState>,
+  node: Readonly<StorageNode>,
+): number {
+  return state.storageCapacity[node.kind];
+}
+
 /** How many more items `node` has room for. */
-export function storageRoom(node: Readonly<StorageNode>): number {
-  return STORAGE_CAPACITY[node.kind] - storedCount(node);
+export function storageRoom(
+  state: Readonly<GameState>,
+  node: Readonly<StorageNode>,
+): number {
+  return storageCapacity(state, node) - storedCount(node);
 }
 
 /** How many items, of every type together, `node` holds. */
@@ -72,11 +83,9 @@ export function takeOldest(node: StorageNode): ItemId | undefined {
 }
 
 /** True when every storage node is full, so the factory backs up (FR73). */
-export function isStorageFull(
-  nodes: ReadonlyMap<NodeId, FactoryNode>,
-): boolean {
-  for (const node of nodes.values()) {
-    if (isStorage(node) && storageRoom(node) > 0) return false;
+export function isStorageFull(state: Readonly<GameState>): boolean {
+  for (const node of state.nodes.values()) {
+    if (isStorage(node) && storageRoom(state, node) > 0) return false;
   }
   return true;
 }
@@ -181,7 +190,7 @@ export function deposit(state: GameState, items: Cost, site: Rect): ItemCounts {
   for (const [item, count] of itemEntries(items)) {
     let left = count;
     for (const storage of order) {
-      const put = Math.min(left, storageRoom(storage));
+      const put = Math.min(left, storageRoom(state, storage));
       if (put <= 0) continue;
       store(storage, item, put);
       stored[item] = (stored[item] ?? 0) + put;

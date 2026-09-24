@@ -5,6 +5,7 @@ import type { PowerSummary } from "../sim/state/power";
 import { EdgeMenu } from "./EdgeMenu";
 import { NodeMenu } from "./NodeMenu";
 import { Palette } from "./Palette";
+import { ResearchNotice, ResearchPanel } from "./ResearchPanel";
 import { StockHud } from "./StockHud";
 import { UndoButton } from "./UndoButton";
 
@@ -14,6 +15,8 @@ type Props = ComponentProps<typeof Palette> & {
   /** The node menu, open while a node is selected. */
   nodeMenu: ComponentProps<typeof NodeMenu>;
   undo: ComponentProps<typeof UndoButton>;
+  research: ComponentProps<typeof ResearchPanel>;
+  researchNotice: ComponentProps<typeof ResearchNotice>;
   /** The global stock, published by the UI bridge. */
   stock: ReadonlySignal<ItemCounts>;
   /** The stamina points left. */
@@ -25,7 +28,7 @@ type Props = ComponentProps<typeof Palette> & {
 };
 
 // The DOM overlay layer above the canvas: the HUD capsule, the menus, the
-// undo button and the palette.
+// undo and research buttons, the palette and the research notices.
 export function UiRoot({
   stock,
   stamina,
@@ -34,6 +37,8 @@ export function UiRoot({
   edgeMenu,
   nodeMenu,
   undo,
+  research,
+  researchNotice,
   ...palette
 }: Props) {
   return (
@@ -47,7 +52,9 @@ export function UiRoot({
       <EdgeMenu {...edgeMenu} />
       <NodeMenu {...nodeMenu} />
       <UndoButton {...undo} />
+      <ResearchPanel {...research} />
       <Palette {...palette} />
+      <ResearchNotice {...researchNotice} />
     </>
   );
 }
