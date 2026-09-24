@@ -35,6 +35,7 @@ export function createNode(
       return { id, kind, x, y, resource, production: newProduction() };
     case "furnace":
     case "assembler-1":
+    case "assembler-2":
       return {
         id,
         kind,

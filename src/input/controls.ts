@@ -10,6 +10,8 @@ export interface Tool {
   hover?(p: GesturePoint): void;
   tap?(p: GesturePoint): void;
   longPress?(p: GesturePoint): void;
+  /** The long press lifted without dragging. */
+  holdEnd?(p: GesturePoint): void;
   /** Returns true to take the drag; otherwise the camera pans. */
   dragStart?(p: GesturePoint, from: GesturePoint, held: boolean): boolean;
   dragMove?(p: GesturePoint, dx: number, dy: number): void;
@@ -54,6 +56,9 @@ export class Controls {
       },
       longPress: (p) => {
         if (!this.forcePan) this.tool?.longPress?.(p);
+      },
+      holdEnd: (p) => {
+        if (!this.forcePan) this.tool?.holdEnd?.(p);
       },
       dragStart: (p, from, held) => {
         const toTool =

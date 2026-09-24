@@ -45,3 +45,20 @@ export function addCounts(
   }
   return into;
 }
+
+/**
+ * What `to` counts beyond `from`, item by item: the difference paid to raise
+ * something that cost `from` to something that costs `to`. Items `to` needs
+ * fewer of cost nothing.
+ */
+export function countsAbove(
+  from: Readonly<ItemCounts>,
+  to: Readonly<ItemCounts>,
+): ItemCounts {
+  const diff: ItemCounts = {};
+  for (const [item, count] of itemEntries(to)) {
+    const more = count - (from[item] ?? 0);
+    if (more > 0) diff[item] = more;
+  }
+  return diff;
+}

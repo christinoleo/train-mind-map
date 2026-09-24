@@ -9,6 +9,7 @@ export const NODE_KINDS = [
   "extractor",
   "furnace",
   "assembler-1",
+  "assembler-2",
   "generator",
   "box",
   "splitter",
@@ -59,6 +60,8 @@ export interface NodeDef {
   /** Construction cost, drawn from the global stock (GDD §Custos). */
   cost: Cost;
   unlock: Unlock;
+  /** The kind it is upgraded to in place, paying the difference (FR22). */
+  upgrade?: NodeKind;
 }
 
 // Connector counts and costs come from the GDD tables (§Nós, §Custos de
@@ -96,6 +99,18 @@ export const NODES: Readonly<Record<NodeKind, NodeDef>> = {
     category: "assembly",
     cost: { "iron-plate": 20, "copper-plate": 10 },
     unlock: "start",
+    upgrade: "assembler-2",
+  },
+  // Green era (GDD §Progressão). Its cost is a placeholder for the balancing
+  // sheet; it holds all of the Montadora 1's, so an upgrade and a removal
+  // refund the same total.
+  "assembler-2": {
+    size: 3,
+    inputs: 3,
+    outputs: 1,
+    category: "assembly",
+    cost: { "iron-plate": 40, "copper-plate": 10, gear: 10, circuit: 10 },
+    unlock: "research",
   },
   generator: {
     size: 2,

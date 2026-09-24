@@ -54,6 +54,7 @@ function AdminPanel({ game, subscribe }: Props) {
   const [speed, setSpeed] = useState(game.loop.speed);
   const [cell, setCell] = useState({ x: "", y: "" });
   const [, redraw] = useState(0);
+  const [replayError, setReplayError] = useState<string | null>(null);
   // A cheat command applies on a later tick, or never while paused, and undo
   // can revert it: the snapshots re-render the panel so it shows the state.
   useEffect(() => subscribe(() => redraw((n) => n + 1)), [subscribe]);
@@ -132,6 +133,29 @@ function AdminPanel({ game, subscribe }: Props) {
         <button type="button" onClick={() => cheats.giveItems()}>
           {t.giveItems}
         </button>
+      </div>
+
+      <div class="debug-row">
+        <span>{t.replay}</span>
+        <button type="button" onClick={() => game.replay.download()}>
+          {t.exportReplay}
+        </button>
+        <label class="debug-file">
+          {t.loadReplay}
+          <input
+            type="file"
+            accept=".json,.txt,application/json,text/plain"
+            onChange={async (e) => {
+              const input = e.currentTarget;
+              const file = input.files?.[0];
+              input.value = "";
+              if (!file) return;
+              const result = game.replay.load(await file.text());
+              setReplayError(result.ok ? null : strings.reasons[result.reason]);
+            }}
+          />
+        </label>
+        {replayError && <span class="debug-error">{replayError}</span>}
       </div>
 
       <fieldset class="debug-overlays">

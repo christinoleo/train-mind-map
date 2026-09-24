@@ -6,7 +6,7 @@ import {
   ITEM_SPEED,
   type EdgeLevel,
 } from "../../data/edges";
-import { itemEntries, type ItemCounts } from "../../data/items";
+import { countsAbove, itemEntries, type ItemCounts } from "../../data/items";
 import { NODES, type Cost, type NodeKind } from "../../data/nodes";
 import {
   segmentHitsRect,
@@ -85,13 +85,10 @@ export function upgradeCost(
   from: EdgeLevel,
   to: EdgeLevel,
 ): Cost {
-  const below = EDGE_CELL_COST[from - 1];
-  const diff: ItemCounts = {};
-  for (const [item, count] of itemEntries(EDGE_CELL_COST[to - 1])) {
-    const more = count - (below[item] ?? 0);
-    if (more > 0) diff[item] = more * length;
-  }
-  return diff;
+  return scale(
+    countsAbove(EDGE_CELL_COST[from - 1], EDGE_CELL_COST[to - 1]),
+    length,
+  );
 }
 
 function scale(cost: Cost, factor: number): Cost {
@@ -145,6 +142,11 @@ export interface EdgePlan {
   check: Result<Cost>;
 }
 
+/** Checks `length` cells of edge at `level` against its length limit (FR44). */
+export function checkLength(length: number, level: EdgeLevel): Result {
+  return length > maxLength(level) ? fail("out_of_range") : ok();
+}
+
 /**
  * Checks `length` cells of edge at `level` against the length limit and the
  * stock: what it costs, or why it cannot be built (FR44, FR54).
@@ -154,7 +156,8 @@ export function priceRoute(
   length: number,
   level: EdgeLevel,
 ): Result<Cost> {
-  if (length > maxLength(level)) return fail("out_of_range");
+  const fits = checkLength(length, level);
+  if (!fits.ok) return fits;
   const cost = edgeCost(length, level);
   return canAfford(state, cost) ? ok(cost) : fail("no_stock");
 }
@@ -173,15 +176,30 @@ export function planRoute(
   to: Point,
   level: EdgeLevel,
 ): EdgePlan {
+  const routed = findRoute(state, index, from, to);
+  if (!routed.ok) return { route: null, check: fail(routed.reason) };
+  const route = routed.value;
+  return { route, check: priceRoute(state, route.length, level) };
+}
+
+/**
+ * The automatic route from cell `from` to cell `to` inside the revealed
+ * area, whatever its length. A route blocked at either end reports what
+ * blocks it.
+ */
+export function findRoute(
+  state: Readonly<GameState>,
+  index: PlanarIndex,
+  from: Point,
+  to: Point,
+): Result<Route> {
   const routed = routeEdge(index, from, to, {
     bounds: ringRect(state.map.revealedRing),
   });
-  if (!routed.ok) {
-    const blocked = blockedEnd(index, from) ?? blockedEnd(index, to);
-    return { route: null, check: fail(blocked ?? routed.reason) };
-  }
-  const route = routed.value;
-  return { route, check: priceRoute(state, route.length, level) };
+  if (routed.ok) return routed;
+  return fail(
+    blockedEnd(index, from) ?? blockedEnd(index, to) ?? routed.reason,
+  );
 }
 
 /** Why an edge cannot use `cell`, if something occupies it. */
@@ -251,8 +269,18 @@ export function checkRestore(
   }
   const start = connectorCell(out, "output", edge.fromPort);
   const end = connectorCell(into, "input", edge.toPort);
-  const first = edge.path[0];
-  const last = edge.path[edge.path.length - 1];
+  return checkJoins(index, edge.path, start, end);
+}
+
+/** Checks that a kept route still runs from `start` to `end` and crosses nothing. */
+export function checkJoins(
+  index: PlanarIndex,
+  path: readonly Point[],
+  start: Point,
+  end: Point,
+): Result {
+  const first = path[0];
+  const last = path[path.length - 1];
   if (
     first.x !== start.x ||
     first.y !== start.y ||
@@ -261,7 +289,7 @@ export function checkRestore(
   ) {
     return fail("no_route");
   }
-  return index.checkPath(edge.path);
+  return index.checkPath(path);
 }
 
 /**

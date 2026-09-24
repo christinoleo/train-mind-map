@@ -94,7 +94,10 @@ export const RECIPES: Readonly<Record<RecipeId, Recipe>> = {
 };
 
 /** The node kinds that run recipes. */
-export type CrafterKind = Extract<NodeKind, "furnace" | "assembler-1">;
+export type CrafterKind = Extract<
+  NodeKind,
+  "furnace" | "assembler-1" | "assembler-2"
+>;
 
 /**
  * What each crafter runs, and its speed: it takes `seconds / speed` per batch
@@ -105,6 +108,7 @@ export const CRAFTERS: Readonly<
 > = {
   furnace: { category: "smelting", speed: 1 },
   "assembler-1": { category: "assembly", speed: 0.5 },
+  "assembler-2": { category: "assembly", speed: 0.75 },
 };
 
 export function isCrafterKind(kind: NodeKind): kind is CrafterKind {

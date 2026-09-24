@@ -7,7 +7,7 @@ import type { EdgePreview } from "../input/tools/connect";
 import { edgeReasonText } from "../ui/format";
 import { edgeLineOf } from "./connectors";
 import type { DeepReadonly } from "./readonly";
-import { CELL_PX, GHOST_COLOR, PALETTE } from "./theme";
+import { CELL_PX, GHOST_COLOR, MOVING_ALPHA, PALETTE } from "./theme";
 
 /** Width of an edge's stroke, in world units. */
 const EDGE_WIDTH = CELL_PX * 0.28;
@@ -69,6 +69,7 @@ export class EdgeViews {
     selected: EdgeId | null,
     /** True when the edge's mesh is short of power. */
     isShort: (edge: EdgeView) => boolean,
+    faded: NodeId | null = null,
   ) {
     for (const [id, view] of this.views) {
       const edge = edges.get(id);
@@ -101,6 +102,10 @@ export class EdgeViews {
       this.layer.addChild(g);
       this.views.set(id, { edge, from, to, selected: isSelected, g });
     }
+    // The edges of a node being moved fade with it.
+    for (const { edge, g } of this.views.values()) {
+      g.alpha = edge.from === faded || edge.to === faded ? MOVING_ALPHA : 1;
+    }
   }
 
   /** Drops every stroke, so the next `sync` draws them all again. */
@@ -111,8 +116,9 @@ export class EdgeViews {
 }
 
 /**
- * The edge being dragged: its route, green where releasing builds it and red
- * where it does not, and a chip with the reason. The chip keeps its screen
+ * The edge being dragged, or a moving node's edges: their routes, green where
+ * releasing builds them and red where it does not, and a chip with the
+ * reason. The chip keeps its screen
  * size at any zoom.
  */
 export class EdgePreviewView {
@@ -163,7 +169,8 @@ export class EdgePreviewView {
     if (!preview) return;
     const color =
       preview.reason === null ? GHOST_COLOR.valid : GHOST_COLOR.invalid;
-    strokeLine(this.line.clear(), preview.line, color, 0.8);
+    this.line.clear();
+    for (const line of preview.lines) strokeLine(this.line, line, color, 0.8);
     if (!preview.reason) return;
     this.chipText.text = edgeReasonText(
       preview.reason,

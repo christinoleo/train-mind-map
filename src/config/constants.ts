@@ -13,6 +13,9 @@ export const MAX_BACKLOG_MS = 10_000;
 /** How often the UI bridge publishes the state summary to the HUD (4 Hz). */
 export const UI_PUBLISH_MS = 250;
 
+/** How long a refused action's reason stays on screen. */
+export const HINT_MS = 2500;
+
 /** Depth of the undo stack. */
 export const UNDO_DEPTH = 20;
 

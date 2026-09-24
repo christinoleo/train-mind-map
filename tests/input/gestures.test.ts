@@ -42,6 +42,7 @@ function setup() {
   const handlers: GestureHandlers = {
     tap: vi.fn(() => calls.push("tap")),
     longPress: vi.fn(() => calls.push("longPress")),
+    holdEnd: vi.fn(() => calls.push("holdEnd")),
     dragStart: vi.fn(() => calls.push("dragStart")),
     dragMove: vi.fn(() => calls.push("dragMove")),
     dragEnd: vi.fn(() => calls.push("dragEnd")),
@@ -101,7 +102,7 @@ describe("GestureTracker", () => {
     t.advance(1);
     expect(t.handlers.longPress).toHaveBeenCalledWith({ x: 50, y: 60 });
     t.tracker.up(1);
-    expect(t.calls).toEqual(["longPress"]);
+    expect(t.calls).toEqual(["longPress", "holdEnd"]);
   });
 
   it("does not fire a long press once the pointer drags", () => {

@@ -1,6 +1,5 @@
 import type { ReadonlySignal } from "@preact/signals";
 import { EDGE_LEVELS, type EdgeLevel } from "../data/edges";
-import { itemEntries } from "../data/items";
 import type { Cost } from "../data/nodes";
 import { UpgradeEdge } from "../sim/commands/upgradeEdge";
 import { pathLength } from "../sim/geometry/route";
@@ -8,6 +7,7 @@ import type { FailReason } from "../sim/result";
 import { edgeCost, upgradeCost } from "../sim/state/edges";
 import type { GameState } from "../sim/state/gameState";
 import type { EdgeId } from "../sim/state/ids";
+import { Menu, RemoveAction, UpgradeAction } from "./Menu";
 import { strings } from "./strings";
 
 /** What the edge menu shows of the selected edge, published by the UI bridge. */
@@ -64,64 +64,30 @@ export function EdgeMenu({ edge, onUpgrade, onRemove, onClose }: Props) {
   const text = strings.edge;
   const { upgrade } = info;
   return (
-    <div class="edge-menu" role="dialog" aria-label={text.title}>
-      <header class="edge-menu-head">
-        <span>
+    <Menu
+      label={text.title}
+      title={
+        <>
           {text.title}
-          {text.separator}
+          {strings.menu.separator}
           {text.level} {info.level}
-          {text.separator}
+          {strings.menu.separator}
           {info.length} {text.length}
-        </span>
-        <button
-          type="button"
-          class="edge-menu-close"
-          aria-label={text.close}
-          onClick={onClose}
-        >
-          {text.closeGlyph}
-        </button>
-      </header>
+        </>
+      }
+      onClose={onClose}
+    >
       {upgrade ? (
-        <button
-          type="button"
-          class="edge-menu-action"
-          disabled={upgrade.refused !== null}
+        <UpgradeAction
+          label={`${text.upgrade} ${upgrade.level}`}
+          cost={upgrade.cost}
+          refused={upgrade.refused}
           onClick={onUpgrade}
-        >
-          <span>
-            {text.upgrade} {upgrade.level}
-          </span>
-          <Items cost={upgrade.cost} />
-          {upgrade.refused && (
-            <span class="edge-menu-refused">
-              {strings.reasons[upgrade.refused]}
-            </span>
-          )}
-        </button>
+        />
       ) : (
-        <p class="edge-menu-note">{text.maxLevel}</p>
+        <p class="menu-note">{strings.menu.maxLevel}</p>
       )}
-      <button
-        type="button"
-        class="edge-menu-action edge-menu-remove"
-        onClick={onRemove}
-      >
-        <span>{text.remove}</span>
-        <span class="edge-menu-items">
-          {text.refund} <Items cost={info.refund} />
-        </span>
-      </button>
-    </div>
-  );
-}
-
-function Items({ cost }: { cost: Cost }) {
-  return (
-    <span class="edge-menu-items">
-      {itemEntries(cost)
-        .map(([item, count]) => `${count} ${strings.items[item]}`)
-        .join(", ")}
-    </span>
+      <RemoveAction refund={info.refund} onClick={onRemove} />
+    </Menu>
   );
 }
