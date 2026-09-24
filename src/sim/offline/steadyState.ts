@@ -71,7 +71,8 @@ function totals(rates: Rates): ItemCounts {
  * True when two consecutive windows' rates, item by item, differ by less
  * than `STEADY_TOLERANCE` of the larger. A window's count may also differ
  * by one item from where the batches fall in it, which counts as steady:
- * a Furnace's 3.2 s batch fits 18.75 times in a minute.
+ * a Furnace's 3.2 s batch fits 18.75 times in a minute. An item absent
+ * from either window gets no such slack.
  */
 export function isSteady(
   state: Readonly<GameState>,
@@ -89,7 +90,10 @@ export function isSteady(
     const y = (b[item] ?? 0) * WINDOW_TICKS;
     const diff = Math.abs(x - y);
     const bound = STEADY_TOLERANCE * Math.max(Math.abs(x), Math.abs(y));
-    if (diff >= bound && diff > 1 + 1e-9) return false;
+    // No slack when an item only starts or stops arriving: that is a
+    // factory still changing.
+    const phase = x !== 0 && y !== 0 && diff <= 1 + 1e-9;
+    if (diff >= bound && !phase) return false;
   }
   return true;
 }

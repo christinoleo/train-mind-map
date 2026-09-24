@@ -1,6 +1,12 @@
 import { itemEntries, type ItemId } from "../../data/items";
 import type { GameState } from "../state/gameState";
-import { isStorage, storageRoom, store, withdraw } from "../state/stock";
+import {
+  isStorage,
+  storageRoom,
+  store,
+  storedItems,
+  withdraw,
+} from "../state/stock";
 import type { Rates } from "./steadyState";
 
 /** Rounds a count down, forgiving float error just below a whole number. */
@@ -9,16 +15,35 @@ function whole(n: number): number {
 }
 
 /**
+ * Ticks until the first item storage loses runs out. Past it the rates no
+ * longer hold: whatever that item fed would stop, and which gains depend
+ * on it is unknown, so none go on.
+ */
+function ticksOfSupply(state: Readonly<GameState>, rates: Rates): number {
+  let ticks = Infinity;
+  for (const [id, rate] of rates) {
+    const node = state.nodes.get(id);
+    if (!node || !isStorage(node)) continue;
+    const held = storedItems(node);
+    for (const [item, perTick] of itemEntries(rate)) {
+      if (perTick < 0) ticks = Math.min(ticks, (held[item] ?? 0) / -perTick);
+    }
+  }
+  return ticks;
+}
+
+/**
  * Applies `rates` to storage for `ticks` (FR121): each Box and the Core
- * loses what it lost per tick, down to empty, and gains what it gained,
- * up to its capacity. When the gains do not fit, every item gets the same
- * share of the room.
+ * loses what it lost per tick and gains what it gained, up to its
+ * capacity. It stops early once an item storage loses runs out. When the
+ * gains do not fit, every item gets the same share of the room.
  */
 export function extrapolate(
   state: GameState,
   rates: Rates,
   ticks: number,
 ): void {
+  ticks = Math.min(ticks, ticksOfSupply(state, rates));
   for (const [id, rate] of rates) {
     const node = state.nodes.get(id);
     if (!node || !isStorage(node)) continue;

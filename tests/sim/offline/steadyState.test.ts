@@ -16,6 +16,7 @@ import {
   storageCapacity,
   store,
   storedItems,
+  type StorageNode,
 } from "../../../src/sim/state/stock";
 
 const CORE = 1 as NodeId;
@@ -48,6 +49,13 @@ describe("isSteady", () => {
     expect(
       isSteady(state, perWindow({ gear: 18 }), perWindow({ gear: 20 })),
     ).toBe(false);
+  });
+
+  it("gives no slack to an item that only starts arriving", () => {
+    expect(isSteady(state, perWindow({}), perWindow({ gear: 1 }))).toBe(false);
+    expect(
+      isSteady(state, perWindow({ gear: 1 }), perWindow({ gear: 1 })),
+    ).toBe(true);
   });
 
   it("wants every item steady", () => {
@@ -88,11 +96,22 @@ describe("extrapolate", () => {
     expect(storedItems(core)).toMatchObject({ gear: 60, brick: 30 });
   });
 
-  it("takes what was lost, down to empty", () => {
+  it("stops once an item storage loses runs out", () => {
     const state = createGameState(MVP_SCENARIO);
     const core = coreNode(state);
-    store(core, "coal", 50);
-    extrapolate(state, perWindow({ coal: -30 }), 3 * WINDOW_TICKS);
-    expect(storedItems(core).coal).toBeUndefined();
+    store(core, "iron-ore", 50);
+    // A Box's ore becomes the Core's plates, as a Furnace between them would.
+    const box = createNode(2 as NodeId, "box", 0, 0);
+    state.nodes.set(box.id, box);
+    const rates: Rates = new Map([
+      [
+        CORE,
+        { "iron-ore": -30 / WINDOW_TICKS, "iron-plate": 30 / WINDOW_TICKS },
+      ],
+      [box.id, { brick: 10 / WINDOW_TICKS }],
+    ]);
+    extrapolate(state, rates, 10 * WINDOW_TICKS);
+    expect(storedItems(core)).toEqual({ "iron-plate": 50 });
+    expect(storedItems(box as StorageNode)).toEqual({ brick: 16 });
   });
 });
