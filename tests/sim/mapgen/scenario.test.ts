@@ -3,12 +3,13 @@ import { MAP_SIZE } from "../../../src/config/constants";
 import { EDGE_MAX_LENGTH } from "../../../src/data/edges";
 import { NODE_SIZE } from "../../../src/data/nodes";
 import {
+  MVP_BASE_AREA,
   MVP_CORRIDOR,
   MVP_SCENARIO,
   MVP_WATER_WALL,
 } from "../../../src/data/scenarios/mvp";
 import type { Scenario } from "../../../src/data/scenarios/scenario";
-import { allCells, type Rect } from "../../../src/sim/geometry/rect";
+import { allCells, overlaps, type Rect } from "../../../src/sim/geometry/rect";
 import { generateMap } from "../../../src/sim/mapgen/generate";
 import { applyScenario } from "../../../src/sim/mapgen/scenario";
 import { createGameState } from "../../../src/sim/state/gameState";
@@ -62,11 +63,9 @@ function landPathExists(m: GameMap, from: Rect, to: Rect): boolean {
   const seen = new Uint8Array(MAP_SIZE * MAP_SIZE);
   const queue: [number, number][] = [[from.x, from.y]];
   seen[cellIndex(from.x, from.y)] = 1;
-  while (queue.length > 0) {
-    const [x, y] = queue.shift()!;
-    if (x >= to.x && x < to.x + to.w && y >= to.y && y < to.y + to.h) {
-      return true;
-    }
+  for (let i = 0; i < queue.length; i++) {
+    const [x, y] = queue[i];
+    if (overlaps(to, { x, y, w: 1, h: 1 })) return true;
     for (const [nx, ny] of [
       [x + 1, y],
       [x - 1, y],
@@ -103,22 +102,15 @@ describe("MVP scenario", () => {
     ];
     for (const { resource, size, distance, dx, dy } of expected) {
       const d = deposit(resource, size);
+      const actual = distanceFromCore(d);
       expect(d.h).toBe(size);
-      expect(distanceFromCore(d), resource).toBeGreaterThanOrEqual(
-        distance - 1,
-      );
-      expect(distanceFromCore(d), resource).toBeLessThanOrEqual(distance + 1);
+      expect(actual, resource).toBeGreaterThanOrEqual(distance - 1);
+      expect(actual, resource).toBeLessThanOrEqual(distance + 1);
       // In the stated direction (east, west, south or north), give or take
       // the half cell an even-sided deposit cannot centre on.
       const [x, y] = centre(d);
-      expect(
-        Math.abs(x - cx - dx * distanceFromCore(d)),
-        resource,
-      ).toBeLessThanOrEqual(1);
-      expect(
-        Math.abs(y - cy - dy * distanceFromCore(d)),
-        resource,
-      ).toBeLessThanOrEqual(1);
+      expect(Math.abs(x - cx - dx * actual), resource).toBeLessThanOrEqual(1);
+      expect(Math.abs(y - cy - dy * actual), resource).toBeLessThanOrEqual(1);
     }
   });
 
@@ -172,7 +164,7 @@ describe("MVP scenario", () => {
   });
 
   it("clears water from the base area", () => {
-    expect(allCells({ x: 44, y: 44, w: 32, h: 32 }, isLand)).toBe(true);
+    expect(allCells(MVP_BASE_AREA, isLand)).toBe(true);
   });
 
   it("stamps deterministically, without touching the generated map", () => {
@@ -190,7 +182,7 @@ describe("MVP scenario", () => {
       ...MVP_SCENARIO,
       deposits: [{ resource: "stone", x: 80, y: 30, w: 2, h: 2 }],
     };
-    expect(() => applyScenario(generateMap("mvp-1"), broken)).toThrow(
+    expect(() => applyScenario(generateMap(MVP_SCENARIO.seed), broken)).toThrow(
       /on water/,
     );
   });

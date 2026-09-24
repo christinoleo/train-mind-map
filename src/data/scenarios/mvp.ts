@@ -6,6 +6,9 @@ export const MVP_CORRIDOR: CellBlock = { x: 76, y: 60, w: 20, h: 1 };
 /** Water in columns 76–95 over the whole revealed height (rows 12–107). */
 export const MVP_WATER_WALL: CellBlock = { x: 76, y: 12, w: 20, h: 96 };
 
+/** The base area around the Core, west of the wall, cleared of water. */
+export const MVP_BASE_AREA: CellBlock = { x: 44, y: 44, w: 32, h: 32 };
+
 /**
  * The MVP map (GDD v1.6 §Mapa do MVP, decided in issue #6). The starter
  * resources sit around the Core, and the big copper deposit sits behind a
@@ -31,8 +34,7 @@ export const MVP_SCENARIO: Scenario = {
   ],
   water: [MVP_WATER_WALL],
   land: [
-    // The base area, west of the wall.
-    { x: 44, y: 44, w: 32, h: 32 },
+    MVP_BASE_AREA,
     MVP_CORRIDOR,
     // The rail route's east end and the big copper deposit.
     { x: 96, y: 52, w: 12, h: 16 },
