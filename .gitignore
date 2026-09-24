@@ -6,3 +6,8 @@ _bmad/config.user.toml
 _bmad/custom/*.user.toml
 .claude/settings.local.json
 .worktree/
+dist-ssr
+*.log
+.vscode/*
+!.vscode/extensions.json
+.idea
