@@ -14,6 +14,7 @@ import {
   type WebGLRenderer,
 } from "pixi.js";
 import { appOptions } from "../../render/app";
+import { cssColor } from "../../render/theme";
 import { strings } from "../../ui/strings";
 import { StressCamera } from "./camera";
 import {
@@ -69,7 +70,7 @@ function buildAtlas() {
   canvas.height = 16;
   const ctx = canvas.getContext("2d")!;
   ITEM_COLORS.forEach((color, i) => {
-    ctx.fillStyle = `#${color.toString(16).padStart(6, "0")}`;
+    ctx.fillStyle = cssColor(color);
     ctx.beginPath();
     ctx.arc(i * 16 + 8, 8, 6, 0, Math.PI * 2);
     ctx.fill();

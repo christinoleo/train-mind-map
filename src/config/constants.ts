@@ -60,3 +60,6 @@ export const AUTO_PAN_SPEED_PX_S = 600;
  * No key includes the build path, so saves survive new uploads.
  */
 export const STORAGE_PREFIX = "train-mind-map:";
+
+/** Smallest side of anything tappable, in screen pixels, at any zoom (FR133). */
+export const MIN_TOUCH_PX = 44;

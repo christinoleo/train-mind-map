@@ -1,5 +1,5 @@
-import { Container, Graphics, Text } from "pixi.js";
-import { MAP_SIZE, MAX_ZOOM_SCALE } from "../config/constants";
+import { Graphics } from "pixi.js";
+import { MAP_SIZE } from "../config/constants";
 import type { Rect } from "../sim/geometry/rect";
 import {
   cellIndex,
@@ -8,9 +8,7 @@ import {
   type GameMap,
 } from "../sim/state/map";
 import type { DeepReadonly } from "./readonly";
-import { strings } from "../ui/strings";
 import {
-  CATEGORY_COLOR,
   CELL_PX,
   PALETTE,
   RESOURCE_STYLE,
@@ -201,7 +199,7 @@ export function drawDeposits(map: MapView, bounds: Rect): Graphics {
 }
 
 /** Adds the path of an item glyph of radius `r`. */
-function drawGlyph(
+export function drawGlyph(
   g: Graphics,
   shape: GlyphShape,
   cx: number,
@@ -231,81 +229,3 @@ const GLYPH_POLYS = {
   }).flat(),
   flask: [-0.35, -1.1, 0.35, -1.1, 0.35, -0.3, 1.05, 1, -1.05, 1, -0.35, -0.3],
 } satisfies Record<Exclude<GlyphShape, "circle" | "square">, number[]>;
-
-/** Adds a card's soft shadow: stacked, fading rounded rects below it. */
-function drawShadow(g: Graphics, { x, y, w, h }: Rect, radius: number): void {
-  for (let i = 3; i >= 1; i--) {
-    const spread = i * 1.5;
-    g.roundRect(
-      x - spread,
-      y - spread + 3,
-      w + 2 * spread,
-      h + 2 * spread,
-      radius + spread,
-    ).fill({ color: PALETTE.shadow, alpha: 0.12 });
-  }
-}
-
-/** The Core as a node card: category header with its name, body, connectors. */
-export function drawCore(map: MapView): Container {
-  const { x, y, w, h } = toWorld(map.core);
-  const radius = PALETTE.cardRadius * CELL_PX;
-  const header = CELL_PX * 0.7;
-  const card = new Container({ label: "core" });
-  const g = card.addChild(new Graphics());
-  drawShadow(g, { x, y, w, h }, radius);
-  g.roundRect(x, y, w, h, radius).fill(PALETTE.card);
-  // The header's top corners follow the card; its bottom edge is square.
-  g.roundRect(x, y, w, header, radius)
-    .rect(x, y + header / 2, w, header / 2)
-    .fill(CATEGORY_COLOR.core);
-
-  // A hexagon stands in for the Core's icon.
-  const cx = x + w / 2;
-  const cy = y + header + (h - header) / 2;
-  const r = Math.min(w, h - header) * 0.25;
-  const hex: number[] = [];
-  for (let i = 0; i < 6; i++) {
-    const a = (Math.PI / 3) * i + Math.PI / 6;
-    hex.push(cx + r * Math.cos(a), cy + r * Math.sin(a));
-  }
-  g.poly(hex).stroke({ color: PALETTE.dimText, width: 2 });
-
-  // An input connector on the left, an output connector on the right.
-  const cr = CELL_PX * 0.16;
-  g.circle(x, cy, cr)
-    .fill(PALETTE.ground)
-    .stroke({ color: PALETTE.inputRing, width: 1.4 });
-  g.circle(x + w, cy, cr).fill(PALETTE.output);
-
-  card.addChild(
-    headerLabel(
-      strings.map.core,
-      x + CELL_PX * 0.3,
-      y + header / 2,
-      header * 0.6,
-    ),
-  );
-  return card;
-}
-
-/**
- * Header text `size` world units tall, rasterised at the largest zoom so it
- * stays sharp when the camera zooms in.
- */
-function headerLabel(label: string, x: number, y: number, size: number): Text {
-  const scale = MAX_ZOOM_SCALE;
-  const text = new Text({
-    text: label,
-    style: {
-      fontFamily: "system-ui, sans-serif",
-      fontWeight: "700",
-      fontSize: size * scale,
-      fill: PALETTE.headerText,
-    },
-  });
-  text.scale.set(1 / scale);
-  text.anchor.set(0, 0.5);
-  text.position.set(x, y);
-  return text;
-}

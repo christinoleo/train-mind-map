@@ -29,6 +29,16 @@ export function overlaps(a: Rect, b: Rect, gap = 0): boolean {
   );
 }
 
+/** True when `inner` lies wholly inside `outer`. */
+export function containsRect(outer: Rect, inner: Rect): boolean {
+  return (
+    inner.x >= outer.x &&
+    inner.y >= outer.y &&
+    inner.x + inner.w <= outer.x + outer.w &&
+    inner.y + inner.h <= outer.y + outer.h
+  );
+}
+
 /** The shortest distance between two rects, in cells; 0 when they touch. */
 export function rectDistance(a: Rect, b: Rect): number {
   const dx = Math.max(0, b.x - (a.x + a.w), a.x - (b.x + b.w));

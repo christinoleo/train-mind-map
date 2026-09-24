@@ -1,8 +1,13 @@
-import { MAP_SIZE } from "../../config/constants";
 import type { CellBlock, Scenario } from "../../data/scenarios/scenario";
 import { assert } from "../assert";
-import { allCells } from "../geometry/rect";
-import { cellIndex, Terrain, terrainAt, type GameMap } from "../state/map";
+import { allCells, containsRect } from "../geometry/rect";
+import {
+  cellIndex,
+  MAP_RECT,
+  Terrain,
+  terrainAt,
+  type GameMap,
+} from "../state/map";
 
 /**
  * Stamps `scenario` over a generated map: water, then land, then the Core and
@@ -41,7 +46,7 @@ export function applyScenario(map: GameMap, scenario: Scenario): GameMap {
 
 function assertInMap({ x, y, w, h }: CellBlock) {
   assert(
-    x >= 0 && y >= 0 && x + w <= MAP_SIZE && y + h <= MAP_SIZE,
+    containsRect(MAP_RECT, { x, y, w, h }),
     `scenario block ${JSON.stringify({ x, y, w, h })} is outside the map`,
   );
 }

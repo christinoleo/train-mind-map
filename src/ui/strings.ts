@@ -9,9 +9,51 @@ export const strings = {
     exported: "Save copiado para a área de transferência",
     exportFailed: "Não foi possível copiar o save",
   },
-  // Labels drawn on the map.
-  map: {
-    core: "Core",
+  // Node names, on the cards and in the palette.
+  nodes: {
+    core: "Núcleo",
+    extractor: "Extrator",
+    furnace: "Fornalha",
+    "assembler-1": "Montadora 1",
+    generator: "Gerador",
+    box: "Caixa",
+    splitter: "Divisor",
+    merger: "Mesclador",
+    lab: "Laboratório",
+    station: "Estação",
+  },
+  // Short item names, for costs.
+  items: {
+    "iron-ore": "minério de ferro",
+    "copper-ore": "minério de cobre",
+    coal: "carvão",
+    stone: "pedra",
+    "crude-oil": "petróleo",
+    "iron-plate": "placa de ferro",
+    "copper-plate": "placa de cobre",
+    brick: "tijolo",
+    gear: "engrenagem",
+  },
+  // The node palette: the "+" button, the bottom tray and placement feedback.
+  palette: {
+    open: "Construir",
+    close: "Fechar paleta",
+    free: "grátis",
+  },
+  // Why a command was refused, shown as a hint.
+  reasons: {
+    crosses_edge: "Cruza uma aresta",
+    indestructible: "O Núcleo não pode ser removido",
+    locked: "Ainda não pesquisado",
+    needs_deposit: "O Extrator precisa ficar sobre uma jazida",
+    no_stock: "Estoque insuficiente",
+    not_found: "Não encontrado",
+    nothing_to_undo: "Nada para desfazer",
+    occupied: "Espaço ocupado",
+    on_deposit: "Só o Extrator fica sobre jazidas",
+    on_water: "Não dá para construir na água",
+    out_of_bounds: "Fora da área revelada",
+    out_of_range: "Fora do limite",
   },
   // The rendering stress-test page (stress.html), used on real phones.
   stress: {

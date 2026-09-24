@@ -10,15 +10,16 @@ import {
 describe("state serialization", () => {
   it("allocates incremental ids per kind", () => {
     const state = createGameState("ids");
-    expect(allocateId(state.nextIds, "node")).toBe(1);
+    // The Core took node id 1.
     expect(allocateId(state.nextIds, "node")).toBe(2);
+    expect(allocateId(state.nextIds, "node")).toBe(3);
     expect(allocateId(state.nextIds, "edge")).toBe(1);
   });
 
   it("round-trips through JSON", () => {
     const state = createGameState("save");
     const id = allocateId(state.nextIds, "node");
-    state.nodes.set(id, { id });
+    state.nodes.set(id, { id, kind: "furnace", x: 1, y: 2 });
     state.tick = 42;
 
     const json = JSON.stringify(serializeState(state));

@@ -1,5 +1,6 @@
 import { CELL_PX } from "../config/constants";
 import type { RawResource } from "../data/items";
+import type { NodeCategory } from "../data/nodes";
 import type { Rect } from "../sim/geometry/rect";
 
 export { CELL_PX };
@@ -45,17 +46,30 @@ export const PALETTE = {
   output: 0xffb547,
 } as const;
 
-/** Node header colour per category. */
-export const CATEGORY_COLOR = {
+/** A 0xRRGGBB colour as a CSS hex string, for DOM and canvas 2D use. */
+export function cssColor(color: number): string {
+  return `#${color.toString(16).padStart(6, "0")}`;
+}
+
+/**
+ * Node header colour per category. The GDD names the first six; logistics,
+ * research and rail get their own hues so no two categories share one.
+ */
+export const CATEGORY_COLOR: Record<NodeCategory, number> = {
   core: 0xf5c542,
   extraction: 0xd9a45b,
   smelting: 0xe0735a,
   assembly: 0x6b9cff,
   power: 0xb98cff,
   storage: 0x6fcf97,
-} as const;
+  logistics: 0x5ec8c8,
+  research: 0xf28fb8,
+  rail: 0xc9a27a,
+};
 
-export type NodeCategory = keyof typeof CATEGORY_COLOR;
+/** Outline of the placement ghost: green where it fits, red where it does not. */
+export const GHOST_COLOR = { valid: 0x4ade80, invalid: 0xf87171 } as const;
+export const GHOST_ALPHA = 0.6;
 
 /** Node state colours: red for blocked or starved, yellow for no power. */
 export const STATE_COLOR = {

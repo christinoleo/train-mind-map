@@ -1,4 +1,5 @@
 import type { RawResource } from "./items";
+import { NODES } from "./nodes";
 
 export interface RingParams {
   /** Smallest and largest side of a deposit in this ring, in cells. */
@@ -41,7 +42,7 @@ export interface MapGenParams {
 // Placeholder balance: deposit counts and lake shape are first guesses, to be
 // tuned in playtests. Distances and sizes come from the GDD (FR5, FR7, FR8).
 export const MAP_GEN: MapGenParams = {
-  coreSize: 3,
+  coreSize: NODES.core.size,
   coreClearance: 4,
   lakeScale: 16,
   lakeOctaves: 3,

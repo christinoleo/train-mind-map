@@ -6,6 +6,8 @@ import { GestureTracker, type GesturePoint } from "./gestures";
  * gestures the camera does not take; every method but `cancel` is optional.
  */
 export interface Tool {
+  /** A mouse moved with no button down. */
+  hover?(p: GesturePoint): void;
   tap?(p: GesturePoint): void;
   longPress?(p: GesturePoint): void;
   /** Returns true to take the drag; otherwise the camera pans. */
@@ -104,6 +106,8 @@ export class Controls {
 
   private readonly onMove = (e: PointerEvent) => {
     const { x, y } = this.point(e);
+    if (e.pointerType === "mouse" && e.buttons === 0)
+      this.tool?.hover?.({ x, y });
     this.gestures.move(e.pointerId, x, y);
   };
 
