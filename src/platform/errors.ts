@@ -1,14 +1,19 @@
-import { h, render } from "preact";
+import { h } from "preact";
 import { CrashScreen } from "../ui/CrashScreen";
+import { showOverlay } from "../ui/overlay";
 import { log, type LogEntry } from "./log";
 
 export interface CrashHooks {
   /** Stops the simulation loop. */
   pause: () => void;
-  /** Writes `save:crash` with the current state and the log buffer (Epic 4). */
+  /** Writes `save:crash` with the current state and the log buffer. */
   saveCrash?: (logEntries: LogEntry[]) => void;
-  /** Serialises what "Exportar save" copies; until saves exist, the log buffer. */
-  exportSave?: () => string;
+  /**
+   * What "Exportar save" copies: the save and the log buffer. Without it, or
+   * when it returns `undefined` because there is no game yet, the log buffer
+   * alone.
+   */
+  exportSave?: () => Promise<string> | undefined;
 }
 
 /**
@@ -27,7 +32,7 @@ export function installErrorHandler(hooks: CrashHooks): void {
       hooks.pause();
       hooks.saveCrash?.(log.entries());
     } finally {
-      showCrashScreen(hooks.exportSave ?? exportLog);
+      showCrashScreen(() => hooks.exportSave?.() ?? exportLog());
     }
   }
 
@@ -43,20 +48,15 @@ function describe(error: unknown) {
     : { message: String(error) };
 }
 
-function exportLog() {
+async function exportLog() {
   return JSON.stringify({ log: log.entries() }, null, 2);
 }
 
-// A separate root, so the screen still renders if the UI tree is what broke.
-function showCrashScreen(exportSave: () => string) {
-  const root = document.createElement("div");
-  document.body.appendChild(root);
-  render(
+function showCrashScreen(exportSave: () => Promise<string>) {
+  showOverlay(
     h(CrashScreen, {
       onReload: () => location.reload(),
-      // async, so a missing clipboard (plain http) or a failing export rejects.
-      onExport: async () => navigator.clipboard.writeText(exportSave()),
+      onExport: exportSave,
     }),
-    root,
   );
 }

@@ -6,6 +6,8 @@ import { log } from "./log";
 export interface Settings {
   /** How many onboarding hints the player has seen through, in order (FR139). */
   hintsSeen: number;
+  /** The iOS notice that suggests exporting the save was dismissed (NFR14). */
+  exportNoticeDismissed?: boolean;
 }
 
 const DEFAULT_SETTINGS: Readonly<Settings> = { hintsSeen: 0 };

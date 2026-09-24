@@ -3,6 +3,7 @@ import type { ComponentProps } from "preact";
 import type { ItemCounts } from "../data/items";
 import type { PowerSummary } from "../sim/state/power";
 import { EdgeMenu } from "./EdgeMenu";
+import { ExportNotice } from "./ExportNotice";
 import { Hint, type HintView } from "./Hint";
 import { NodeMenu } from "./NodeMenu";
 import { Palette } from "./Palette";
@@ -20,6 +21,7 @@ type Props = ComponentProps<typeof Palette> & {
   research: ComponentProps<typeof ResearchPanel>;
   researchNotice: ComponentProps<typeof ResearchNotice>;
   settings: ComponentProps<typeof SettingsMenu>;
+  exportNotice: ComponentProps<typeof ExportNotice>;
   /** The onboarding hint shown now, if any. */
   onboardingHint: ReadonlySignal<HintView | null>;
   /** The global stock, published by the UI bridge. */
@@ -34,7 +36,7 @@ type Props = ComponentProps<typeof Palette> & {
 
 // The DOM overlay layer above the canvas: the HUD capsule, the menus, the
 // undo, research and settings buttons, the palette, the onboarding hint
-// and the research notices.
+// and the research and export notices.
 export function UiRoot({
   stock,
   stamina,
@@ -46,6 +48,7 @@ export function UiRoot({
   research,
   researchNotice,
   settings,
+  exportNotice,
   onboardingHint,
   ...palette
 }: Props) {
@@ -65,6 +68,7 @@ export function UiRoot({
       <Palette {...palette} />
       <Hint hint={onboardingHint} />
       <ResearchNotice {...researchNotice} />
+      <ExportNotice {...exportNotice} />
     </>
   );
 }
