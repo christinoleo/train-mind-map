@@ -5,9 +5,32 @@ export const strings = {
     title: "Algo deu errado",
     body: "O jogo encontrou um erro e foi pausado.",
     reload: "Recarregar",
-    exportSave: "Exportar save",
+  },
+  // The save's export and import, in the settings menu (FR128).
+  save: {
+    export: "Exportar save",
     exported: "Save copiado para a área de transferência",
-    exportFailed: "Não foi possível copiar o save",
+    exportFailed: "Não foi possível exportar o save",
+    copyByHand: "Não foi possível copiar: selecione e copie o texto abaixo",
+    exportText: "Save exportado",
+    import: "Importar save",
+    importNote: "Cole um save exportado. Ele substitui a partida atual.",
+    importText: "Save para importar",
+    load: "Carregar save",
+  },
+  // Shown at boot when the latest save fails to load (FR129).
+  backup: {
+    title: "O save não pôde ser lido",
+    body: "Há um backup do save anterior. Carregá-lo?",
+    noBackup: "Não há backup. A partida recomeça do zero.",
+    load: "Carregar backup",
+    newGame: "Começar do zero",
+  },
+  // On iOS inside itch.io, where Safari may drop the save (NFR14).
+  exportNotice: {
+    body: "No iPhone e no iPad, o Safari pode apagar o save. Exporte-o de vez em quando.",
+    export: "Exportar",
+    dismiss: "Entendi",
   },
   // Node names, on the cards and in the palette.
   nodes: {
@@ -141,6 +164,7 @@ export const strings = {
   // Why a command was refused, shown as a hint.
   reasons: {
     bad_replay: "Replay inválido",
+    bad_save: "Save inválido",
     connector_taken: "Conector já ligado",
     crosses_edge: "Cruza uma aresta",
     crosses_node: "Atravessa um nó",
@@ -149,6 +173,7 @@ export const strings = {
     locked: "Ainda não pesquisado",
     max_level: "Já está no nível máximo",
     needs_deposit: "O Extrator precisa ficar sobre uma jazida",
+    newer_save: "Save de uma versão mais nova do jogo",
     no_route: "Sem rota",
     no_stamina: "Sem fôlego",
     no_stock: "Estoque insuficiente",

@@ -19,7 +19,20 @@ import { PlaceTool } from "./input/tools/place";
 import { TapTool } from "./input/tools/tap";
 import { createLoop, type Loop } from "./loop";
 import { installErrorHandler } from "./platform/errors";
-import { loadSettings, saveSettings } from "./platform/settings";
+import { isIosIframe } from "./platform/ios";
+import { log, type LogEntry } from "./platform/log";
+import {
+  encodeSave,
+  exportText,
+  idbStore,
+  importText,
+  loadState,
+  SaveSlots,
+  startAutosave,
+  type BootSave,
+  type SaveFile,
+} from "./platform/save";
+import { loadSettings, saveSettings, type Settings } from "./platform/settings";
 import { createApp } from "./render/app";
 import { createRenderer } from "./render/renderer";
 import { CommandQueue } from "./sim/commands/commandQueue";
@@ -32,7 +45,7 @@ import { UpgradeEdge } from "./sim/commands/upgradeEdge";
 import { UpgradeNode } from "./sim/commands/upgradeNode";
 import { EventQueue } from "./sim/events";
 import { clamp } from "./sim/math";
-import type { FailReason } from "./sim/result";
+import { ok, type FailReason, type Result } from "./sim/result";
 import { createGameState, type GameState } from "./sim/state/gameState";
 import type { EdgeId, NodeId } from "./sim/state/ids";
 import { powerSummary, type PowerSummary } from "./sim/state/power";
@@ -40,9 +53,11 @@ import { isStorageFull } from "./sim/state/stock";
 import { tick } from "./sim/tick";
 import { edgeMenuInfo, type EdgeMenuInfo } from "./ui/EdgeMenu";
 import type { HintView } from "./ui/Hint";
+import { BackupDialog } from "./ui/BackupDialog";
 import { nodeMenuInfo, type NodeMenuInfo } from "./ui/NodeMenu";
 import { Onboarding, type HintTarget } from "./ui/onboarding";
 import { researchInfo, type ResearchInfo } from "./ui/ResearchPanel";
+import { showOverlay } from "./ui/overlay";
 import { UiRoot } from "./ui/UiRoot";
 
 // Installed first so boot failures, map generation included, show the crash
@@ -50,14 +65,40 @@ import { UiRoot } from "./ui/UiRoot";
 // remembered and keeps it from starting.
 let paused = false;
 let loop: Loop | undefined = undefined;
+let stopAutosave: (() => void) | undefined = undefined;
+/** The game, once boot has one, for the crash save and export. */
+let game: GameState | undefined = undefined;
+const slots = new SaveSlots(idbStore());
 installErrorHandler({
   pause: () => {
     paused = true;
     loop?.stop();
+    // A broken state must not overwrite the last good save.
+    stopAutosave?.();
   },
+  saveCrash(logEntries) {
+    if (!game) return;
+    slots
+      .saveCrash(game, logEntries)
+      .catch((error: unknown) =>
+        log.error("save", "crash save failed", String(error)),
+      );
+  },
+  exportSave: () => game && exportGame(game, log.entries()),
 });
 
-const state = createGameState(MVP_SCENARIO);
+const booted = await slots.load().catch((error: unknown): BootSave => {
+  // No IndexedDB (a private window, blocked storage): play without saves.
+  log.error("save", "save storage unavailable", String(error));
+  return { kind: "none" };
+});
+const saved =
+  booted.kind === "failed" ? await offerBackup(booted.backup) : booted;
+const state =
+  saved.kind === "loaded"
+    ? loadState(saved.save)
+    : createGameState(MVP_SCENARIO);
+game = state;
 const commands = new CommandQueue();
 const events = new EventQueue();
 const app = await createApp(document.getElementById("pixi-container")!);
@@ -87,15 +128,21 @@ const completed = signal<ResearchId | null>(null);
 /** True while the end-of-content notice is open (FR110). */
 const ended = signal(false);
 const settingsOpen = signal(false);
+const exportNotice = signal(false);
 const onboardingHint = signal<HintView | null>(null);
 /** The hint the last tick asked for; each frame places it on the screen. */
 let hintTarget: HintTarget | null = null;
 // The hints wait for the settings, which say how many were seen already.
 let onboarding: Onboarding | undefined;
-void loadSettings().then((settings) => {
-  onboarding = new Onboarding(settings.hintsSeen, (hintsSeen) => {
-    void saveSettings({ ...settings, hintsSeen });
+let settings: Settings | undefined;
+void loadSettings().then((loaded) => {
+  settings = loaded;
+  onboarding = new Onboarding(loaded.hintsSeen, (hintsSeen) => {
+    settings = { ...settings!, hintsSeen };
+    void saveSettings(settings);
   });
+  // Safari may drop the storage of a game in an iframe (NFR14).
+  exportNotice.value = isIosIframe() && !loaded.exportNoticeDismissed;
 });
 /** Returns a function that shows a value in `target` for a moment. */
 function flasher<T>(target: Signal<T | null>): (value: T) => void {
@@ -262,6 +309,37 @@ function publishIfChanged<T>(target: Signal<T>, value: T) {
   }
 }
 
+/** Replaces the game with a loaded one, dropping what referred to the old. */
+function loadGame(save: SaveFile) {
+  commands.clear();
+  buildTool.cancel();
+  selected.value = null;
+  selectedNode.value = null;
+  selectedEdge.value = null;
+  Object.assign(state, loadState(save));
+}
+
+/** The game as export text, with the log buffer in a crash export. */
+function exportGame(
+  current: GameState,
+  logEntries?: LogEntry[],
+): Promise<string> {
+  return exportText(encodeSave(current, Date.now(), logEntries));
+}
+
+async function importSave(text: string): Promise<Result> {
+  const save = await importText(text);
+  if (!save.ok) return save;
+  loadGame(save.value);
+  // The game is loaded either way; without storage it just is not kept.
+  slots
+    .save(state)
+    .catch((error: unknown) =>
+      log.error("save", "imported save not written", String(error)),
+    );
+  return ok();
+}
+
 function undo() {
   const result = commands.undo(state);
   if (!result.ok) flashHint(result.reason);
@@ -364,12 +442,27 @@ render(
     settings: {
       open: settingsOpen,
       onReviewHints: () => onboarding?.reset(),
+      exportSave: () => exportGame(state),
+      importSave,
+    },
+    exportNotice: {
+      show: exportNotice,
+      onExport: () => (settingsOpen.value = true),
+      onDismiss() {
+        exportNotice.value = false;
+        if (!settings) return;
+        settings = { ...settings, exportNoticeDismissed: true };
+        void saveSettings(settings);
+      },
     },
     onboardingHint,
   }),
   document.getElementById("ui-root")!,
 );
-if (!paused) loop.start();
+if (!paused) {
+  loop.start();
+  stopAutosave = startAutosave(() => slots.save(state));
+}
 
 if (import.meta.env.DEV || new URLSearchParams(location.search).has("debug")) {
   const { installDebugTools } = await import("./debug/tools");
@@ -407,6 +500,26 @@ function hintView(target: HintTarget | null): HintView | null {
     ),
     y: Math.round(clamp(y, HINT_TOP_PX, height)),
   };
+}
+
+/**
+ * Asks whether to load the backup of a save that failed to load (FR129),
+ * before the game starts, so no autosave runs over either.
+ */
+function offerBackup(backup: SaveFile | null): Promise<BootSave> {
+  return new Promise((resolve) => {
+    const choose = (choice: BootSave) => {
+      close();
+      resolve(choice);
+    };
+    const close = showOverlay(
+      h(BackupDialog, {
+        hasBackup: backup !== null,
+        onBackup: () => backup && choose({ kind: "loaded", save: backup }),
+        onNewGame: () => choose({ kind: "none" }),
+      }),
+    );
+  });
 }
 
 function samePower(a: PowerSummary, b: PowerSummary): boolean {

@@ -67,6 +67,9 @@ export const AUTO_PAN_SPEED_PX_S = 600;
  */
 export const STORAGE_PREFIX = "train-mind-map:";
 
+/** How often the game autosaves while it runs (FR126). */
+export const AUTOSAVE_MS = 30_000;
+
 /** Smallest side of anything tappable, in screen pixels, at any zoom (FR133). */
 export const MIN_TOUCH_PX = 44;
 

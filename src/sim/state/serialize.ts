@@ -11,7 +11,7 @@ type SavedState = Omit<GameState, "stock" | "power">;
 export type SerializedState = { [K in keyof SavedState]: Pairs<SavedState[K]> };
 
 /** The saved state with Maps as pairs, still sharing its data with `state`. */
-function toPairs(state: GameState): SerializedState {
+export function toPairs(state: GameState): SerializedState {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { stock, power, ...saved } = state;
   return { ...saved, nodes: [...state.nodes], edges: [...state.edges] };

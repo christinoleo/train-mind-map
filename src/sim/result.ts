@@ -4,6 +4,7 @@
 
 export type FailReason =
   | "bad_replay"
+  | "bad_save"
   | "connector_taken"
   | "crosses_edge"
   | "crosses_node"
@@ -12,6 +13,7 @@ export type FailReason =
   | "locked"
   | "max_level"
   | "needs_deposit"
+  | "newer_save"
   | "no_route"
   | "no_stamina"
   | "no_stock"

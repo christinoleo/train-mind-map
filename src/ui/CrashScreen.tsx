@@ -1,23 +1,15 @@
-import { useState } from "preact/hooks";
+import { ExportStatus, useExportSave } from "./ExportSave";
 import { strings } from "./strings";
-
-type ExportStatus = "idle" | "exported" | "failed";
 
 interface Props {
   onReload: () => void;
-  onExport: () => Promise<void>;
+  /** The save and the log buffer, as export text. */
+  onExport: () => Promise<string>;
 }
 
 export function CrashScreen({ onReload, onExport }: Props) {
-  const [status, setStatus] = useState<ExportStatus>("idle");
+  const { status, run } = useExportSave(onExport);
   const text = strings.crash;
-
-  function exportSave() {
-    onExport().then(
-      () => setStatus("exported"),
-      () => setStatus("failed"),
-    );
-  }
 
   return (
     <div class="crash" role="alertdialog" aria-labelledby="crash-title">
@@ -27,15 +19,11 @@ export function CrashScreen({ onReload, onExport }: Props) {
         <button type="button" onClick={onReload}>
           {text.reload}
         </button>
-        <button type="button" onClick={exportSave}>
-          {text.exportSave}
+        <button type="button" onClick={run}>
+          {strings.save.export}
         </button>
       </div>
-      {status !== "idle" && (
-        <p role="status">
-          {status === "exported" ? text.exported : text.exportFailed}
-        </p>
-      )}
+      <ExportStatus status={status} />
     </div>
   );
 }

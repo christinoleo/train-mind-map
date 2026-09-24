@@ -604,3 +604,67 @@ canvas {
   bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
 }
+
+.save-status {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 0.75rem;
+}
+
+/* The export text to copy by hand, or the pasted save to import. */
+.save-text {
+  box-sizing: border-box;
+  width: 100%;
+  height: 72px;
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: #2b303c;
+  color: #e4e7ee;
+  font:
+    0.7rem ui-monospace,
+    monospace;
+  word-break: break-all;
+  resize: none;
+}
+
+.crash .save-text {
+  width: min(320px, 100%);
+}
+
+/* The iOS notice under the HUD that suggests exporting the save (NFR14). */
+#ui-root > .export-notice {
+  position: fixed;
+  top: calc(96px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: min(320px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(245, 197, 66, 0.94);
+  color: #15181f;
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+}
+
+.export-notice p {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+.export-notice button {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #15181f;
+  color: #f5c542;
+  font: inherit;
+  font-weight: 600;
+}
