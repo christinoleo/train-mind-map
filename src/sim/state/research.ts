@@ -1,11 +1,11 @@
 import {
   RESEARCH,
-  RESEARCH_IDS,
   type ResearchEffect,
   type ResearchId,
 } from "../../data/research";
 import type { Emit } from "../events";
 import type { GameState } from "./gameState";
+import { isUnlocked } from "./nodes";
 
 /** What the player has researched and is researching (FR109). */
 export interface ResearchState {
@@ -44,16 +44,11 @@ export function packsLeft(state: Readonly<GameState>, id: ResearchId): number {
   return RESEARCH[id].cost - (state.research.progress[id] ?? 0);
 }
 
-/** The researches in panel order, with where each stands. */
-export function researchList(state: Readonly<GameState>) {
-  return RESEARCH_IDS.map((id) => ({ id, status: researchStatus(state, id) }));
-}
-
 function applyEffect(state: GameState, effect: ResearchEffect): void {
   switch (effect.type) {
     case "nodes":
       for (const kind of effect.kinds) {
-        if (!state.unlockedNodes.includes(kind)) state.unlockedNodes.push(kind);
+        if (!isUnlocked(state, kind)) state.unlockedNodes.push(kind);
       }
       break;
     case "tap":

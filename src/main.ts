@@ -76,18 +76,24 @@ const research = signal<ResearchInfo>(researchInfo(state));
 const completed = signal<ResearchId | null>(null);
 /** True while the end-of-content notice is open (FR110). */
 const ended = signal(false);
+/** Returns a function that shows a value in `target` for a moment. */
+function flasher<T>(target: Signal<T | null>): (value: T) => void {
+  let timer: number | undefined;
+  return (value) => {
+    target.value = value;
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => (target.value = null), HINT_MS);
+  };
+}
 let published = -Infinity;
 let lastFrame = performance.now();
 events.on("ConstructionPaid", renderer.showConstruction);
 events.on("ManualTapped", renderer.showTap);
-let completedTimer: number | undefined;
+const flashCompleted = flasher(completed);
 // The research jingle plays here too, once there is audio (FR116).
 events.on("ResearchDone", (event) => {
-  completed.value = event.research;
-  window.clearTimeout(completedTimer);
-  completedTimer = window.setTimeout(() => (completed.value = null), HINT_MS);
+  flashCompleted(event.research);
   if (event.research === FINAL_RESEARCH) ended.value = true;
-  publishResearch();
 });
 const placeTool = new PlaceTool({
   state,
@@ -110,13 +116,8 @@ const connectTool = new ConnectTool({
   showPreview: renderer.setEdgePreview,
   selectEdge: (id) => (selectedEdge.value = id),
 });
-let hintTimer: number | undefined;
 /** Shows why an action was refused for a moment. */
-function flashHint(reason: FailReason) {
-  flash.value = reason;
-  window.clearTimeout(hintTimer);
-  hintTimer = window.setTimeout(() => (flash.value = null), HINT_MS);
-}
+const flashHint = flasher(flash);
 const moveTool = new MoveTool({
   state,
   camera,
@@ -213,14 +214,13 @@ function publishMenu<Id, Info>(
   const id = selection.peek();
   const info = id === null ? null : infoOf(state, id);
   if (id !== null && !info) selection.value = null;
-  if (JSON.stringify(info) !== JSON.stringify(menu.peek())) menu.value = info;
+  publishIfChanged(menu, info);
 }
 
-/** Publishes the research panel's contents when they changed. */
-function publishResearch() {
-  const info = researchInfo(state);
-  if (JSON.stringify(info) !== JSON.stringify(research.peek())) {
-    research.value = info;
+/** Sets `target` to `value` unless it already holds the same contents. */
+function publishIfChanged<T>(target: Signal<T>, value: T) {
+  if (JSON.stringify(value) !== JSON.stringify(target.peek())) {
+    target.value = value;
   }
 }
 
@@ -257,7 +257,7 @@ loop = createLoop({
       const summary = powerSummary(state.power);
       if (!samePower(power.value, summary)) power.value = summary;
       storageFull.value = isStorageFull(state);
-      publishResearch();
+      publishIfChanged(research, researchInfo(state));
       published = now;
     }
   },

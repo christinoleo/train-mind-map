@@ -2,34 +2,35 @@ import type { ReadonlySignal, Signal } from "@preact/signals";
 import { useState } from "preact/hooks";
 import {
   RESEARCH,
+  RESEARCH_IDS,
   type ResearchEffect,
   type ResearchId,
 } from "../data/research";
 import { TAP_YIELD } from "../data/tap";
 import type { GameState } from "../sim/state/gameState";
-import { researchList, type ResearchStatus } from "../sim/state/research";
+import { researchStatus, type ResearchStatus } from "../sim/state/research";
 import { strings } from "./strings";
 
 /** What the research panel shows, published by the UI bridge. */
 export interface ResearchInfo {
-  active: ResearchId | null;
+  /** True while no research is chosen. */
+  idle: boolean;
+  /** The researches in panel order. */
   researches: {
     id: ResearchId;
     status: ResearchStatus;
     /** Packs consumed so far. */
     progress: number;
-    cost: number;
   }[];
 }
 
 export function researchInfo(state: Readonly<GameState>): ResearchInfo {
   return {
-    active: state.research.active,
-    researches: researchList(state).map(({ id, status }) => ({
+    idle: state.research.active === null,
+    researches: RESEARCH_IDS.map((id) => ({
       id,
-      status,
+      status: researchStatus(state, id),
       progress: state.research.progress[id] ?? 0,
-      cost: RESEARCH[id].cost,
     })),
   };
 }
@@ -40,11 +41,11 @@ function describe(effect: ResearchEffect): string {
     case "nodes":
       return effect.kinds.map((kind) => strings.nodes[kind]).join(", ");
     case "tap":
-      return `${text.tap} ${TAP_YIELD[effect.level]} ${text.tapItems}`;
+      return `${text.tap} ${TAP_YIELD[effect.level]} ${text.items}`;
     case "edge":
       return `${text.edge} ${effect.level}`;
     case "box-capacity":
-      return `${text.boxCapacity} ${effect.capacity} ${text.boxItems}`;
+      return `${text.boxCapacity} ${effect.capacity} ${text.items}`;
   }
 }
 
@@ -76,9 +77,9 @@ export function ResearchPanel({ research, onChoose }: Props) {
         type="button"
         class="research-toggle"
         aria-expanded={open}
-        aria-label={text.open}
-        title={text.open}
-        data-idle={info.active === null}
+        aria-label={text.title}
+        title={text.title}
+        data-idle={info.idle}
         onClick={() => setOpen(!open)}
       >
         {text.glyph}
@@ -96,7 +97,7 @@ export function ResearchPanel({ research, onChoose }: Props) {
               {strings.menu.closeGlyph}
             </button>
           </header>
-          {info.active === null && <p class="menu-note">{text.none}</p>}
+          {info.idle && <p class="menu-note">{text.none}</p>}
           <div class="research-list">
             {info.researches.map((r) => (
               <ResearchRow key={r.id} {...r} onChoose={onChoose} />
@@ -112,11 +113,10 @@ function ResearchRow({
   id,
   status,
   progress,
-  cost,
   onChoose,
 }: ResearchInfo["researches"][number] & { onChoose(id: ResearchId): void }) {
   const text = strings.research;
-  const requires = RESEARCH[id].requires;
+  const { cost, requires } = RESEARCH[id];
   return (
     <button
       type="button"
