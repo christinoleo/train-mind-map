@@ -19,6 +19,7 @@ import {
   type EdgeId,
   type NextIds,
   type NodeId,
+  type RailId,
 } from "./ids";
 import type { GameMap } from "./map";
 import { createNode } from "./nodes";
@@ -156,6 +157,25 @@ export interface Edge {
   items: EdgeItem[];
 }
 
+/** One end of a rail: a Station's rail port, by its index in `railPorts`. */
+export interface RailEnd {
+  node: NodeId;
+  port: number;
+}
+
+/**
+ * A double-track rail between two Station rail ports (FR79, FR80), one track
+ * each way. Its route runs in 8 directions from the source port's cell to the
+ * target port's cell.
+ */
+export interface Rail {
+  id: RailId;
+  from: RailEnd;
+  to: RailEnd;
+  /** The route: its first cell, each bend and its last cell. */
+  path: Point[];
+}
+
 /**
  * The whole simulation state, as plain data. Later systems extend it; it never
  * holds render objects, and it changes only through commands.
@@ -167,6 +187,8 @@ export interface GameState {
   nextIds: NextIds;
   nodes: Map<NodeId, FactoryNode>;
   edges: Map<EdgeId, Edge>;
+  /** The rail layer's rails (Epic 5). */
+  rails: Map<RailId, Rail>;
   /** The node kinds the player may build. Research adds to it (Epic 4). */
   unlockedNodes: NodeKind[];
   /** The manual taps left, and the recharge towards the next (FR75). */
@@ -210,6 +232,7 @@ export function createGameState(world: string | Scenario): GameState {
     nextIds,
     nodes,
     edges: new Map(),
+    rails: new Map(),
     unlockedNodes: [...STARTING_NODES],
     stamina: newStamina(),
     tapLevel: 0,

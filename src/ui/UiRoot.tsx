@@ -8,6 +8,8 @@ import { Hint, type HintView } from "./Hint";
 import { NodeMenu } from "./NodeMenu";
 import { OfflineReport } from "./OfflineReport";
 import { Palette } from "./Palette";
+import { RailMenu } from "./RailMenu";
+import { RailToggle } from "./RailToggle";
 import { ResearchNotice, ResearchPanel } from "./ResearchPanel";
 import { SettingsMenu } from "./SettingsMenu";
 import { StockHud } from "./StockHud";
@@ -18,6 +20,9 @@ type Props = ComponentProps<typeof Palette> & {
   edgeMenu: ComponentProps<typeof EdgeMenu>;
   /** The node menu, open while a node is selected. */
   nodeMenu: ComponentProps<typeof NodeMenu>;
+  /** The rail menu, open while a rail is selected. */
+  railMenu: ComponentProps<typeof RailMenu>;
+  railToggle: ComponentProps<typeof RailToggle>;
   undo: ComponentProps<typeof UndoButton>;
   research: ComponentProps<typeof ResearchPanel>;
   researchNotice: ComponentProps<typeof ResearchNotice>;
@@ -38,8 +43,8 @@ type Props = ComponentProps<typeof Palette> & {
 };
 
 // The DOM overlay layer above the canvas: the HUD capsule, the menus, the
-// undo, research and settings buttons, the palette, the onboarding hint,
-// the research and export notices and the offline report.
+// undo, research, settings and rail layer buttons, the palette, the
+// onboarding hint, the research and export notices and the offline report.
 export function UiRoot({
   stock,
   stamina,
@@ -47,6 +52,8 @@ export function UiRoot({
   storageFull,
   edgeMenu,
   nodeMenu,
+  railMenu,
+  railToggle,
   undo,
   research,
   researchNotice,
@@ -66,9 +73,11 @@ export function UiRoot({
       />
       <EdgeMenu {...edgeMenu} />
       <NodeMenu {...nodeMenu} />
+      <RailMenu {...railMenu} />
       <UndoButton {...undo} />
       <ResearchPanel {...research} />
       <SettingsMenu {...settings} />
+      <RailToggle {...railToggle} />
       <Palette {...palette} />
       <Hint hint={onboardingHint} />
       <ResearchNotice {...researchNotice} />

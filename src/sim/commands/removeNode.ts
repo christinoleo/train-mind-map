@@ -3,13 +3,15 @@ import { NODES } from "../../data/nodes";
 import type { Emit } from "../events";
 import { buildPlanarIndex } from "../geometry/planar";
 import { fail, ok, type Result } from "../result";
+import { railsOf } from "../rail/rails";
 import { checkRestore, edgesOf } from "../state/edges";
-import type { Edge, FactoryNode, GameState } from "../state/gameState";
+import type { Edge, FactoryNode, GameState, Rail } from "../state/gameState";
 import type { NodeId } from "../state/ids";
 import { checkFootprint, emptied, nodeRect } from "../state/nodes";
 import { canAfford, debit, deposit } from "../state/stock";
 import type { Command } from "./command";
 import { putBackEdge, takeOutEdge } from "./removeEdge";
+import { checkPutBackRails, putBackRail, takeOutRail } from "./removeRail";
 
 /** An edge removed along with its node, and what its removal refunded. */
 interface RemovedEdge {
@@ -17,10 +19,17 @@ interface RemovedEdge {
   refunded: ItemCounts;
 }
 
+/** A rail removed along with its Station, and what its removal refunded. */
+interface RemovedRail {
+  rail: Rail;
+  refunded: ItemCounts;
+}
+
 /**
  * Removes a node and refunds its whole cost to storage (FR21), and removes
  * the edges attached to it the same way (FR59). The items inside the node
- * are lost, so its undo brings it back empty. The Core is indestructible.
+ * are lost, so its undo brings it back empty. A Station takes its rails
+ * with it. The Core is indestructible.
  */
 export class RemoveNode implements Command {
   readonly type = "RemoveNode";
@@ -28,6 +37,7 @@ export class RemoveNode implements Command {
   /** What the refund put into storage: the cost, less what found no room. */
   private refunded?: ItemCounts;
   private edges: RemovedEdge[] = [];
+  private rails: RemovedRail[] = [];
 
   constructor(readonly id: NodeId) {}
 
@@ -47,6 +57,10 @@ export class RemoveNode implements Command {
       edge,
       refunded: takeOutEdge(state, edge),
     }));
+    this.rails = railsOf(state, this.id).map((rail) => ({
+      rail,
+      refunded: takeOutRail(state, rail),
+    }));
     this.refunded = deposit(state, NODES[node.kind].cost, nodeRect(node));
   }
 
@@ -54,13 +68,13 @@ export class RemoveNode implements Command {
     if (!this.removed || !this.refunded) {
       throw new Error("RemoveNode was not applied");
     }
-    return new RestoreNode(this.removed, this.refunded, this.edges);
+    return new RestoreNode(this.removed, this.refunded, this.edges, this.rails);
   }
 }
 
 /**
  * Puts a removed node back with its id, as the undo of `RemoveNode`, and the
- * edges removed with it. It takes back the refunds, only as much of each cost
+ * edges and rails removed with it. It takes back the refunds, only as much of each cost
  * as storage had room for, and the node comes back empty: its items were
  * lost.
  */
@@ -71,6 +85,7 @@ class RestoreNode implements Command {
     private readonly node: FactoryNode,
     private readonly refunded: ItemCounts,
     private readonly edges: readonly RemovedEdge[],
+    private readonly rails: readonly RemovedRail[],
   ) {}
 
   validate(state: Readonly<GameState>): Result {
@@ -84,7 +99,11 @@ class RestoreNode implements Command {
       const back = checkRestore(state, index, edge, this.node);
       if (!back.ok) return back;
     }
-    return ok();
+    return checkPutBackRails(
+      state,
+      this.rails.map(({ rail }) => rail),
+      this.node,
+    );
   }
 
   apply(state: GameState, emit: Emit) {
@@ -96,16 +115,21 @@ class RestoreNode implements Command {
     for (const { edge, refunded } of this.edges) {
       putBackEdge(state, edge, refunded, emit);
     }
+    for (const { rail, refunded } of this.rails) {
+      putBackRail(state, rail, refunded, emit);
+    }
   }
 
   invert(): Command {
     return new RemoveNode(this.node.id);
   }
 
-  /** Everything the removal refunded, node and edges together. */
+  /** Everything the removal refunded, node, edges and rails together. */
   private totalRefund(): ItemCounts {
     const total: ItemCounts = { ...this.refunded };
-    for (const { refunded } of this.edges) addCounts(total, refunded);
+    for (const { refunded } of [...this.edges, ...this.rails]) {
+      addCounts(total, refunded);
+    }
     return total;
   }
 }

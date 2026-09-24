@@ -158,6 +158,9 @@ describe("migrations", () => {
     expect(state.tick).toBe(fixture.state.tick);
     expect(state.nodes.size).toBe(fixture.state.nodes.length);
     expect(state.edges.size).toBe(fixture.state.edges.length);
+    // Schema 3 brought the rail layer, empty in an older save.
+    expect(state.rails.size).toBe(0);
+    expect(state.nextIds.rail).toBe(1);
   });
 
   it("gives a schema 1 Station an empty buffer", () => {

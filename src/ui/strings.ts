@@ -103,6 +103,15 @@ export const strings = {
     tooLong: "Longa demais",
     onWater: "Cruza a água",
   },
+  // The rail layer: its toggle, the rail menu and the dragged rail's chip.
+  rail: {
+    title: "Trilho",
+    length: "células",
+    toggle: "Camada de trilhos (T)",
+    factory: "Camada da fábrica (T)",
+    glyph: "🛤",
+    factoryGlyph: "🏭",
+  },
   // The node menu, opened by tapping a node.
   node: {
     title: "Nó",
@@ -180,6 +189,8 @@ export const strings = {
     connector_taken: "Conector já ligado",
     crosses_edge: "Cruza uma aresta",
     crosses_node: "Atravessa um nó",
+    crosses_rail: "Cruza um trilho",
+    has_rails: "Remova os trilhos da Estação antes de movê-la",
     immovable: "O Núcleo não pode ser movido",
     indestructible: "O Núcleo não pode ser removido",
     locked: "Ainda não pesquisado",

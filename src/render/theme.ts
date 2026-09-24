@@ -78,6 +78,8 @@ export const GHOST_COLOR = { valid: 0x4ade80, invalid: 0xf87171 } as const;
 export const GHOST_ALPHA = 0.6;
 /** A node being moved, and its edges, fade to this while its ghost is dragged. */
 export const MOVING_ALPHA = 0.3;
+/** Opacity of the layer out of focus: the factory or the rails (FR78). */
+export const UNFOCUSED_ALPHA = 0.3;
 
 /** A status a card flags: every one but working. */
 export type FlaggedStatus = Exclude<NodeStatus, "working">;

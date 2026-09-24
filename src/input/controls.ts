@@ -38,6 +38,8 @@ const UI_KEY_TARGETS = "input, textarea, select, button, [contenteditable]";
  */
 export class Controls {
   tool: Tool | null = null;
+  /** Actions run by a key press, by `KeyboardEvent.code` (T: FR78). */
+  readonly shortcuts = new Map<string, () => void>();
   private readonly gestures: GestureTracker;
   /** Who owns the current one-pointer drag. */
   private dragOwner: "camera" | "tool" | null = null;
@@ -141,6 +143,10 @@ export class Controls {
       return;
     }
     if (e.key === "Escape") this.cancelTool();
+    const shortcut = this.shortcuts.get(e.code);
+    if (shortcut && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      shortcut();
+    }
     if (e.code === "Space") {
       e.preventDefault();
       this.setSpaceHeld(true);

@@ -14,7 +14,12 @@ export type SerializedState = { [K in keyof SavedState]: Pairs<SavedState[K]> };
 export function toPairs(state: GameState): SerializedState {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { stock, power, ...saved } = state;
-  return { ...saved, nodes: [...state.nodes], edges: [...state.edges] };
+  return {
+    ...saved,
+    nodes: [...state.nodes],
+    edges: [...state.edges],
+    rails: [...state.rails],
+  };
 }
 
 export function serializeState(state: GameState): SerializedState {
@@ -28,6 +33,7 @@ export function deserializeState(data: SerializedState): GameState {
     ...copy,
     nodes,
     edges: new Map(copy.edges),
+    rails: new Map(copy.rails),
     stock: sumStock(nodes),
     power: newPower(),
   };

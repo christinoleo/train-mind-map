@@ -5,17 +5,19 @@ type Brand<B extends string> = number & { readonly [brand]: B };
 
 export type NodeId = Brand<"NodeId">;
 export type EdgeId = Brand<"EdgeId">;
+export type RailId = Brand<"RailId">;
 
 interface IdKinds {
   node: NodeId;
   edge: EdgeId;
+  rail: RailId;
 }
 
 /** The next free id of each kind. Ids are never reused. */
 export type NextIds = { [K in keyof IdKinds]: number };
 
 export function initialNextIds(): NextIds {
-  return { node: 1, edge: 1 };
+  return { node: 1, edge: 1, rail: 1 };
 }
 
 export function allocateId<K extends keyof IdKinds>(

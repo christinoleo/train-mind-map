@@ -21,3 +21,6 @@ export const STATION = {
   bufferTrains: number;
   railPorts: Readonly<Record<RailSide, number>>;
 };
+
+/** Rail items one cell of rail costs (FR45). */
+export const RAIL_CELL_COST = 1;

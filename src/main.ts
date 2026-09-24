@@ -18,6 +18,7 @@ import { nodeAt } from "./input/hitTest";
 import { ConnectTool } from "./input/tools/connect";
 import { MoveTool } from "./input/tools/move";
 import { PlaceTool } from "./input/tools/place";
+import { RailTool } from "./input/tools/rail";
 import { TapTool } from "./input/tools/tap";
 import { createLoop, type Loop } from "./loop";
 import { installErrorHandler } from "./platform/errors";
@@ -36,10 +37,12 @@ import {
 } from "./platform/save";
 import { loadSettings, saveSettings, type Settings } from "./platform/settings";
 import { createApp } from "./render/app";
+import type { Focus } from "./render/layers";
 import { createRenderer } from "./render/renderer";
 import { CommandQueue } from "./sim/commands/commandQueue";
 import { RemoveEdge } from "./sim/commands/removeEdge";
 import { RemoveNode } from "./sim/commands/removeNode";
+import { RemoveRail } from "./sim/commands/removeRail";
 import { SetBoxConstruction } from "./sim/commands/setBoxConstruction";
 import { SetRecipe } from "./sim/commands/setRecipe";
 import { SetResearch } from "./sim/commands/setResearch";
@@ -50,7 +53,7 @@ import { clamp } from "./sim/math";
 import { fastForward, type OfflineReport } from "./sim/offline/fastForward";
 import { ok, type FailReason, type Result } from "./sim/result";
 import { createGameState, type GameState } from "./sim/state/gameState";
-import type { EdgeId, NodeId } from "./sim/state/ids";
+import type { EdgeId, NodeId, RailId } from "./sim/state/ids";
 import { powerSummary, type PowerSummary } from "./sim/state/power";
 import { isStorageFull } from "./sim/state/stock";
 import { tick } from "./sim/tick";
@@ -59,6 +62,7 @@ import type { HintView } from "./ui/Hint";
 import { BackupDialog } from "./ui/BackupDialog";
 import { nodeMenuInfo, type NodeMenuInfo } from "./ui/NodeMenu";
 import type { OfflineReportView } from "./ui/OfflineReport";
+import { railMenuInfo, type RailMenuInfo } from "./ui/RailMenu";
 import { Onboarding, type HintTarget } from "./ui/onboarding";
 import { researchInfo, type ResearchInfo } from "./ui/ResearchPanel";
 import { showOverlay } from "./ui/overlay";
@@ -128,6 +132,10 @@ const selectedEdge = signal<EdgeId | null>(null);
 const edgeMenu = signal<EdgeMenuInfo | null>(null);
 const selectedNode = signal<NodeId | null>(null);
 const nodeMenu = signal<NodeMenuInfo | null>(null);
+const selectedRail = signal<RailId | null>(null);
+const railMenu = signal<RailMenuInfo | null>(null);
+/** The layer the player works on (FR78). */
+const focus = signal<Focus>("factory");
 const storageFull = signal(false);
 const canUndo = signal(false);
 const researchOpen = signal(false);
@@ -207,6 +215,14 @@ const moveTool = new MoveTool({
   showMoving: renderer.setMoving,
   showHint: flashHint,
 });
+const railTool = new RailTool({
+  state,
+  camera,
+  viewport: () => app.screen,
+  dispatch: (command) => commands.dispatch(state, command),
+  showPreview: renderer.setEdgePreview,
+  selectRail: (id) => (selectedRail.value = id),
+});
 // With nothing to place, a long press on a node and a drag move it, a drag
 // from an output connector connects, a tap on a node or an edge opens its
 // menu, and any other tap mines by hand.
@@ -251,14 +267,19 @@ const buildTool: Tool = {
 events.on("CommandRejected", ({ command, reason }) => {
   if (command === "ManualTap") tapTool.rejected(reason);
   // Dispatch checks against the state before the commands queued ahead.
-  else if (command === "Undo" || command === "MoveNode") flashHint(reason);
+  else if (["Undo", "MoveNode", "PlaceRail"].includes(command)) {
+    flashHint(reason);
+  }
 });
 effect(() => {
   const kind = selected.value;
+  const rails = focus.value === "rails";
+  buildTool.cancel();
+  railTool.cancel();
   if (kind) {
-    buildTool.cancel();
     selectedEdge.value = null;
     selectedNode.value = null;
+    selectedRail.value = null;
     placeTool.select(kind, {
       x: app.screen.width / 2,
       y: app.screen.height / 2,
@@ -266,9 +287,27 @@ effect(() => {
     controls.tool = placeTool;
   } else {
     placeTool.deselect();
-    controls.tool = buildTool;
+    controls.tool = rails ? railTool : buildTool;
   }
 });
+// The rail layer in focus dims the factory, and its tool takes the map:
+// a drag from a rail port builds a rail, a tap on a rail opens its menu.
+effect(() => {
+  const rails = focus.value === "rails";
+  renderer.setFocus(focus.value);
+  if (rails) {
+    selectedEdge.value = null;
+    selectedNode.value = null;
+  } else {
+    selectedRail.value = null;
+  }
+});
+/** Brings the other layer into focus (FR78). */
+function toggleFocus() {
+  if (!state.unlockedNodes.includes("station")) return;
+  focus.value = focus.value === "rails" ? "factory" : "rails";
+}
+controls.shortcuts.set("KeyT", toggleFocus);
 // The research panel and the menus share one place on screen: opening one
 // closes the others.
 const panels = [researchOpen, settingsOpen];
@@ -277,11 +316,16 @@ for (const panel of panels) {
     if (!panel.value) return;
     selectedEdge.value = null;
     selectedNode.value = null;
+    selectedRail.value = null;
     for (const other of panels) if (other !== panel) other.value = false;
   });
 }
 effect(() => {
-  if (selectedEdge.value !== null || selectedNode.value !== null) {
+  if (
+    selectedEdge.value !== null ||
+    selectedNode.value !== null ||
+    selectedRail.value !== null
+  ) {
     for (const panel of panels) panel.value = false;
   }
 });
@@ -294,11 +338,16 @@ effect(() => {
   void selectedNode.value;
   publishMenu(selectedNode, nodeMenu, nodeMenuInfo);
 });
+effect(() => {
+  renderer.setSelectedRail(selectedRail.value);
+  publishMenu(selectedRail, railMenu, railMenuInfo);
+});
 
 /** Publishes the selections to their menus, closing each once its target is gone. */
 function publishMenus() {
   publishMenu(selectedEdge, edgeMenu, edgeMenuInfo);
   publishMenu(selectedNode, nodeMenu, nodeMenuInfo);
+  publishMenu(selectedRail, railMenu, railMenuInfo);
 }
 
 function publishMenu<Id, Info>(
@@ -326,6 +375,8 @@ function loadGame(save: SaveFile) {
   selected.value = null;
   selectedNode.value = null;
   selectedEdge.value = null;
+  selectedRail.value = null;
+  focus.value = "factory";
   Object.assign(state, loadState(save));
 }
 
@@ -486,6 +537,20 @@ render(
         selectedNode.value = null;
       },
       onClose: () => (selectedNode.value = null),
+    },
+    railMenu: {
+      rail: railMenu,
+      onRemove() {
+        const id = selectedRail.value;
+        if (id !== null) commands.dispatch(state, new RemoveRail(id));
+        selectedRail.value = null;
+      },
+      onClose: () => (selectedRail.value = null),
+    },
+    railToggle: {
+      focus,
+      available: computed(() => unlocked.value.includes("station")),
+      onToggle: toggleFocus,
     },
     undo: { canUndo, onUndo: undo },
     research: {

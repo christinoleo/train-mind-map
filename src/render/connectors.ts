@@ -96,3 +96,8 @@ export function edgeLineOf(
     connectorsOf(into, "input")[edge.toPort],
   );
 }
+
+/** The line a rail is drawn along: the centres of its route's cells. */
+export function railLine(path: readonly Point[]): Point[] {
+  return path.map(cellCentre);
+}
