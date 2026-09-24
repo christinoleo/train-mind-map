@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { NODES } from "../../../src/data/nodes";
 import { STATION } from "../../../src/data/rail";
-import { railPorts, trainCapacity } from "../../../src/sim/rail/station";
+import { railPorts, stationCapacity } from "../../../src/sim/rail/station";
 
 describe("a Station's rail ports (FR41)", () => {
   it("has one on the left and one on the right in the MVP", () => {
@@ -53,6 +53,6 @@ describe("a Station", () => {
   });
 
   it("buffers twice the load of a 2-wagon train", () => {
-    expect(STATION.bufferTrains * trainCapacity(2)).toBe(200);
+    expect(stationCapacity()).toBe(200);
   });
 });

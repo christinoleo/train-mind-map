@@ -9,7 +9,6 @@ import {
 import type { Point } from "../geometry/planar";
 import { connectorRows } from "../state/edges";
 import type { StationNode } from "../state/gameState";
-import { storedCount } from "../state/stock";
 
 /**
  * A circle on a Station's side where exactly one rail attaches. A train
@@ -35,11 +34,6 @@ export function trainCapacity(wagons: number): number {
  */
 export function stationCapacity(): number {
   return STATION.bufferTrains * trainCapacity(MVP_WAGONS);
-}
-
-/** How many more items `station`'s buffer has room for. */
-export function stationRoom(station: Readonly<StationNode>): number {
-  return stationCapacity() - storedCount(station);
 }
 
 /**

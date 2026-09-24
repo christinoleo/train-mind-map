@@ -2,12 +2,17 @@ import { FLOW_UNITS_PER_CELL, TICK_MS } from "../../config/constants";
 import { ITEM_SPEED } from "../../data/edges";
 import type { ItemId } from "../../data/items";
 import { NODES } from "../../data/nodes";
-import { stationRoom } from "../rail/station";
 import { edgeUnits, spacingUnits } from "../state/edges";
 import type { Edge, FactoryNode, GameState } from "../state/gameState";
 import type { NodeId } from "../state/ids";
 import { acceptItem, takeOutput } from "../state/production";
-import { isStorage, storageRoom, store, takeOldest } from "../state/stock";
+import {
+  bufferCapacity,
+  isBuffer,
+  store,
+  storedCount,
+  takeOldest,
+} from "../state/stock";
 import type { Emit } from "../events";
 import type { System } from "../tick";
 
@@ -148,17 +153,14 @@ function merge(node: RouterNode, links: Links) {
 function take(node: FactoryNode, port: number, links: Links) {
   if (node.kind === "splitter") return split(node, port, links);
   if (node.kind === "merger") return merge(node, links);
-  if (isStorage(node) || node.kind === "station") return takeOldest(node);
+  if (isBuffer(node)) return takeOldest(node);
   return takeOutput(node);
 }
 
 /** Hands `item` to `node`; returns whether it entered. */
 function deliver(state: GameState, node: FactoryNode, item: ItemId): boolean {
-  let room: number;
-  if (isStorage(node)) room = storageRoom(state, node);
-  else if (node.kind === "station") room = stationRoom(node);
-  else return acceptItem(node, item);
-  if (room === 0) return false;
+  if (!isBuffer(node)) return acceptItem(node, item);
+  if (storedCount(node) >= bufferCapacity(state, node)) return false;
   store(node, item, 1);
   return true;
 }
@@ -190,7 +192,8 @@ function updateRouter(node: RouterNode, links: Links, emit: Emit) {
  * the target node. Producers fill their input buffers and empty their output
  * buffers; the Core and Boxes store what arrives while they have room and
  * send out the oldest (FR28, FR29), and so do Stations, into their buffer
- * (FR92); Splitters and Mergers pass items straight through. A full node refuses, and the edges behind it back up (FR73).
+ * (FR92); Splitters and Mergers pass items straight through. A full node
+ * refuses, and the edges behind it back up (FR73).
  */
 export const flow: System = (state, { emit }) => {
   const links = linksOf(state);

@@ -45,11 +45,10 @@ export function createNode(
         production: newProduction(),
       };
     case "core":
+    case "station":
       return { id, kind, x, y, items: [] };
     case "box":
       return { id, kind, x, y, items: [], noConstruction: false };
-    case "station":
-      return { id, kind, x, y, items: [] };
     case "splitter":
     case "merger":
       return { id, kind, x, y, next: 0, blocked: false };

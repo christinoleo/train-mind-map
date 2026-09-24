@@ -5,10 +5,9 @@ import { UpgradeNode, nodeUpgradeCost } from "../sim/commands/upgradeNode";
 import type { FailReason } from "../sim/result";
 import type { GameState } from "../sim/state/gameState";
 import type { NodeId } from "../sim/state/ids";
-import { stationCapacity } from "../sim/rail/station";
 import { canRun } from "../sim/state/nodes";
 import { isCrafter } from "../sim/state/production";
-import { isStorage, storageCapacity, storedCount } from "../sim/state/stock";
+import { bufferCapacity, isBuffer, storedCount } from "../sim/state/stock";
 import { Menu, RemoveAction, UpgradeAction } from "./Menu";
 import { strings } from "./strings";
 
@@ -63,19 +62,13 @@ export function nodeMenuInfo(
     recipes,
     upgrade,
     refund: kind === "core" ? null : NODES[kind].cost,
-    storage: isStorage(node)
+    storage: isBuffer(node)
       ? {
           stored: storedCount(node),
-          capacity: storageCapacity(state, node),
+          capacity: bufferCapacity(state, node),
           noConstruction: node.kind === "box" ? node.noConstruction : null,
         }
-      : node.kind === "station"
-        ? {
-            stored: storedCount(node),
-            capacity: stationCapacity(),
-            noConstruction: null,
-          }
-        : null,
+      : null,
   };
 }
 
@@ -93,9 +86,9 @@ interface Props {
  * The node menu, opened by tapping a node (FR22, FR27): the recipe of a
  * Furnace or Assembler, which loses the items inside when changed, an
  * upgrade in place, which pays the difference, and removal, which refunds
- * the whole cost. The Core, a Box and a Station show how full they are, and a Box
- * has its "não usar em construção" option (FR71). A long press on the node
- * moves it instead.
+ * the whole cost. The Core, a Box and a Station show how full they are, and
+ * a Box has its "não usar em construção" option (FR71). A long press on the
+ * node moves it instead.
  */
 export function NodeMenu({
   node,

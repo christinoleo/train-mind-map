@@ -10,7 +10,8 @@ import {
   type StorageKind,
 } from "../../data/nodes";
 import type { Rect } from "../geometry/rect";
-import type { FactoryNode, GameState, ItemRun } from "./gameState";
+import { stationCapacity } from "../rail/station";
+import type { FactoryNode, GameState, StationNode } from "./gameState";
 import type { NodeId } from "./ids";
 import { nodeRect } from "./nodes";
 
@@ -18,12 +19,24 @@ import { nodeRect } from "./nodes";
 export type StorageNode = Extract<FactoryNode, { kind: StorageKind }>;
 
 /** A node that holds items in order of arrival: storage or a Station. */
-export interface ItemHolder {
-  items: ItemRun[];
-}
+export type BufferNode = StorageNode | StationNode;
+
+type ItemHolder = Pick<BufferNode, "items">;
 
 export function isStorage(node: FactoryNode): node is StorageNode {
   return node.kind in STORAGE_CAPACITY;
+}
+
+export function isBuffer(node: FactoryNode): node is BufferNode {
+  return isStorage(node) || node.kind === "station";
+}
+
+/** How many items, of every type together, `node` holds at most. */
+export function bufferCapacity(
+  state: Readonly<GameState>,
+  node: Readonly<BufferNode>,
+): number {
+  return isStorage(node) ? storageCapacity(state, node) : stationCapacity();
 }
 
 /** The Core, which the game places at the start and which is never removed. */
