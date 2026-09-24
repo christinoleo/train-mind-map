@@ -103,7 +103,8 @@ describe("map generation", () => {
     expect(generateMap("one")).not.toEqual(generateMap("two"));
   });
 
-  it("holds the guarantees across 200 random seeds", () => {
+  // 200 full maps take about 5 s on CI runners, so this test gets its own budget.
+  it("holds the guarantees across 200 random seeds", { timeout: 30_000 }, () => {
     for (const seed of randomSeeds(200)) expectGuarantees(generateMap(seed));
   });
 
