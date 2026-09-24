@@ -6,6 +6,7 @@ import { createStore, get, setMany } from "idb-keyval";
 import { version as GAME_VERSION } from "../../package.json";
 import { AUTOSAVE_MS, STORAGE_PREFIX } from "../config/constants";
 import { fail, ok, type FailReason, type Result } from "../sim/result";
+import { DEFAULT_DEPARTURE } from "../data/rail";
 import type { GameState } from "../sim/state/gameState";
 import {
   deserializeState,
@@ -16,7 +17,7 @@ import {
 import { log, type LogEntry } from "./log";
 
 /** Bumped whenever the saved state changes shape; add a migration with it. */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export const SAVE_KEYS = {
   /** The latest save. */
@@ -44,6 +45,14 @@ export type RawSave = { schemaVersion: number } & Record<string, unknown>;
 
 /** Turns a save of schema `v` into one of schema `v + 1`. */
 export type Migration = (save: RawSave) => RawSave;
+
+/** A train as schema 4 saved it, before Lines. */
+interface OldTrain {
+  stops: number[];
+  wagons: number;
+  dwell: number;
+  [key: string]: unknown;
+}
 
 /** `MIGRATIONS[v]` upgrades a save of schema `v`. */
 export const MIGRATIONS: Readonly<Record<number, Migration>> = {
@@ -80,6 +89,54 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
       ...save,
       schemaVersion: 4,
       state: { ...state, trains: [], nextIds: { ...state.nextIds, train: 1 } },
+    };
+  },
+  // Schema 5: Lines (FR95). Each train gets a Line of its own over its
+  // stops, with the default departure condition, and empty typed wagons.
+  4: (save) => {
+    const state = save.state as
+      { nextIds?: object; trains?: [number, OldTrain][] } | undefined;
+    if (typeof state !== "object" || state === null) {
+      return { ...save, schemaVersion: 5 };
+    }
+    const lines: [number, object][] = [];
+    const trains = (state.trains ?? []).map(([id, old]) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { stops, wagons, dwell, ...rest } = old;
+      const line = lines.length + 1;
+      lines.push([
+        line,
+        {
+          id: line,
+          stops: stops.map((station) => ({
+            station,
+            condition: { ...DEFAULT_DEPARTURE },
+          })),
+        },
+      ]);
+      const train = {
+        ...rest,
+        line,
+        wagons: Array.from({ length: wagons }, () => ({
+          item: null,
+          count: 0,
+        })),
+        waited: 0,
+        idle: 0,
+        lapStart: null,
+        lap: null,
+      };
+      return [id, train];
+    });
+    return {
+      ...save,
+      schemaVersion: 5,
+      state: {
+        ...state,
+        trains,
+        lines,
+        nextIds: { ...state.nextIds, line: lines.length + 1 },
+      },
     };
   },
 };
@@ -174,6 +231,7 @@ function isSaveFile(save: RawSave): save is RawSave & SaveFile {
     Array.isArray(state.edges) &&
     Array.isArray(state.rails) &&
     Array.isArray(state.trains) &&
+    Array.isArray(state.lines) &&
     Array.isArray(state.map?.terrain)
   );
 }

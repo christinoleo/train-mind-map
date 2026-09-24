@@ -6,7 +6,7 @@ import type { Command } from "../../../src/sim/commands/command";
 import { CommandQueue } from "../../../src/sim/commands/commandQueue";
 import { MoveNode } from "../../../src/sim/commands/moveNode";
 import { PlaceRail } from "../../../src/sim/commands/placeRail";
-import { PlaceTrain } from "../../../src/sim/commands/placeTrain";
+import { CreateLine } from "../../../src/sim/commands/createLine";
 import { RemoveNode } from "../../../src/sim/commands/removeNode";
 import { RemoveRail } from "../../../src/sim/commands/removeRail";
 import { RemoveTrain } from "../../../src/sim/commands/removeTrain";
@@ -16,6 +16,7 @@ import {
   platformKey,
   segmentKey,
 } from "../../../src/sim/rail/segments";
+import { lineOf } from "../../../src/sim/rail/lines";
 import { trainCost, trainLength } from "../../../src/sim/rail/trains";
 import { fail, ok, type Result } from "../../../src/sim/result";
 import {
@@ -90,9 +91,17 @@ function setup() {
     ).toEqual(ok());
     return [...state.rails.keys()].at(-1)!;
   };
+  /**
+   * A Line over `stops` and its train, which stands 2 s at each stop: with
+   * no edges at its Stations it has nothing to load.
+   */
   const train = (stops: NodeId[]): Train => {
-    expect(run(new PlaceTrain(stops))).toEqual(ok());
-    return [...state.trains.values()].at(-1)!;
+    expect(run(new CreateLine(stops))).toEqual(ok());
+    const t = [...state.trains.values()].at(-1)!;
+    for (const stop of state.lines.get(t.line)!.stops) {
+      stop.condition = { kind: "wait", seconds: 2 };
+    }
+    return t;
   };
   return { state, commands, run, undo, step, stations, rail, train, seen };
 }
@@ -121,16 +130,17 @@ function loop() {
  * What each train's body covers, as reservation keys: the Segments and
  * platforms between its tail and its front.
  */
-function covered(train: Train): string[] {
+function covered(state: GameState, train: Train): string[] {
+  const { stops } = lineOf(state, train);
   if (train.station !== null || !train.trip) {
-    return [platformKey(train.station ?? train.stops[train.stop])];
+    return [platformKey(train.station ?? stops[train.stop].station)];
   }
   const { legs, exit } = train.trip;
   const tail = train.pos - trainLength(train);
   const front = train.pos;
   const overlaps = (from: number, to: number) => tail < to && front > from;
   const keys: string[] = [];
-  const start = train.stops.at(train.stop - 1)!;
+  const start = stops.at(train.stop - 1)!.station;
   if (tail < exit) keys.push(platformKey(start));
   legs.forEach((leg, i) => {
     const from = i === 0 ? exit : legs[i - 1].exit;
@@ -146,7 +156,7 @@ function covered(train: Train): string[] {
 function expectSafe(state: GameState) {
   const owner = new Map<string, TrainId>();
   for (const train of state.trains.values()) {
-    for (const key of covered(train)) {
+    for (const key of covered(state, train)) {
       expect(owner.get(key), `${key} shared`).toBeUndefined();
       owner.set(key, train.id);
       expect(state.reservations.get(key), `${key} unreserved`).toBe(train.id);
@@ -185,11 +195,11 @@ describe("Segments (FR85)", () => {
   });
 });
 
-describe("PlaceTrain (FR88)", () => {
+describe("CreateLine (FR88, FR95)", () => {
   it("pays for a locomotive and two wagons", () => {
     const { state, run, a, c } = line();
     const before = { ...state.stock };
-    expect(run(new PlaceTrain([a, c]))).toEqual(ok());
+    expect(run(new CreateLine([a, c]))).toEqual(ok());
     const cost = trainCost(2);
     expect(cost).toEqual({ "iron-plate": 60, gear: 40, circuit: 10 });
     for (const [item, count] of Object.entries(cost)) {
@@ -206,20 +216,28 @@ describe("PlaceTrain (FR88)", () => {
     expect(state.reservations.get(platformKey(a))).toBe(t.id);
   });
 
-  it("refuses a taken platform, a missing route and repeated stops", () => {
+  it("puts its train at the next free stop when the first is taken", () => {
+    const { train, a, b } = line();
+    train([a, b]);
+    expect(train([a, b]).station).toBe(b);
+  });
+
+  it("refuses taken platforms, a missing route and repeated stops", () => {
     const { run, train, a, b, c, stations } = line();
     train([a, c]);
-    expect(run(new PlaceTrain([a, b]))).toEqual(fail("occupied"));
-    expect(run(new PlaceTrain([b, stations[3]]))).toEqual(fail("no_route"));
-    expect(run(new PlaceTrain([b, b]))).toEqual(fail("same_node"));
-    expect(run(new PlaceTrain([b]))).toEqual(fail("no_route"));
+    train([c, a]);
+    expect(run(new CreateLine([a, c]))).toEqual(fail("occupied"));
+    expect(run(new CreateLine([b, stations[3]]))).toEqual(fail("no_route"));
+    expect(run(new CreateLine([b, b]))).toEqual(fail("same_node"));
+    expect(run(new CreateLine([b]))).toEqual(fail("no_route"));
   });
 
   it("is undone with a refund, freeing the platform", () => {
     const { state, run, undo, a, c } = line();
     const before = { ...state.stock };
-    run(new PlaceTrain([a, c]));
+    run(new CreateLine([a, c]));
     expect(undo()).toEqual(ok());
+    expect(state.lines.size).toBe(0);
     expect(state.trains.size).toBe(0);
     expect(state.reservations.size).toBe(0);
     expect(state.stock).toEqual(before);
@@ -283,7 +301,11 @@ describe("reservation (FR86, ADR-0005)", () => {
   function blocked() {
     const s = line();
     const t1 = s.train([s.c, s.a]);
-    t1.dwell = 1e9;
+    // With nothing to load it is never full, so it stays at c.
+    s.state.lines.get(t1.line)!.stops[0].condition = {
+      kind: "full",
+      seconds: 0,
+    };
     const t2 = s.train([s.a, s.c]);
     return { ...s, t1, t2 };
   }
@@ -348,7 +370,7 @@ describe("reservation (FR86, ADR-0005)", () => {
       step();
       expectSafe(state);
       for (const t of state.trains.values()) {
-        if (t.station !== null && t.dwell === 19) {
+        if (t.station !== null && t.waited === 1) {
           arrivals.set(t.id, (arrivals.get(t.id) ?? 0) + 1);
         }
       }

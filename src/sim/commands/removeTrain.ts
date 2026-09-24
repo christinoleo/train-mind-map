@@ -3,6 +3,7 @@ import type { Emit } from "../events";
 import { fail, ok, type Result } from "../result";
 import { canHold, releaseWhere } from "../rail/reservation";
 import { trainCost } from "../rail/trains";
+import { lineOf } from "../rail/lines";
 import type { GameState, Train } from "../state/gameState";
 import type { TrainId } from "../state/ids";
 import { nodeRect } from "../state/nodes";
@@ -11,7 +12,8 @@ import type { Command } from "./command";
 
 /** Where a train's refund goes and its rebuild is paid from: its next stop. */
 function siteOf(state: Readonly<GameState>, train: Readonly<Train>) {
-  const station = state.nodes.get(train.stops[train.stop]);
+  const stop = state.lines.get(train.line)?.stops[train.stop];
+  const station = stop && state.nodes.get(stop.station);
   return station ? nodeRect(station) : state.map.core;
 }
 
@@ -37,7 +39,7 @@ export class RemoveTrain implements Command {
     state.trains.delete(this.id);
     this.refunded = deposit(
       state,
-      trainCost(train.wagons),
+      trainCost(train.wagons.length),
       siteOf(state, train),
     );
   }
@@ -51,20 +53,24 @@ export class RemoveTrain implements Command {
 }
 
 /**
- * Puts a removed train back as it was, as the undo of `RemoveTrain`: what
- * it held must still be free, and its stops still stand.
+ * Puts a removed train back as it was, as the undo of `RemoveTrain`: its
+ * Line must still run, what it held must still be free, and the stock must
+ * pay back its refund, unless `stock` leaves that to the caller.
  */
-class RestoreTrain implements Command {
+export class RestoreTrain implements Command {
   readonly type = "RestoreTrain";
 
   constructor(
     private readonly train: Train,
-    private readonly refunded: ItemCounts,
+    readonly refunded: ItemCounts,
   ) {}
 
-  validate(state: Readonly<GameState>): Result {
+  validate(state: Readonly<GameState>, stock = true): Result {
     if (state.trains.has(this.train.id)) return fail("occupied");
-    if (this.train.stops.some((id) => !state.nodes.has(id))) {
+    if (!state.lines.has(this.train.line)) return fail("not_found");
+    if (
+      lineOf(state, this.train).stops.some((s) => !state.nodes.has(s.station))
+    ) {
       return fail("not_found");
     }
     const legs = this.train.trip?.legs ?? [];
@@ -76,6 +82,7 @@ class RestoreTrain implements Command {
     }
     const keys = this.train.holds.map((h) => h.key);
     if (!canHold(state, this.train.id, keys)) return fail("occupied");
+    if (!stock) return ok();
     return canAfford(state, this.refunded) ? ok() : fail("no_stock");
   }
 

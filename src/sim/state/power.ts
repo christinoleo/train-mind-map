@@ -4,8 +4,8 @@ import type { NodeId } from "./ids";
 import { secondsToTicks } from "./production";
 
 /**
- * A connected group of nodes joined by edges, which shares one power supply
- * (FR61). Rails join meshes in Epic 5.
+ * A connected group of nodes joined by edges, or by rails between Stations,
+ * which shares one power supply (FR61, FR62).
  */
 export interface Mesh {
   nodes: NodeId[];
@@ -41,9 +41,10 @@ export function topologyChanged(state: GameState): void {
 export const BURN_TICKS = secondsToTicks(GENERATOR.seconds);
 
 /**
- * Groups the nodes into meshes with a union-find over the edges (FR61). The
- * meshes come in the order of their first node, and their supply and demand
- * start at zero.
+ * Groups the nodes into meshes with a union-find over the edges and the
+ * rails (FR61, FR62): a Station joins its mesh to the Stations its rails
+ * reach, so an outpost shares the base's power. The meshes come in the
+ * order of their first node, and their supply and demand start at zero.
  */
 export function buildMeshes(state: Readonly<GameState>): Power {
   const parent = new Map<NodeId, NodeId>();
@@ -61,6 +62,11 @@ export function buildMeshes(state: Readonly<GameState>): Power {
   };
   for (const { from, to } of state.edges.values()) {
     parent.set(root(from), root(to));
+  }
+  for (const { from, to } of state.rails.values()) {
+    if (parent.has(from.node) && parent.has(to.node)) {
+      parent.set(root(from.node), root(to.node));
+    }
   }
   const meshes: Mesh[] = [];
   const byRoot = new Map<NodeId, Mesh>();

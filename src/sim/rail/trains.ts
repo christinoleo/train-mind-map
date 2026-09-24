@@ -1,26 +1,26 @@
 // Trains (FR88, FR90, FR94): a locomotive and its wagons, moving by
-// reservation (FR86). A train at a stop dwells, then waits at the end of its
-// Segment, in the Station, until it can reserve its whole trip to the next
-// stop. It leaves, and brakes from its braking point to stop at the platform.
+// reservation (FR86). A train at a stop loads or unloads until its Line's
+// departure condition holds, then waits at the end of its Segment, in the
+// Station, until it can reserve its whole trip to the next stop. It leaves,
+// and brakes from its braking point to stop at the platform.
 
 import { TICK_MS } from "../../config/constants";
 import type { Cost } from "../../data/nodes";
 import {
   LOCOMOTIVE_COST,
-  TRAIN_DWELL_MS,
   TRAIN_MOTION,
   VEHICLE_CELLS,
   WAGON_COST,
 } from "../../data/rail";
 import type { Emit } from "../events";
 import type { GameState, Train, TrainState } from "../state/gameState";
-import type { NodeId, RailId, TrainId } from "../state/ids";
+import type { LineId, NodeId, RailId, TrainId } from "../state/ids";
+import { lineOf, mayDepart, stationRole, transfer } from "./lines";
 import { canReserveTrip, hold, releaseWhere, reserveTrip } from "./reservation";
 import { buildTrip, findRoute, platformKey } from "./segments";
 
 const DT = TICK_MS / 1000;
 const ACCEL = TRAIN_MOTION.maxSpeed / TRAIN_MOTION.accelSeconds;
-const DWELL_TICKS = Math.round(TRAIN_DWELL_MS / TICK_MS);
 
 /** What a train with `wagons` wagons costs to build. */
 export function trainCost(wagons: number): Cost {
@@ -33,7 +33,7 @@ export function trainCost(wagons: number): Cost {
 
 /** A train's length in cells: the locomotive and its wagons (FR91). */
 export function trainLength(train: Pick<Train, "wagons">): number {
-  return (1 + train.wagons) * VEHICLE_CELLS;
+  return (1 + train.wagons.length) * VEHICLE_CELLS;
 }
 
 /**
@@ -47,30 +47,35 @@ function stoppingSpeed(room: number): number {
 }
 
 /**
- * A new train standing at the first of `stops`, holding its platform. Only
- * commands call it.
+ * A new train with `wagons` empty wagons, standing at stop `stop` of
+ * `line`, holding its platform. Only commands call it.
  */
 export function createTrain(
   state: GameState,
   id: TrainId,
-  stops: readonly NodeId[],
+  line: LineId,
+  stop: number,
   wagons: number,
 ): Train {
+  const station = state.lines.get(line)!.stops[stop].station;
   const train: Train = {
     id,
-    wagons,
-    stops: [...stops],
-    stop: 0,
+    line,
+    wagons: Array.from({ length: wagons }, () => ({ item: null, count: 0 })),
+    stop,
     state: "loading",
-    station: stops[0],
+    station,
     trip: null,
     pos: 0,
     prevPos: 0,
     speed: 0,
-    dwell: DWELL_TICKS,
+    waited: 0,
+    idle: 0,
+    lapStart: null,
+    lap: null,
     holds: [],
   };
-  hold(state, train, { key: platformKey(stops[0]), release: null });
+  hold(state, train, { key: platformKey(station), release: null });
   state.trains.set(id, train);
   return train;
 }
@@ -85,8 +90,29 @@ function setState(train: Train, next: TrainState, emit: Emit): void {
 export function stepTrain(state: GameState, train: Train, emit: Emit): void {
   train.prevPos = train.pos;
   if (train.station === null) travel(state, train, emit);
-  else if (train.dwell > 0) train.dwell--;
-  else depart(state, train, train.station, emit);
+  else atStop(state, train, train.station, emit);
+}
+
+/**
+ * Loads or unloads at `station` for a tick, then leaves if the stop's
+ * departure condition holds (FR96).
+ */
+function atStop(
+  state: GameState,
+  train: Train,
+  station: NodeId,
+  emit: Emit,
+): void {
+  const moved = transfer(state, train, station);
+  train.waited++;
+  train.idle = moved > 0 ? 0 : train.idle + 1;
+  const { condition } = lineOf(state, train).stops[train.stop];
+  if (mayDepart(train, condition)) {
+    depart(state, train, station, emit);
+  } else {
+    const role = stationRole(state, station);
+    setState(train, role === "unload" ? "unloading" : "loading", emit);
+  }
 }
 
 /**
@@ -99,10 +125,11 @@ function depart(
   station: NodeId,
   emit: Emit,
 ): void {
-  const next = (train.stop + 1) % train.stops.length;
+  const { stops } = lineOf(state, train);
+  const next = (train.stop + 1) % stops.length;
   // Around Stations other trains stand in, when there is a way; head on
   // into them the two trains would wait for each other for good.
-  const target = train.stops[next];
+  const target = stops[next].station;
   const taken = (id: NodeId) => {
     const holder = state.reservations.get(platformKey(id));
     return holder !== undefined && holder !== train.id;
@@ -118,6 +145,11 @@ function depart(
   // The platform it stands on frees once its tail is out of the Station.
   for (const h of train.holds) h.release = trip.exit;
   reserveTrip(state, train, trip);
+  // Leaving the first stop ends one round trip and starts the next.
+  if (train.stop === 0) {
+    if (train.lapStart !== null) train.lap = state.tick - train.lapStart;
+    train.lapStart = state.tick;
+  }
   train.trip = trip;
   train.stop = next;
   train.station = null;
@@ -150,12 +182,13 @@ function travel(state: GameState, train: Train, emit: Emit): void {
  * rest, since no train enters a Segment without the platform it leads to.
  */
 function arrive(state: GameState, train: Train, emit: Emit): void {
-  const station = train.stops[train.stop];
+  const station = lineOf(state, train).stops[train.stop].station;
   const platform = platformKey(station);
   releaseWhere(state, train, (h) => h.key !== platform);
   train.speed = 0;
   train.station = station;
-  train.dwell = DWELL_TICKS;
+  train.waited = 0;
+  train.idle = 0;
   setState(train, "loading", emit);
   emit({ type: "TrainArrived", train: train.id, station });
 }
@@ -172,13 +205,13 @@ export function isRailInUse(state: Readonly<GameState>, rail: RailId): boolean {
   return false;
 }
 
-/** True when a train stops at `station`, or stands in it. */
+/** True when a Line stops at `station`, so its trains may stand in it. */
 export function isStationInUse(
   state: Readonly<GameState>,
   station: NodeId,
 ): boolean {
-  for (const train of state.trains.values()) {
-    if (train.stops.includes(station)) return true;
+  for (const line of state.lines.values()) {
+    if (line.stops.some((stop) => stop.station === station)) return true;
   }
   return false;
 }

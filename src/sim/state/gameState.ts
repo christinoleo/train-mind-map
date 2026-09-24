@@ -8,6 +8,7 @@ import {
   type StorageKind,
 } from "../../data/nodes";
 import type { CrafterKind, RecipeId } from "../../data/recipes";
+import type { DepartureCondition } from "../../data/rail";
 import type { Scenario } from "../../data/scenarios/scenario";
 import type { Point } from "../geometry/planar";
 import { generateMap } from "../mapgen/generate";
@@ -17,6 +18,7 @@ import {
   allocateId,
   initialNextIds,
   type EdgeId,
+  type LineId,
   type NextIds,
   type NodeId,
   type RailId,
@@ -177,10 +179,7 @@ export interface Rail {
   path: Point[];
 }
 
-/**
- * What a train is doing (FR94). `unloading` belongs to the Lines' loading
- * and unloading (#52); until then a train dwells at a stop in `loading`.
- */
+/** What a train is doing (FR94). */
 export type TrainState =
   "loading" | "departing" | "moving" | "waiting_reservation" | "unloading";
 
@@ -231,6 +230,30 @@ export interface Trip {
   exit: number;
 }
 
+/** A stop of a Line: a Station, and when the train leaves it (FR96). */
+export interface LineStop {
+  station: NodeId;
+  condition: DepartureCondition;
+}
+
+/**
+ * A fixed ordered list of stops that its trains follow, round and round
+ * (FR95). It needs at least two.
+ */
+export interface Line {
+  id: LineId;
+  stops: LineStop[];
+}
+
+/**
+ * What one wagon carries (FR89): items of one type, which the first item
+ * loaded sets. An empty wagon has no type.
+ */
+export interface Wagon {
+  item: ItemId | null;
+  count: number;
+}
+
 /**
  * A train (FR88): a locomotive and its wagons, running between Stations
  * safely by reservation (FR86). Positions are those of the locomotive's
@@ -238,10 +261,11 @@ export interface Trip {
  */
 export interface Train {
   id: TrainId;
-  wagons: number;
-  /** The Stations it stops at, in order, over and over. */
-  stops: NodeId[];
-  /** Which of `stops` it is at, or heading to while it travels. */
+  /** The Line it follows. */
+  line: LineId;
+  /** Its wagons' loads, the one behind the locomotive first. */
+  wagons: Wagon[];
+  /** Which of the Line's stops it is at, or heading to while it travels. */
   stop: number;
   state: TrainState;
   /** The Station it stands in at a stop, or `null` while it travels. */
@@ -254,8 +278,17 @@ export interface Train {
   prevPos: number;
   /** In cells per second. */
   speed: number;
-  /** Ticks left at the stop before it tries to leave. */
-  dwell: number;
+  /** Ticks it has stood at the current stop. */
+  waited: number;
+  /** Ticks since it last loaded or unloaded an item at the current stop. */
+  idle: number;
+  /**
+   * The tick it last left its Line's first stop, which starts a round
+   * trip, or `null` before it first did.
+   */
+  lapStart: number | null;
+  /** Ticks its last whole round trip took, or `null` before one ended. */
+  lap: number | null;
   /** What it has reserved (FR86). */
   holds: Hold[];
 }
@@ -275,6 +308,8 @@ export interface GameState {
   rails: Map<RailId, Rail>;
   /** The trains, running on the rails (Epic 5). */
   trains: Map<TrainId, Train>;
+  /** The Lines the trains follow (FR95). */
+  lines: Map<LineId, Line>;
   /**
    * The reservation table (FR86): which train holds each Segment and
    * platform. A derived cache of the trains' holds, never saved.
@@ -325,6 +360,7 @@ export function createGameState(world: string | Scenario): GameState {
     edges: new Map(),
     rails: new Map(),
     trains: new Map(),
+    lines: new Map(),
     reservations: new Map(),
     unlockedNodes: [...STARTING_NODES],
     stamina: newStamina(),

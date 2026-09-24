@@ -1,5 +1,6 @@
 import { CELL_PX } from "../../config/constants";
 import type { Cost } from "../../data/nodes";
+import { CreateLine } from "../../sim/commands/createLine";
 import { PlaceRail } from "../../sim/commands/placeRail";
 import type { Point } from "../../sim/geometry/planar";
 import {
@@ -14,10 +15,11 @@ import {
 } from "../../sim/rail/rails";
 import type { RailRoute } from "../../sim/rail/route";
 import { railPorts } from "../../sim/rail/station";
-import { fail, type Result } from "../../sim/result";
+import { fail, type FailReason, type Result } from "../../sim/result";
 import type { GameState, RailEnd } from "../../sim/state/gameState";
-import type { RailId } from "../../sim/state/ids";
+import type { LineId, NodeId, RailId } from "../../sim/state/ids";
 import { cellCentre, railLine } from "../../render/connectors";
+import { vehiclePoses } from "../../render/trains";
 import type { Camera } from "../camera";
 import type { Tool } from "../controls";
 import { panAtEdge, type GesturePoint } from "../gestures";
@@ -30,11 +32,17 @@ export interface RailToolDeps {
   /** The screen size, for panning at its edges. */
   viewport(): { width: number; height: number };
   /** Validates and queues a command. */
-  dispatch(command: PlaceRail): Result;
+  dispatch(command: PlaceRail | CreateLine): Result;
   /** Shows the dragged rail, or hides it with `null`. */
   showPreview(preview: EdgePreview | null): void;
   /** Opens the rail menu on a rail, or closes it with `null`. */
   selectRail(id: RailId | null): void;
+  /** Opens the Line panel on a Line, or closes it with `null`. */
+  selectLine(id: LineId | null): void;
+  /** Shows the Station picked as a new Line's first stop, or none. */
+  showPick(station: NodeId | null): void;
+  /** Shows why an action was refused, for a moment. */
+  showHint(reason: FailReason): void;
 }
 
 interface Drag {
@@ -55,6 +63,8 @@ interface Drag {
 const RAIL_REACH = CELL_PX * 0.4;
 /** Nearest rail port a touch still hits, at least this far. */
 const PORT_REACH = CELL_PX * 0.6;
+/** Nearest vehicle a tap still hits, at least this far. */
+const TRAIN_REACH = CELL_PX * 0.6;
 
 /**
  * Builds rails on the rail layer (FR79–FR81): a drag from a Station's rail
@@ -62,16 +72,32 @@ const PORT_REACH = CELL_PX * 0.6;
  * red with the reason where it does not, and releasing on another Station's
  * rail port, or on the Station itself, builds it to the nearest free one.
  * The camera pans while the pointer sits at the screen's edge (FR14). A tap
- * on a rail opens its menu.
+ * on a train opens its Line's panel, taps on two Stations in turn create a
+ * Line between them (FR95), and a tap on a rail opens its menu.
  */
 export class RailTool implements Tool {
   private drag: Drag | null = null;
+  /** The Station picked as a new Line's first stop. */
+  private pick: NodeId | null = null;
 
   constructor(private readonly deps: RailToolDeps) {}
 
-  /** Opens the menu of the rail under `p`, or closes it. */
   tap(p: GesturePoint) {
-    this.deps.selectRail(this.railAt(p));
+    const { deps } = this;
+    const world = deps.camera.toWorld(p.x, p.y);
+    const line = this.lineAt(world);
+    const node = line === null ? nodeAt(deps.state, world) : undefined;
+    const station = node?.kind === "station" ? node.id : null;
+    deps.selectLine(line);
+    deps.selectRail(line === null && station === null ? this.railAt(p) : null);
+    if (station !== null && this.pick !== null && station !== this.pick) {
+      const result = deps.dispatch(new CreateLine([this.pick, station]));
+      if (!result.ok) deps.showHint(result.reason);
+      this.setPick(null);
+    } else {
+      // A second tap on the picked Station lets it go.
+      this.setPick(station === this.pick ? null : station);
+    }
   }
 
   dragStart(p: GesturePoint, from: GesturePoint): boolean {
@@ -130,9 +156,33 @@ export class RailTool implements Tool {
   }
 
   cancel() {
+    this.setPick(null);
     if (!this.drag) return;
     this.drag = null;
     this.deps.showPreview(null);
+  }
+
+  private setPick(station: NodeId | null) {
+    if (station === this.pick) return;
+    this.pick = station;
+    this.deps.showPick(station);
+  }
+
+  /** The Line of the train nearest world point `world`, within touch reach. */
+  private lineAt(world: Point): LineId | null {
+    const { state, camera } = this.deps;
+    let best: LineId | null = null;
+    let bestDistance = touchReach(camera.scale, TRAIN_REACH);
+    for (const train of state.trains.values()) {
+      for (const pose of vehiclePoses(train, state.nodes, 1) ?? []) {
+        const d = Math.hypot(pose.x - world.x, pose.y - world.y);
+        if (d <= bestDistance) {
+          best = train.line;
+          bestDistance = d;
+        }
+      }
+    }
+    return best;
   }
 
   private plan(drag: Drag) {

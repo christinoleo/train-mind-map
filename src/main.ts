@@ -42,7 +42,11 @@ import { createRenderer } from "./render/renderer";
 import { CommandQueue } from "./sim/commands/commandQueue";
 import { RemoveEdge } from "./sim/commands/removeEdge";
 import { RemoveNode } from "./sim/commands/removeNode";
+import { PlaceTrain } from "./sim/commands/placeTrain";
+import { RemoveLine } from "./sim/commands/removeLine";
 import { RemoveRail } from "./sim/commands/removeRail";
+import { RemoveTrain } from "./sim/commands/removeTrain";
+import { SetDeparture } from "./sim/commands/setDeparture";
 import { SetBoxConstruction } from "./sim/commands/setBoxConstruction";
 import { SetRecipe } from "./sim/commands/setRecipe";
 import { SetResearch } from "./sim/commands/setResearch";
@@ -53,7 +57,7 @@ import { clamp } from "./sim/math";
 import { fastForward, type OfflineReport } from "./sim/offline/fastForward";
 import { ok, type FailReason, type Result } from "./sim/result";
 import { createGameState, type GameState } from "./sim/state/gameState";
-import type { EdgeId, NodeId, RailId } from "./sim/state/ids";
+import type { EdgeId, LineId, NodeId, RailId } from "./sim/state/ids";
 import { powerSummary, type PowerSummary } from "./sim/state/power";
 import { isStorageFull } from "./sim/state/stock";
 import { tick } from "./sim/tick";
@@ -62,6 +66,7 @@ import type { HintView } from "./ui/Hint";
 import { BackupDialog } from "./ui/BackupDialog";
 import { nodeMenuInfo, type NodeMenuInfo } from "./ui/NodeMenu";
 import type { OfflineReportView } from "./ui/OfflineReport";
+import { linePanelInfo, type LinePanelInfo } from "./ui/LinePanel";
 import { railMenuInfo, type RailMenuInfo } from "./ui/RailMenu";
 import { Onboarding, type HintTarget } from "./ui/onboarding";
 import { researchInfo, type ResearchInfo } from "./ui/ResearchPanel";
@@ -134,6 +139,10 @@ const selectedNode = signal<NodeId | null>(null);
 const nodeMenu = signal<NodeMenuInfo | null>(null);
 const selectedRail = signal<RailId | null>(null);
 const railMenu = signal<RailMenuInfo | null>(null);
+const selectedLine = signal<LineId | null>(null);
+const linePanel = signal<LinePanelInfo | null>(null);
+/** The Station picked as a new Line's first stop, on the rail layer. */
+const linePick = signal<NodeId | null>(null);
 /** The layer the player works on (FR78). */
 const focus = signal<Focus>("factory");
 const storageFull = signal(false);
@@ -222,7 +231,12 @@ const railTool = new RailTool({
   dispatch: (command) => commands.dispatch(state, command),
   showPreview: renderer.setEdgePreview,
   selectRail: (id) => (selectedRail.value = id),
+  selectLine: (id) => (selectedLine.value = id),
+  showPick: (id) => (linePick.value = id),
+  showHint: flashHint,
 });
+// A Line just created opens its panel.
+events.on("LineCreated", ({ line }) => (selectedLine.value = line));
 // With nothing to place, a long press on a node and a drag move it, a drag
 // from an output connector connects, a tap on a node or an edge opens its
 // menu, and any other tap mines by hand.
@@ -267,7 +281,11 @@ const buildTool: Tool = {
 events.on("CommandRejected", ({ command, reason }) => {
   if (command === "ManualTap") tapTool.rejected(reason);
   // Dispatch checks against the state before the commands queued ahead.
-  else if (["Undo", "MoveNode", "PlaceRail"].includes(command)) {
+  else if (
+    ["Undo", "MoveNode", "PlaceRail", "CreateLine", "PlaceTrain"].includes(
+      command,
+    )
+  ) {
     flashHint(reason);
   }
 });
@@ -283,6 +301,7 @@ effect(() => {
     selectedEdge.value = null;
     selectedNode.value = null;
     selectedRail.value = null;
+    selectedLine.value = null;
     placeTool.select(kind, {
       x: app.screen.width / 2,
       y: app.screen.height / 2,
@@ -309,6 +328,7 @@ effect(() => {
     selectedNode.value = null;
   } else {
     selectedRail.value = null;
+    selectedLine.value = null;
   }
 });
 /** Brings the other layer into focus (FR78). */
@@ -326,6 +346,7 @@ for (const panel of panels) {
     selectedEdge.value = null;
     selectedNode.value = null;
     selectedRail.value = null;
+    selectedLine.value = null;
     for (const other of panels) if (other !== panel) other.value = false;
   });
 }
@@ -333,7 +354,8 @@ effect(() => {
   if (
     selectedEdge.value !== null ||
     selectedNode.value !== null ||
-    selectedRail.value !== null
+    selectedRail.value !== null ||
+    selectedLine.value !== null
   ) {
     for (const panel of panels) panel.value = false;
   }
@@ -350,6 +372,11 @@ effect(() => {
 effect(() => {
   renderer.setSelectedRail(selectedRail.value);
   publishMenu(selectedRail, railMenu, railMenuInfo);
+  publishMenu(selectedLine, linePanel, linePanelInfo);
+});
+effect(() => {
+  void selectedLine.value;
+  publishMenu(selectedLine, linePanel, linePanelInfo);
 });
 
 /** Publishes the selections to their menus, closing each once its target is gone. */
@@ -385,6 +412,7 @@ function loadGame(save: SaveFile) {
   selectedNode.value = null;
   selectedEdge.value = null;
   selectedRail.value = null;
+  selectedLine.value = null;
   focus.value = "factory";
   Object.assign(state, loadState(save));
 }
@@ -556,6 +584,33 @@ render(
       },
       onClose: () => (selectedRail.value = null),
     },
+    linePanel: {
+      line: linePanel,
+      onCondition(stop, condition) {
+        const id = selectedLine.value;
+        if (id !== null) {
+          commands.dispatch(state, new SetDeparture(id, stop, condition));
+        }
+      },
+      onAddTrain() {
+        const id = selectedLine.value;
+        if (id !== null) commands.dispatch(state, new PlaceTrain(id));
+      },
+      onRemoveTrain() {
+        const id = selectedLine.value;
+        const last = [...state.trains.values()]
+          .filter((t) => t.line === id)
+          .at(-1);
+        if (last) commands.dispatch(state, new RemoveTrain(last.id));
+      },
+      onRemove() {
+        const id = selectedLine.value;
+        if (id !== null) commands.dispatch(state, new RemoveLine(id));
+        selectedLine.value = null;
+      },
+      onClose: () => (selectedLine.value = null),
+    },
+    linePick: { station: linePick, onCancel: () => railTool.cancel() },
     railToggle: {
       focus,
       available: computed(() => unlocked.value.includes("station")),
