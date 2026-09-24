@@ -506,15 +506,16 @@ canvas {
   pointer-events: none;
 }
 
-/* The end of the prototype's content (FR110): a card over the running game. */
-#ui-root > .research-end {
+/* The end of the prototype's content (FR110) and "Enquanto você esteve
+   fora" (FR124): cards over the running game. */
+#ui-root > .research-end,
+#ui-root > .offline-report {
   position: fixed;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 12px;
   width: min(320px, calc(100vw - 32px));
   box-sizing: border-box;
@@ -526,18 +527,31 @@ canvas {
   text-align: center;
 }
 
-.research-end h2 {
+#ui-root > .research-end {
+  align-items: center;
+}
+
+/* The offline report lists what was made and the main bottleneck. */
+#ui-root > .offline-report {
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+.research-end h2,
+.offline-report h2 {
   margin: 0;
   font-size: 1.1rem;
 }
 
-.research-end p {
+.research-end p,
+.offline-report p {
   margin: 0;
   color: #8a93a6;
   font-size: 0.9rem;
 }
 
-.research-end button {
+.research-end button,
+.offline-report button {
   min-height: 44px;
   padding: 0 20px;
   border: 0;
@@ -548,45 +562,12 @@ canvas {
   font-weight: 700;
 }
 
-/* "Enquanto você esteve fora" (FR124): a card over the map on return from
-   an absence, with what was made and the main bottleneck. */
-#ui-root > .offline-report {
-  position: fixed;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: min(320px, calc(100vw - 32px));
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
-  box-sizing: border-box;
-  padding: 20px;
-  border-radius: 12px;
-  background: rgba(19, 22, 28, 0.96);
-  color: #e4e7ee;
-  font-family: system-ui, sans-serif;
-}
-
-.offline-report h2 {
-  margin: 0;
-  font-size: 1.1rem;
-  text-align: center;
-}
-
-.offline-report p {
-  margin: 0;
-  color: #8a93a6;
-  font-size: 0.9rem;
-  text-align: center;
-}
-
 .offline-report ul {
   margin: 0;
   padding: 0;
   list-style: none;
   font-size: 0.95rem;
+  text-align: left;
 }
 
 .offline-report li {
@@ -599,17 +580,6 @@ canvas {
 .offline-report li span:last-child {
   color: #7fd98a;
   font-variant-numeric: tabular-nums;
-}
-
-.offline-report button {
-  min-height: 44px;
-  padding: 0 20px;
-  border: 0;
-  border-radius: 999px;
-  background: #f5c542;
-  color: #15181f;
-  font: inherit;
-  font-weight: 700;
 }
 
 .offline-report .offline-bottleneck {

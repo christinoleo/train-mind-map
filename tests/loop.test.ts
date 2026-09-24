@@ -115,4 +115,15 @@ describe("loop", () => {
     h.frameAt(TICK_MS * 3 + 60_000);
     expect(h.ticks()).toBe(3);
   });
+
+  it("hands the offline path real time, whatever the speed", () => {
+    const h = harness();
+    h.loop.start();
+    h.loop.speed = 10;
+    h.frameAt(60_000);
+    expect(h.caughtUp).toEqual([60_000]);
+    h.loop.speed = 0;
+    h.frameAt(120_000);
+    expect(h.caughtUp).toEqual([60_000]);
+  });
 });

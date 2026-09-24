@@ -51,7 +51,6 @@ import { fastForward, type OfflineReport } from "./sim/offline/fastForward";
 import { ok, type FailReason, type Result } from "./sim/result";
 import { createGameState, type GameState } from "./sim/state/gameState";
 import type { EdgeId, NodeId } from "./sim/state/ids";
-import { nodeRect } from "./sim/state/nodes";
 import { powerSummary, type PowerSummary } from "./sim/state/power";
 import { isStorageFull } from "./sim/state/stock";
 import { tick } from "./sim/tick";
@@ -106,7 +105,9 @@ const state =
 game = state;
 // The factory kept working while the game was closed (FR120).
 const bootReport =
-  saved.kind === "loaded" ? makeUpFor(Date.now() - saved.save.savedAt) : null;
+  saved.kind === "loaded"
+    ? reportView(makeUpFor(Date.now() - saved.save.savedAt))
+    : null;
 const commands = new CommandQueue();
 const events = new EventQueue();
 const app = await createApp(document.getElementById("pixi-container")!);
@@ -138,9 +139,7 @@ const ended = signal(false);
 const settingsOpen = signal(false);
 const exportNotice = signal(false);
 const onboardingHint = signal<HintView | null>(null);
-const offlineReport = signal<OfflineReportView | null>(
-  bootReport && reportView(bootReport),
-);
+const offlineReport = signal<OfflineReportView | null>(bootReport);
 /** The hint the last tick asked for; each frame places it on the screen. */
 let hintTarget: HintTarget | null = null;
 // The hints wait for the settings, which say how many were seen already.
@@ -393,11 +392,7 @@ function goOffline(ms: number) {
 
 /** Takes the camera to `id` and opens its menu. */
 function showNode(id: NodeId) {
-  const node = state.nodes.get(id);
-  if (!node) return;
-  const { x, y, w, h } = nodeRect(node);
-  renderer.centerOn(x + (w - 1) / 2, y + (h - 1) / 2);
-  selectedNode.value = id;
+  if (renderer.centerOnNode(id)) selectedNode.value = id;
 }
 
 function undo() {

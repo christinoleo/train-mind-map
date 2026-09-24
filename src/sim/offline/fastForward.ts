@@ -1,12 +1,13 @@
 import { OFFLINE_CAP_MS, TICK_MS } from "../../config/constants";
-import { itemEntries, type ItemCounts } from "../../data/items";
+import { countsAbove, type ItemCounts } from "../../data/items";
 import { CommandQueue } from "../commands/commandQueue";
 import type { FactoryNode, GameState } from "../state/gameState";
 import type { NodeId } from "../state/ids";
 import { isProducer } from "../state/production";
 import { sumStock } from "../state/stock";
+import { idleLabs, research } from "../systems/research";
 import { updateStock } from "../systems/stock";
-import { tick } from "../tick";
+import { SYSTEMS, tick, type System } from "../tick";
 import { extrapolate } from "./extrapolate";
 import {
   holdings,
@@ -41,6 +42,14 @@ export interface OfflineReport {
   /** The node blocked or starved the longest, if any was. */
   bottleneck: Bottleneck | null;
 }
+
+/**
+ * The live systems, with Labs idle and without the stock refresh: nothing
+ * reads the stock mid-tick, so the fast-forward refreshes it once at the end.
+ */
+const OFFLINE_SYSTEMS: readonly System[] = SYSTEMS.filter(
+  (system) => system !== updateStock,
+).map((system) => (system === research ? idleLabs : system));
 
 /** How `node` was stuck this tick, if it was. Labs idle offline by design. */
 function stuck(node: FactoryNode): Bottleneck["status"] | null {
@@ -108,22 +117,21 @@ export function fastForward(
 
   let ran = 0;
   let windowStart = holdings(state);
-  let windowTicks = 0;
   let last: Rates | null = null;
   let steady: Rates | null = null;
   while (ran < total) {
-    tick(state, idle, () => {}, undefined, true);
+    tick(state, idle, () => {}, OFFLINE_SYSTEMS);
     tally.record(state);
     ran++;
-    if (++windowTicks === WINDOW_TICKS) {
-      const rates = ratesSince(state, windowStart, windowTicks);
+    if (ran % WINDOW_TICKS === 0) {
+      const now = holdings(state);
+      const rates = ratesSince(windowStart, now, WINDOW_TICKS);
       if (last && isSteady(state, last, rates)) {
         steady = meanRates(last, rates);
         break;
       }
       last = rates;
-      windowStart = holdings(state);
-      windowTicks = 0;
+      windowStart = now;
     }
     // Reading the clock every tick would cost more than a small tick.
     if (ran % 64 === 0 && budget.now() >= deadline) break;
@@ -135,16 +143,15 @@ export function fastForward(
     const rates =
       steady ??
       last ??
-      ratesSince(state, windowStart, Math.max(windowTicks, 1));
+      ratesSince(windowStart, holdings(state), ran % WINDOW_TICKS || 1);
     extrapolate(state, rates, rest);
     state.tick += rest;
   }
   updateStock(state);
 
-  const produced: ItemCounts = {};
-  for (const [item, count] of itemEntries(state.stock)) {
-    const gain = count - (stockBefore[item] ?? 0);
-    if (gain > 0) produced[item] = gain;
-  }
-  return { elapsedMs, produced, bottleneck: tally.worst() };
+  return {
+    elapsedMs,
+    produced: countsAbove(stockBefore, state.stock),
+    bottleneck: tally.worst(),
+  };
 }

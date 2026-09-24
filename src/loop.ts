@@ -80,10 +80,15 @@ export function createLoop({
     const { speed } = loop;
     const limitScale = Math.max(speed, 1);
     // rAF's timestamp can predate the `now()` read in start().
-    const gap = Math.max(time - last, 0) * speed;
-    if (catchUp && gap > MAX_BACKLOG_MS * limitScale) catchUp(gap);
+    const gap = Math.max(time - last, 0);
+    // An absence is real time: the debug speed does not scale it, and a
+    // paused game makes up for nothing.
+    if (catchUp && speed > 0 && gap > MAX_BACKLOG_MS) catchUp(gap);
     else {
-      accumulator = Math.min(accumulator + gap, MAX_BACKLOG_MS * limitScale);
+      accumulator = Math.min(
+        accumulator + gap * speed,
+        MAX_BACKLOG_MS * limitScale,
+      );
     }
     last = time;
     const maxTicks = MAX_TICKS_PER_FRAME * limitScale;

@@ -31,22 +31,21 @@ export function holdings(state: Readonly<GameState>): Holdings {
   return held;
 }
 
-/** The rates between `start` and now, `ticks` later. */
+/** The rates from holdings `start` to `end`, `ticks` later. */
 export function ratesSince(
-  state: Readonly<GameState>,
   start: Holdings,
+  end: Holdings,
   ticks: number,
 ): Rates {
   const rates: Rates = new Map();
-  for (const [id, now] of holdings(state)) {
-    const before = start.get(id) ?? {};
+  for (const [id, now] of end) {
+    const change = { ...now };
+    for (const [item, count] of itemEntries(start.get(id) ?? {})) {
+      change[item] = (change[item] ?? 0) - count;
+    }
     const rate: ItemCounts = {};
-    for (const item of new Set([
-      ...itemEntries(now).map(([item]) => item),
-      ...itemEntries(before).map(([item]) => item),
-    ])) {
-      const change = (now[item] ?? 0) - (before[item] ?? 0);
-      if (change !== 0) rate[item] = change / ticks;
+    for (const [item, diff] of itemEntries(change)) {
+      if (diff !== 0) rate[item] = diff / ticks;
     }
     rates.set(id, rate);
   }

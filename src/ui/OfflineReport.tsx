@@ -1,17 +1,18 @@
 import type { Signal } from "@preact/signals";
-import { ITEMS, type ItemCounts } from "../data/items";
+import { ITEMS } from "../data/items";
 import type { NodeKind } from "../data/nodes";
-import type { Bottleneck } from "../sim/offline/fastForward";
+import type {
+  Bottleneck,
+  OfflineReport as Report,
+} from "../sim/offline/fastForward";
 import type { NodeId } from "../sim/state/ids";
 import { formatCount, formatDuration } from "./format";
 import { strings } from "./strings";
 
 /** What the report shows: the offline report, with the bottleneck's kind. */
-export interface OfflineReportView {
-  elapsedMs: number;
-  produced: ItemCounts;
+export type OfflineReportView = Omit<Report, "bottleneck"> & {
   bottleneck: (Bottleneck & { kind: NodeKind }) | null;
-}
+};
 
 interface Props {
   /** The report, while it shows. */

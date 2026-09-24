@@ -11,8 +11,6 @@ import { updateStock } from "./systems/stock";
 
 export interface SystemContext {
   emit: Emit;
-  /** True while offline progress fast-forwards the game (ADR-0003). */
-  offline: boolean;
 }
 
 /** One simulation system. Each tick lasts `TICK_MS`. */
@@ -35,16 +33,15 @@ export const SYSTEMS: readonly System[] = [
   updateStock,
 ];
 
-/** Advances the state by one tick; `offline` while fast-forwarding. */
+/** Advances the state by one tick. */
 export function tick(
   state: GameState,
   commands: CommandQueue,
   emit: Emit,
   systems: readonly System[] = SYSTEMS,
-  offline = false,
 ): void {
   commands.applyQueued(state, emit);
-  const ctx: SystemContext = { emit, offline };
+  const ctx: SystemContext = { emit };
   for (const system of systems) system(state, ctx);
   state.tick++;
 }
