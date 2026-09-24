@@ -36,7 +36,11 @@ export function createLoop({
   let accumulator = 0;
 
   const onFrame = (time: number) => {
-    accumulator = Math.min(accumulator + time - last, MAX_BACKLOG_MS);
+    // rAF's timestamp can predate the `now()` read in start().
+    accumulator = Math.min(
+      accumulator + Math.max(time - last, 0),
+      MAX_BACKLOG_MS,
+    );
     last = time;
     for (let i = 0; i < MAX_TICKS_PER_FRAME && accumulator >= TICK_MS; i++) {
       step();

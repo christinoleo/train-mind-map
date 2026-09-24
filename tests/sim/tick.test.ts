@@ -38,7 +38,7 @@ function replay(seed: string, ticks: number, log: [number, Command][]) {
   let next = 0;
   while (state.tick < ticks) {
     while (next < log.length && log[next][0] === state.tick) {
-      commands.dispatch(state, log[next++][1]);
+      commands.replay(log[next++][1]);
     }
     tick(state, commands, events.emit, [drawSystem]);
     events.drain();

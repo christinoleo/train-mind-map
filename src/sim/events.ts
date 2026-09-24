@@ -39,7 +39,8 @@ export class EventQueue {
     const events = this.pending;
     this.pending = [];
     for (const event of events) {
-      for (const handler of this.handlers[event.type] ?? []) {
+      // A copy, so a handler may unsubscribe itself mid-delivery.
+      for (const handler of [...(this.handlers[event.type] ?? [])]) {
         (handler as Handler<typeof event.type>)(event);
       }
     }

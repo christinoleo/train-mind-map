@@ -31,3 +31,19 @@ describe("event queue", () => {
     expect(seen).toEqual([]);
   });
 });
+
+describe("event queue subscribers", () => {
+  it("still reaches later handlers when one unsubscribes itself", () => {
+    const events = new EventQueue();
+    const seen: string[] = [];
+    const off = events.on("CommandRejected", () => {
+      seen.push("once");
+      off();
+    });
+    events.on("CommandRejected", () => seen.push("always"));
+    events.emit(rejected("a"));
+    events.emit(rejected("b"));
+    events.drain();
+    expect(seen).toEqual(["once", "always", "always"]);
+  });
+});

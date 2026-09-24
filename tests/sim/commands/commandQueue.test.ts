@@ -115,8 +115,8 @@ describe("undo", () => {
     });
   });
 
-  it("fails when the inverse no longer validates", () => {
-    const { state, commands, seen, step } = setup();
+  it("undoes a command queued in the same tick", () => {
+    const { state, commands, step } = setup();
     commands.dispatch(state, new AddNode());
     step();
     const [id] = nodeIds(state);
@@ -125,7 +125,38 @@ describe("undo", () => {
     expect(commands.undo(state).ok).toBe(true);
     step();
 
+    expect(nodeIds(state)).toEqual([id]);
+    expect(commands.undoDepth).toBe(1);
+  });
+
+  it("counts queued commands as undoable", () => {
+    const { state, commands, step } = setup();
+    commands.dispatch(state, new AddNode());
+    expect(commands.undo(state).ok).toBe(true);
+    expect(commands.undo(state)).toEqual({
+      ok: false,
+      reason: "nothing_to_undo",
+    });
+    step();
     expect(state.nodes.size).toBe(0);
+  });
+
+  it("keeps the inverse when the undo no longer validates", () => {
+    const { state, commands, seen, step } = setup();
+    commands.dispatch(state, new AddNode());
+    step();
+    const [id] = nodeIds(state);
+
+    // Something other than a command removed the node: undo cannot apply.
+    state.nodes.delete(id);
+    expect(commands.undo(state)).toEqual({ ok: false, reason: "not_found" });
+    expect(commands.undoDepth).toBe(1);
+
+    state.nodes.set(id, { id });
+    expect(commands.undo(state).ok).toBe(true);
+    state.nodes.delete(id);
+    step();
+
     expect(seen).toEqual([
       { type: "CommandRejected", command: "RemoveNode", reason: "not_found" },
     ]);

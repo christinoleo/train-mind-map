@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import { MAX_TICKS_PER_FRAME, TICK_MS } from "../src/config/constants";
 import { createLoop } from "../src/loop";
 
-function harness() {
+function harness(startTime = 0) {
   let pending: ((time: number) => void) | undefined;
   let ticks = 0;
   const alphas: number[] = [];
   const loop = createLoop({
     step: () => void ticks++,
     frame: (alpha) => void alphas.push(alpha),
-    now: () => 0,
+    now: () => startTime,
     requestFrame: (callback) => {
       pending = callback;
       return 1;
@@ -58,5 +58,12 @@ describe("loop", () => {
     h.loop.start();
     h.loop.stop();
     expect(h.running()).toBe(false);
+  });
+
+  it("ignores a first frame stamped before start()", () => {
+    const h = harness(50);
+    h.loop.start();
+    h.frameAt(20);
+    expect(h.alphas).toEqual([0]);
   });
 });
