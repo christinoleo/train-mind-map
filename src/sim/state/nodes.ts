@@ -45,8 +45,12 @@ export function createNode(
         production: newProduction(),
       };
     case "core":
+      return { id, kind, x, y, items: [] };
     case "box":
-      return { id, kind, x, y, items: {} };
+      return { id, kind, x, y, items: [], noConstruction: false };
+    case "splitter":
+    case "merger":
+      return { id, kind, x, y, next: 0, blocked: false };
     case "generator":
       return { id, kind, x, y, fuel: 0, burn: 0 };
     default:
@@ -54,12 +58,19 @@ export function createNode(
   }
 }
 
-/** `node` as it was placed: the same id, place and setup, with every buffer empty. */
+/**
+ * `node` as it was placed: the same id, place, setup and player options,
+ * with every buffer empty.
+ */
 export function emptied(node: Readonly<FactoryNode>): FactoryNode {
-  return createNode(node.id, node.kind, node.x, node.y, {
+  const fresh = createNode(node.id, node.kind, node.x, node.y, {
     resource: "resource" in node ? node.resource : undefined,
     recipe: "recipe" in node ? (node.recipe ?? undefined) : undefined,
   });
+  if (fresh.kind === "box" && node.kind === "box") {
+    fresh.noConstruction = node.noConstruction;
+  }
+  return fresh;
 }
 
 /** True when `kind` may run `recipe`: a Furnace smelts, an Assembler assembles. */

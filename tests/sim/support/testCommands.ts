@@ -2,10 +2,11 @@ import type { Command } from "../../../src/sim/commands/command";
 import { fail, ok } from "../../../src/sim/result";
 import type { FactoryNode, GameState } from "../../../src/sim/state/gameState";
 import { allocateId, type NodeId } from "../../../src/sim/state/ids";
+import { createNode } from "../../../src/sim/state/nodes";
 
 /** A Box at the map corner; the queue tests ignore where nodes sit. */
 export function bareNode(id: NodeId): FactoryNode {
-  return { id, kind: "box", x: 0, y: 0, items: {} };
+  return createNode(id, "box", 0, 0);
 }
 
 /** Adds a bare node. Its inverse removes it again. */

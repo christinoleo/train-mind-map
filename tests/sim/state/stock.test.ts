@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { ItemCounts } from "../../../src/data/items";
+import { itemEntries, type ItemCounts } from "../../../src/data/items";
 import { MVP_SCENARIO } from "../../../src/data/scenarios/mvp";
 import type { Command } from "../../../src/sim/commands/command";
 import { CommandQueue } from "../../../src/sim/commands/commandQueue";
 import { PlaceNode } from "../../../src/sim/commands/placeNode";
 import { RemoveNode } from "../../../src/sim/commands/removeNode";
+import { SetBoxConstruction } from "../../../src/sim/commands/setBoxConstruction";
 import { EventQueue, type SimEventOf } from "../../../src/sim/events";
 import { fail } from "../../../src/sim/result";
 import {
@@ -12,8 +13,14 @@ import {
   type GameState,
 } from "../../../src/sim/state/gameState";
 import type { EdgeId, NodeId } from "../../../src/sim/state/ids";
-import { nodeRect } from "../../../src/sim/state/nodes";
-import { deposit, isStorage } from "../../../src/sim/state/stock";
+import { createNode, nodeRect } from "../../../src/sim/state/nodes";
+import {
+  deposit,
+  isStorage,
+  store,
+  storedItems,
+  type StorageNode,
+} from "../../../src/sim/state/stock";
 import { tick } from "../../../src/sim/tick";
 
 const CORE = 1 as NodeId;
@@ -33,12 +40,14 @@ function setup(stored: {
   far?: ItemCounts;
 }) {
   const state = createGameState(MVP_SCENARIO);
-  items(state, CORE).items = { ...stored.core };
+  fill(items(state, CORE), stored.core);
   for (const [id, x, y, contents] of [
     [NEAR, 52, 53, stored.near],
     [FAR, 45, 45, stored.far],
   ] as const) {
-    state.nodes.set(id, { id, kind: "box", x, y, items: { ...contents } });
+    const box = createNode(id, "box", x, y) as StorageNode;
+    fill(box, contents);
+    state.nodes.set(id, box);
   }
   const commands = new CommandQueue();
   const events = new EventQueue();
@@ -56,19 +65,28 @@ function setup(stored: {
   return { state, commands, paid, step, run };
 }
 
+/** Puts `counts` into `node`, which starts empty. */
+function fill(node: StorageNode, counts: ItemCounts = {}) {
+  node.items = [];
+  for (const [item, count] of itemEntries(counts)) store(node, item, count);
+}
+
 function items(state: GameState, id: NodeId) {
   const node = state.nodes.get(id);
   if (!node || !isStorage(node)) throw new Error(`node ${id} stores nothing`);
   return node;
 }
 
-/** Makes `from` a buffer: a storage node with an output edge. */
-function addOutputEdge(state: GameState, from: NodeId, to: NodeId) {
+/**
+ * Makes `from` a buffer: a storage node with an output edge. The edge leads
+ * to no node, so nothing flows out.
+ */
+function addOutputEdge(state: GameState, from: NodeId) {
   state.edges.set(1 as EdgeId, {
     id: 1 as EdgeId,
     from,
     fromPort: 0,
-    to,
+    to: 99 as NodeId,
     toPort: 0,
     level: 1,
     path: [{ x: 0, y: 0 }],
@@ -106,9 +124,9 @@ describe("paying for construction (FR69, FR70)", () => {
       far: { stone: 100 },
     });
     run(furnace());
-    expect(items(state, NEAR).items).toEqual({});
-    expect(items(state, CORE).items).toEqual({ stone: 94 });
-    expect(items(state, FAR).items).toEqual({ stone: 100 });
+    expect(storedItems(items(state, NEAR))).toEqual({});
+    expect(storedItems(items(state, CORE))).toEqual({ stone: 94 });
+    expect(storedItems(items(state, FAR))).toEqual({ stone: 100 });
     expect(paid).toEqual([
       {
         type: "ConstructionPaid",
@@ -127,19 +145,19 @@ describe("paying for construction (FR69, FR70)", () => {
       near: { stone: 100 },
       far: { stone: 100 },
     });
-    addOutputEdge(state, NEAR, FAR);
+    addOutputEdge(state, NEAR);
     run(furnace());
-    expect(items(state, CORE).items).toEqual({});
-    expect(items(state, FAR).items).toEqual({ stone: 93 });
-    expect(items(state, NEAR).items).toEqual({ stone: 100 });
+    expect(storedItems(items(state, CORE))).toEqual({});
+    expect(storedItems(items(state, FAR))).toEqual({ stone: 93 });
+    expect(storedItems(items(state, NEAR))).toEqual({ stone: 100 });
   });
 
   it("falls back to buffers when the warehouses run out", () => {
     const { state, run } = setup({ core: { stone: 3 }, near: { stone: 100 } });
-    addOutputEdge(state, NEAR, FAR);
+    addOutputEdge(state, NEAR);
     run(furnace());
-    expect(items(state, CORE).items).toEqual({});
-    expect(items(state, NEAR).items).toEqual({ stone: 93 });
+    expect(storedItems(items(state, CORE))).toEqual({});
+    expect(storedItems(items(state, NEAR))).toEqual({ stone: 93 });
   });
 
   it("refuses with no_stock when all storage together falls short", () => {
@@ -162,6 +180,64 @@ describe("paying for construction (FR69, FR70)", () => {
   });
 });
 
+describe("Boxes kept out of construction (FR71)", () => {
+  const keep = (state: GameState, id: NodeId, on = true) =>
+    new SetBoxConstruction(id, on).apply(state);
+
+  it("leaves a marked Box out of the payment, however near", () => {
+    const { state, paid, run } = setup({
+      core: { stone: 100 },
+      near: { stone: 100 },
+    });
+    keep(state, NEAR);
+    run(furnace());
+    expect(storedItems(items(state, NEAR))).toEqual({ stone: 100 });
+    expect(paid[0].draws).toEqual([
+      { storage: CORE, item: "stone", count: 10 },
+    ]);
+  });
+
+  it("refuses with no_stock when only marked Boxes hold enough", () => {
+    const { state, run } = setup({ core: { stone: 3 }, near: { stone: 100 } });
+    keep(state, NEAR);
+    expect(run(furnace())).toEqual(fail("no_stock"));
+    // It still counts in the global stock the HUD shows.
+    expect(state.stock).toEqual({ stone: 103 });
+  });
+
+  it("puts no refund into a marked Box", () => {
+    const { state, run } = setup({ core: { stone: 10 } });
+    run(furnace());
+    keep(state, NEAR);
+    items(state, CORE).items = [];
+    run(new RemoveNode(PLACED));
+    expect(storedItems(items(state, NEAR))).toEqual({});
+    expect(storedItems(items(state, CORE))).toEqual({ stone: 10 });
+  });
+
+  it("keeps the option on a removed Box brought back by undo", () => {
+    const { state, commands, run, step } = setup({ core: { "iron-ore": 10 } });
+    keep(state, NEAR);
+    run(new RemoveNode(NEAR));
+    commands.undo(state);
+    step();
+    expect(items(state, NEAR)).toMatchObject({ noConstruction: true });
+  });
+
+  it("is set by a command that only a Box accepts, and undoes", () => {
+    const { state, commands, step } = setup({});
+    expect(new SetBoxConstruction(CORE, true).validate(state)).toEqual(
+      fail("not_found"),
+    );
+    commands.dispatch(state, new SetBoxConstruction(NEAR, true));
+    step();
+    expect(items(state, NEAR)).toMatchObject({ noConstruction: true });
+    commands.undo(state);
+    step();
+    expect(items(state, NEAR)).toMatchObject({ noConstruction: false });
+  });
+});
+
 describe("refunds (FR21)", () => {
   it("returns the whole cost on removal", () => {
     const { state, run } = setup({ core: { stone: 10 } });
@@ -181,7 +257,7 @@ describe("refunds (FR21)", () => {
     run(new RemoveNode(FAR));
     commands.undo(state);
     step();
-    expect(items(state, FAR).items).toEqual({});
+    expect(storedItems(items(state, FAR))).toEqual({});
     expect(state.stock).toEqual({});
     expect(paid.at(-1)?.site).toEqual(nodeRect(items(state, FAR)));
   });
@@ -191,7 +267,7 @@ describe("refunds (FR21)", () => {
     run(furnace());
     run(new RemoveNode(PLACED));
     // Spent outside the queue, so the undo stack still ends in the removal.
-    for (const id of [CORE, NEAR, FAR]) items(state, id).items = {};
+    for (const id of [CORE, NEAR, FAR]) items(state, id).items = [];
     expect(commands.undo(state)).toEqual(fail("no_stock"));
   });
 
@@ -202,7 +278,7 @@ describe("refunds (FR21)", () => {
       far: { coal: 500 },
     });
     run(furnace());
-    items(state, CORE).items = { coal: 1995 };
+    fill(items(state, CORE), { coal: 1995 });
     run(new RemoveNode(PLACED));
     expect(state.stock.stone).toBe(5);
     expect(commands.undo(state)).toEqual({ ok: true, value: undefined });
@@ -216,7 +292,13 @@ describe("refunds (FR21)", () => {
     state.nodes.delete(FAR);
     const site = { x: 55, y: 53, w: 2, h: 2 };
     deposit(state, { "iron-ore": 10 }, site);
-    expect(items(state, NEAR).items).toEqual({ coal: 498, "iron-ore": 2 });
-    expect(items(state, CORE).items).toEqual({ stone: 1995, "iron-ore": 5 });
+    expect(storedItems(items(state, NEAR))).toEqual({
+      coal: 498,
+      "iron-ore": 2,
+    });
+    expect(storedItems(items(state, CORE))).toEqual({
+      stone: 1995,
+      "iron-ore": 5,
+    });
   });
 });

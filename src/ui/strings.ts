@@ -48,6 +48,7 @@ export const strings = {
     powerUse: "uso",
     powerShort: "falta de energia",
     powerGlyph: "⚡",
+    storageFull: "Estoque cheio: a fábrica parou",
   },
   // The node palette: the "+" button, the bottom tray and placement feedback.
   palette: {
@@ -80,6 +81,10 @@ export const strings = {
     autoRecipe: "Automática",
     recipeLoses: "Trocar a receita perde os itens dentro do nó",
     upgrade: "Melhorar para",
+    full: "lotado",
+    noConstruction: "Não usar em construção",
+    used: "Desligado: a construção pode usar estes itens",
+    kept: "Ligado: a construção não toca nesta Caixa",
   },
   // The undo button.
   undo: {

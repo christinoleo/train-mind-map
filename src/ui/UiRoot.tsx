@@ -20,6 +20,8 @@ type Props = ComponentProps<typeof Palette> & {
   stamina: ReadonlySignal<number>;
   /** The ⚡ supplied and drawn, over every mesh. */
   power: ReadonlySignal<PowerSummary>;
+  /** True while the Core and every Box are full. */
+  storageFull: ReadonlySignal<boolean>;
 };
 
 // The DOM overlay layer above the canvas: the HUD capsule, the menus, the
@@ -28,6 +30,7 @@ export function UiRoot({
   stock,
   stamina,
   power,
+  storageFull,
   edgeMenu,
   nodeMenu,
   undo,
@@ -35,7 +38,12 @@ export function UiRoot({
 }: Props) {
   return (
     <>
-      <StockHud stock={stock} stamina={stamina} power={power} />
+      <StockHud
+        stock={stock}
+        stamina={stamina}
+        power={power}
+        storageFull={storageFull}
+      />
       <EdgeMenu {...edgeMenu} />
       <NodeMenu {...nodeMenu} />
       <UndoButton {...undo} />

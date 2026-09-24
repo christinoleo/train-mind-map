@@ -6,7 +6,7 @@ import type { GameState } from "../state/gameState";
 import { depositUnder, isRevealedRect } from "../state/map";
 import { isOccupied } from "../state/nodes";
 import { tapYield } from "../state/stamina";
-import { coreNode, storageRoom } from "../state/stock";
+import { coreNode, storageRoom, store } from "../state/stock";
 import type { Rect } from "../geometry/rect";
 import type { Command } from "./command";
 
@@ -39,7 +39,7 @@ export class ManualTap implements Command {
     // A Core with less room than the yield takes what fits.
     const count = Math.min(tapYield(state), storageRoom(core));
     state.stamina.points--;
-    core.items[item] = (core.items[item] ?? 0) + count;
+    store(core, item, count);
     const { x, y } = this;
     emit({ type: "ManualTapped", x, y, item, count, core: core.id });
   }

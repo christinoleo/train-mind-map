@@ -10,15 +10,18 @@ interface Props {
   stock: ReadonlySignal<ItemCounts>;
   stamina: ReadonlySignal<number>;
   power: ReadonlySignal<PowerSummary>;
+  /** True while the Core and every Box are full (FR73). */
+  storageFull: ReadonlySignal<boolean>;
 }
 
 /**
  * The HUD capsule at the top of the screen (GDD §HUD): one chip per item in
  * the global stock, a colour swatch and the count in K/M notation (FR68),
- * over the ⚡ meter (FR131) and the stamina bar (FR75). The item's name and
+ * over the ⚡ meter (FR131) and the stamina bar (FR75), and a warning while
+ * all storage is full and the factory has stopped (FR73). The item's name and
  * exact count are in the chip's label.
  */
-export function StockHud({ stock, stamina, power }: Props) {
+export function StockHud({ stock, stamina, power, storageFull }: Props) {
   const text = strings.hud;
   const held = ITEMS.filter((item) => (stock.value[item] ?? 0) > 0);
   return (
@@ -50,6 +53,11 @@ export function StockHud({ stock, stamina, power }: Props) {
         </ul>
         <PowerMeter power={power} />
         <StaminaBar stamina={stamina} />
+        {storageFull.value && (
+          <p class="stock-full" role="status">
+            {text.storageFull}
+          </p>
+        )}
       </div>
     </div>
   );

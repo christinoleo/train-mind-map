@@ -407,3 +407,20 @@ canvas {
 #ui-root > .undo:disabled {
   opacity: 0.4;
 }
+
+/* The warning that all storage is full and the factory has stopped (FR73). */
+.stock-full {
+  margin: 0;
+  color: #f87171;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.menu-head [data-full="true"] {
+  color: #f87171;
+}
+
+.menu-toggle[aria-checked="true"] {
+  background: rgba(245, 197, 66, 0.22);
+}

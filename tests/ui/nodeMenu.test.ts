@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { NodeKind } from "../../src/data/nodes";
 import { MVP_SCENARIO } from "../../src/data/scenarios/mvp";
+import { SetBoxConstruction } from "../../src/sim/commands/setBoxConstruction";
 import { createGameState } from "../../src/sim/state/gameState";
 import { allocateId, type NodeId } from "../../src/sim/state/ids";
 import { createNode } from "../../src/sim/state/nodes";
+import { coreNode, storedCount } from "../../src/sim/state/stock";
 import { nodeMenuInfo } from "../../src/ui/NodeMenu";
 import { fillCore } from "../sim/support/stock";
 
@@ -19,6 +21,28 @@ function setup() {
 }
 
 describe("nodeMenuInfo", () => {
+  it("shows how full the Core is, with no construction option", () => {
+    const { state } = setup();
+    const core = coreNode(state);
+    expect(nodeMenuInfo(state, core.id)?.storage).toEqual({
+      stored: storedCount(core),
+      capacity: 2000,
+      noConstruction: null,
+    });
+  });
+
+  it("shows a Box's fill and its construction option", () => {
+    const { state, put } = setup();
+    const id = put("box");
+    new SetBoxConstruction(id, true).apply(state);
+    expect(nodeMenuInfo(state, id)?.storage).toEqual({
+      stored: 0,
+      capacity: 500,
+      noConstruction: true,
+    });
+    expect(nodeMenuInfo(state, put("furnace"))?.storage).toBeNull();
+  });
+
   it("offers a Furnace its smelting recipes and the automatic pick", () => {
     const { state, put } = setup();
     const info = nodeMenuInfo(state, put("furnace"));

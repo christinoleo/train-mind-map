@@ -1,5 +1,10 @@
 import type { ReadonlySignal } from "@preact/signals";
-import { NODES, type Cost, type NodeKind } from "../data/nodes";
+import {
+  NODES,
+  STORAGE_CAPACITY,
+  type Cost,
+  type NodeKind,
+} from "../data/nodes";
 import { RECIPE_IDS, type RecipeId } from "../data/recipes";
 import { UpgradeNode, nodeUpgradeCost } from "../sim/commands/upgradeNode";
 import type { FailReason } from "../sim/result";
@@ -7,6 +12,7 @@ import type { GameState } from "../sim/state/gameState";
 import type { NodeId } from "../sim/state/ids";
 import { canRun } from "../sim/state/nodes";
 import { isCrafter } from "../sim/state/production";
+import { isStorage, storedCount } from "../sim/state/stock";
 import { Menu, RemoveAction, UpgradeAction } from "./Menu";
 import { strings } from "./strings";
 
@@ -19,6 +25,15 @@ export interface NodeMenuInfo {
   upgrade: { kind: NodeKind; cost: Cost; refused: FailReason | null } | null;
   /** What removing it gives back; `null` for the Core, which stays. */
   refund: Cost | null;
+  /**
+   * How full the Core or a Box is, and a Box's "não usar em construção"
+   * option (`null` on the Core); `null` for kinds that store nothing.
+   */
+  storage: {
+    stored: number;
+    capacity: number;
+    noConstruction: boolean | null;
+  } | null;
 }
 
 /** What the menu shows of node `id`, or `null` when there is no such node. */
@@ -51,12 +66,21 @@ export function nodeMenuInfo(
     recipes,
     upgrade,
     refund: kind === "core" ? null : NODES[kind].cost,
+    storage: isStorage(node)
+      ? {
+          stored: storedCount(node),
+          capacity: STORAGE_CAPACITY[node.kind],
+          noConstruction: node.kind === "box" ? node.noConstruction : null,
+        }
+      : null,
   };
 }
 
 interface Props {
   node: ReadonlySignal<NodeMenuInfo | null>;
   onRecipe(recipe: RecipeId | null): void;
+  /** Sets a Box's "não usar em construção" option. */
+  onConstruction(noConstruction: boolean): void;
   onUpgrade(): void;
   onRemove(): void;
   onClose(): void;
@@ -66,11 +90,14 @@ interface Props {
  * The node menu, opened by tapping a node (FR22, FR27): the recipe of a
  * Furnace or Assembler, which loses the items inside when changed, an
  * upgrade in place, which pays the difference, and removal, which refunds
- * the whole cost. A long press on the node moves it instead.
+ * the whole cost. The Core and a Box show how full they are, and a Box
+ * has its "não usar em construção" option (FR71). A long press on the node
+ * moves it instead.
  */
 export function NodeMenu({
   node,
   onRecipe,
+  onConstruction,
   onUpgrade,
   onRemove,
   onClose,
@@ -78,9 +105,36 @@ export function NodeMenu({
   const info = node.value;
   if (!info) return null;
   const text = strings.node;
-  const { recipes, upgrade, refund } = info;
+  const { recipes, upgrade, refund, storage } = info;
+  const full = storage !== null && storage.stored >= storage.capacity;
+  const title = storage ? (
+    <>
+      {strings.nodes[info.kind]}
+      {strings.menu.separator}
+      <span data-full={full}>
+        {storage.stored}/{storage.capacity}
+        {full && ` ${text.full}`}
+      </span>
+    </>
+  ) : (
+    strings.nodes[info.kind]
+  );
   return (
-    <Menu label={text.title} title={strings.nodes[info.kind]} onClose={onClose}>
+    <Menu label={text.title} title={title} onClose={onClose}>
+      {storage && storage.noConstruction !== null && (
+        <button
+          type="button"
+          class="menu-action menu-toggle"
+          role="switch"
+          aria-checked={storage.noConstruction}
+          onClick={() => onConstruction(!storage.noConstruction)}
+        >
+          <span>{text.noConstruction}</span>
+          <span class="menu-items">
+            {storage.noConstruction ? text.kept : text.used}
+          </span>
+        </button>
+      )}
       {recipes && (
         <fieldset class="menu-recipes">
           <legend>{text.recipe}</legend>

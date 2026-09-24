@@ -37,25 +37,83 @@ export function storageRoom(node: Readonly<StorageNode>): number {
 /** How many items, of every type together, `node` holds. */
 export function storedCount(node: Readonly<StorageNode>): number {
   let total = 0;
-  for (const count of Object.values(node.items)) total += count;
+  for (const run of node.items) total += run.count;
   return total;
 }
 
-/** Everything the storage nodes hold, summed: the global stock (FR68). */
-export function sumStock(nodes: ReadonlyMap<NodeId, FactoryNode>): ItemCounts {
+/** What `node` holds, counted by type. */
+export function storedItems(node: Readonly<StorageNode>): ItemCounts {
+  const counts: ItemCounts = {};
+  for (const { item, count } of node.items) {
+    counts[item] = (counts[item] ?? 0) + count;
+  }
+  return counts;
+}
+
+/**
+ * Puts `count` of `item` into `node`, behind what it already holds. The
+ * caller has checked `storageRoom`.
+ */
+export function store(node: StorageNode, item: ItemId, count: number): void {
+  const last = node.items.at(-1);
+  if (last?.item === item) last.count += count;
+  else node.items.push({ item, count });
+}
+
+/**
+ * Takes the item that has waited longest out of `node`, if it holds any: a
+ * storage node with an output delivers in order of arrival (FR29).
+ */
+export function takeOldest(node: StorageNode): ItemId | undefined {
+  const first = node.items[0];
+  if (!first) return undefined;
+  if (--first.count === 0) node.items.shift();
+  return first.item;
+}
+
+/** True when every storage node is full, so the factory backs up (FR73). */
+export function isStorageFull(
+  nodes: ReadonlyMap<NodeId, FactoryNode>,
+): boolean {
+  for (const node of nodes.values()) {
+    if (isStorage(node) && storageRoom(node) > 0) return false;
+  }
+  return true;
+}
+
+/**
+ * Everything the storage nodes that pass `include` hold, summed: by default
+ * the global stock (FR68).
+ */
+export function sumStock(
+  nodes: ReadonlyMap<NodeId, FactoryNode>,
+  include: (node: StorageNode) => boolean = () => true,
+): ItemCounts {
   const stock: ItemCounts = {};
   for (const node of nodes.values()) {
-    if (isStorage(node)) addCounts(stock, node.items);
+    if (isStorage(node) && include(node)) {
+      addCounts(stock, storedItems(node));
+    }
   }
   return stock;
 }
 
 /**
- * True when storage holds all of `cost`. It sums the storage nodes rather
- * than reading the cache, which lags the commands applied earlier this tick.
+ * True when a storage node gives to construction: every one but a Box the
+ * player marked "não usar em construção" (FR71).
+ */
+function buildsFrom(node: StorageNode): boolean {
+  return node.kind === "core" || !node.noConstruction;
+}
+
+/**
+ * True when the storage construction draws from holds all of `cost`. It
+ * sums the storage nodes rather than reading the cache, which lags the
+ * commands applied earlier this tick and counts the Boxes kept out of
+ * construction.
  */
 export function canAfford(state: Readonly<GameState>, cost: Cost): boolean {
-  const stock = sumStock(state.nodes);
+  const stock = sumStock(state.nodes, buildsFrom);
   return itemEntries(cost).every(
     ([item, count]) => (stock[item] ?? 0) >= count,
   );
@@ -64,7 +122,8 @@ export function canAfford(state: Readonly<GameState>, cost: Cost): boolean {
 /**
  * The storage nodes in the order construction draws from them for a site at
  * `site` (FR70): warehouses, which have no output edge, before buffers, and
- * the nearest first within each group. Ties go to the lower id.
+ * the nearest first within each group. Ties go to the lower id. Boxes kept
+ * out of construction are left out, of payments and refunds alike (FR71).
  */
 export function storageOrder(state: GameState, site: Rect): StorageNode[] {
   const feeding = new Set<NodeId>();
@@ -75,6 +134,7 @@ export function storageOrder(state: GameState, site: Rect): StorageNode[] {
   });
   return [...state.nodes.values()]
     .filter(isStorage)
+    .filter(buildsFrom)
     .map((node) => ({ node, ...key(node) }))
     .sort(
       (a, b) =>
@@ -100,9 +160,8 @@ export function debit(state: GameState, cost: Cost, site: Rect): Draw[] {
   for (const [item, count] of itemEntries(cost)) {
     let left = count;
     for (const storage of order) {
-      const take = Math.min(left, storage.items[item] ?? 0);
+      const take = withdraw(storage, item, left);
       if (take === 0) continue;
-      withdraw(storage, item, take);
       draws.push({ storage: storage.id, item, count: take });
       left -= take;
       if (left === 0) break;
@@ -124,7 +183,7 @@ export function deposit(state: GameState, items: Cost, site: Rect): ItemCounts {
     for (const storage of order) {
       const put = Math.min(left, storageRoom(storage));
       if (put <= 0) continue;
-      storage.items[item] = (storage.items[item] ?? 0) + put;
+      store(storage, item, put);
       stored[item] = (stored[item] ?? 0) + put;
       left -= put;
       if (left === 0) break;
@@ -133,10 +192,21 @@ export function deposit(state: GameState, items: Cost, site: Rect): ItemCounts {
   return stored;
 }
 
-function withdraw(storage: StorageNode, item: ItemId, count: number): void {
-  const left = storage.items[item]! - count;
-  if (left > 0) storage.items[item] = left;
-  else delete storage.items[item];
+/**
+ * Takes up to `count` of `item` out of `storage`, the longest-held first,
+ * and returns how many it took.
+ */
+function withdraw(storage: StorageNode, item: ItemId, count: number): number {
+  let left = count;
+  for (const run of storage.items) {
+    if (run.item !== item) continue;
+    const take = Math.min(left, run.count);
+    run.count -= take;
+    left -= take;
+    if (left === 0) break;
+  }
+  storage.items = storage.items.filter((run) => run.count > 0);
+  return count - left;
 }
 
 /** Squared distance between the centres of two rects, in cells. */

@@ -27,6 +27,7 @@ import {
 } from "../../../src/sim/state/ids";
 import { createNode } from "../../../src/sim/state/nodes";
 import { updateStock } from "../../../src/sim/systems/stock";
+import { isStorage, store } from "../../../src/sim/state/stock";
 import { tick } from "../../../src/sim/tick";
 import { fillCore } from "../support/stock";
 
@@ -350,7 +351,10 @@ describe("UpgradeEdge (FR58)", () => {
     const { state, id } = connected();
     state.edgeLevel = 3;
     const core = state.nodes.get(1 as NodeId)!;
-    if ("items" in core) core.items.circuit = 3;
+    if (isStorage(core)) {
+      core.items = core.items.filter((run) => run.item !== "circuit");
+      store(core, "circuit", 3);
+    }
     expect(new UpgradeEdge(id, 3).validate(state)).toEqual(fail("no_stock"));
   });
 

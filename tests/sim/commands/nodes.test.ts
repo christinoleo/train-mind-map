@@ -21,6 +21,7 @@ import {
 import { acceptItem } from "../../../src/sim/state/production";
 import { tick } from "../../../src/sim/tick";
 import { fillCore } from "../support/stock";
+import { createNode } from "../../../src/sim/state/nodes";
 
 // The MVP map: the Core at (59, 59), iron ore at (65, 58) 5×5, the water wall
 // in columns 76–95, and cells 12–107 revealed on both axes.
@@ -69,7 +70,7 @@ describe("the starting state", () => {
   it("holds the Core as node 1, empty, on the map's Core cells", () => {
     const state = createGameState(MVP_SCENARIO);
     expect([...state.nodes.values()]).toEqual([
-      { id: CORE_ID, kind: "core", x: 59, y: 59, items: {} },
+      { id: CORE_ID, kind: "core", x: 59, y: 59, items: [] },
     ]);
     expect(state.stock).toEqual({});
   });
@@ -277,13 +278,7 @@ describe("RemoveNode", () => {
     run(new PlaceNode("box", 45, 45));
     run(new RemoveNode(2 as NodeId));
     // Placed outside the queue, so the undo stack still ends in the removal.
-    state.nodes.set(3 as NodeId, {
-      id: 3 as NodeId,
-      kind: "box",
-      x: 46,
-      y: 46,
-      items: {},
-    });
+    state.nodes.set(3 as NodeId, createNode(3 as NodeId, "box", 46, 46));
     expect(commands.undo(state)).toEqual(fail("occupied"));
   });
 });
