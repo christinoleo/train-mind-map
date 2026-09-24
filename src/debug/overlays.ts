@@ -2,7 +2,7 @@ import { Container, Graphics } from "pixi.js";
 import { MAP_GEN } from "../data/mapgen";
 import { ringRect } from "../sim/state/map";
 import type { DeepReadonly } from "../render/readonly";
-import { CELL_PX, RESOURCE_STYLE, toWorld } from "../render/theme";
+import { CELL_PX, ITEM_STYLE, toWorld } from "../render/theme";
 import { buildPlanarIndex } from "../sim/geometry/planar";
 import type { GameState } from "../sim/state/gameState";
 import { nodeRect } from "../sim/state/nodes";
@@ -113,10 +113,10 @@ export function drawCoreRings(state: StateView): Container {
   g.stroke({ color: 0xffffff, alpha: 0.6, width: 2, pixelLine: true });
 
   const radii = [
-    { cells: MAP_GEN.starterDistance, color: RESOURCE_STYLE.coal.color },
+    { cells: MAP_GEN.starterDistance, color: ITEM_STYLE.coal.color },
     {
       cells: MAP_GEN.oilMinDistance,
-      color: RESOURCE_STYLE["crude-oil"].color,
+      color: ITEM_STYLE["crude-oil"].color,
     },
   ];
   // Distances are measured from the Core's edge, so each radius is the Core
