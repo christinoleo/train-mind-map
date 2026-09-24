@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { MAP_SIZE } from "../../../src/config/constants";
 import { MAP_GEN } from "../../../src/data/mapgen";
+import { rectDistance, type Rect } from "../../../src/sim/geometry/rect";
 import { generateMap } from "../../../src/sim/mapgen/generate";
 import { nextUint32, seedRng } from "../../../src/sim/mapgen/rng";
 import { createGameState } from "../../../src/sim/state/gameState";
 import {
+  cellIndex,
   cellRing,
-  rectDistance,
   revealedSize,
   Terrain,
   terrainAt,
   type GameMap,
-  type Rect,
 } from "../../../src/sim/state/map";
 import {
   deserializeState,
@@ -33,13 +33,15 @@ function randomSeeds(count: number): string[] {
 }
 
 function expectGuarantees(map: GameMap) {
-  for (const resource of ["iron-ore", "copper-ore", "coal", "stone"]) {
+  for (const resource of MAP_GEN.starterResources) {
     const nearest = Math.min(
       ...map.deposits
         .filter((d) => d.resource === resource)
         .map((d) => rectDistance(map.core, d)),
     );
-    expect(nearest, `${map.seed}: ${resource}`).toBeLessThanOrEqual(15);
+    expect(nearest, `${map.seed}: ${resource}`).toBeLessThanOrEqual(
+      MAP_GEN.starterDistance,
+    );
   }
 
   const oil = map.deposits.filter((d) => d.resource === "crude-oil");
@@ -48,21 +50,22 @@ function expectGuarantees(map: GameMap) {
     expect(
       rectDistance(map.core, d),
       `${map.seed}: oil`,
-    ).toBeGreaterThanOrEqual(40);
+    ).toBeGreaterThanOrEqual(MAP_GEN.oilMinDistance);
     for (const [x, y] of cells(d))
-      expect(cellRing(x, y)).toBeGreaterThanOrEqual(2);
+      expect(cellRing(x, y)).toBeGreaterThanOrEqual(MAP_GEN.oilMinRing);
   }
 
-  const taken = new Set(cells(map.core).map(([x, y]) => y * map.size + x));
+  const sizes = MAP_GEN.rings.flatMap((r) => r.depositSize);
+  const taken = new Set(cells(map.core).map(([x, y]) => cellIndex(x, y)));
   for (const d of map.deposits) {
-    expect(Math.min(d.w, d.h)).toBeGreaterThanOrEqual(3);
-    expect(Math.max(d.w, d.h)).toBeLessThanOrEqual(6);
+    expect(Math.min(d.w, d.h)).toBeGreaterThanOrEqual(Math.min(...sizes));
+    expect(Math.max(d.w, d.h)).toBeLessThanOrEqual(Math.max(...sizes));
     for (const [x, y] of cells(d)) {
-      expect(x >= 0 && x < map.size && y >= 0 && y < map.size).toBe(true);
+      expect(x >= 0 && x < MAP_SIZE && y >= 0 && y < MAP_SIZE).toBe(true);
       expect(terrainAt(map, x, y), `${map.seed}: water under deposit`).toBe(
         Terrain.Land,
       );
-      const key = y * map.size + x;
+      const key = cellIndex(x, y);
       expect(taken.has(key), `${map.seed}: overlap at ${x},${y}`).toBe(false);
       taken.add(key);
     }
@@ -72,7 +75,6 @@ function expectGuarantees(map: GameMap) {
 describe("map generation", () => {
   it("generates the full 120² map with ring 0 revealed", () => {
     const map = generateMap("full");
-    expect(map.size).toBe(MAP_SIZE);
     expect(map.terrain).toHaveLength(MAP_SIZE * MAP_SIZE);
     expect(map.terrain).toContain(Terrain.Water);
     expect(map.revealedRing).toBe(0);
@@ -91,6 +93,12 @@ describe("map generation", () => {
     expect(generateMap("same")).toEqual(generateMap("same"));
   });
 
+  it("keeps a known seed's map stable across releases", () => {
+    // Changing noise, rng use or placement order changes every map, saves
+    // included. Update this hash only on purpose.
+    expect(hashState(createGameState("pinned"))).toBe("75949f5161354");
+  });
+
   it("gives different maps for different seeds", () => {
     expect(generateMap("one")).not.toEqual(generateMap("two"));
   });
@@ -99,11 +107,12 @@ describe("map generation", () => {
     for (const seed of randomSeeds(200)) expectGuarantees(generateMap(seed));
   });
 
-  it("makes outer deposits larger", () => {
+  it("sizes each deposit by its ring", () => {
     for (const seed of randomSeeds(20)) {
       for (const d of generateMap(seed).deposits) {
-        if (cellRing(d.x, d.y) >= 2)
-          expect(Math.min(d.w, d.h)).toBeGreaterThanOrEqual(5);
+        const [min, max] = MAP_GEN.rings[cellRing(d.x, d.y)].depositSize;
+        expect(Math.min(d.w, d.h)).toBeGreaterThanOrEqual(min);
+        expect(Math.max(d.w, d.h)).toBeLessThanOrEqual(max);
       }
     }
   });
@@ -113,6 +122,7 @@ describe("map generation", () => {
     const params = {
       ...MAP_GEN,
       maxAttempts: 3,
+      starterResources: [],
       rings: [{ depositSize: [30, 30] as const, deposits: { stone: 1 } }],
     };
     expect(() => generateMap("impossible", params)).toThrow(/3 attempts/);

@@ -3,31 +3,23 @@ import {
   MAP_SIZE,
   RING_STEP,
 } from "../../config/constants";
-import type { RawResource } from "../../data/mapgen";
+import type { RawResource } from "../../data/items";
+import type { Rect } from "../geometry/rect";
 
 export const Terrain = { Land: 0, Water: 1 } as const;
 export type Terrain = (typeof Terrain)[keyof typeof Terrain];
-
-/** An axis-aligned block of cells: top-left cell, width and height. */
-export interface Rect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
 
 /** An infinite patch of one raw resource. */
 export interface Deposit extends Rect {
   resource: RawResource;
 }
 
-/** The generated map, as plain data so it saves as-is. */
+/** The generated map, as plain data so it saves as-is. It is `MAP_SIZE` square. */
 export interface GameMap {
   seed: string;
   /** The sub-seed attempt that passed the placement guarantees. */
   subSeed: number;
-  size: number;
-  /** One entry per cell, row by row: `terrain[y * size + x]`. */
+  /** One entry per cell, row by row: see `cellIndex`. */
   terrain: Terrain[];
   deposits: Deposit[];
   core: Rect;
@@ -35,8 +27,13 @@ export interface GameMap {
   revealedRing: number;
 }
 
+/** Index of cell (x, y) in the row-major `terrain` array. */
+export function cellIndex(x: number, y: number): number {
+  return y * MAP_SIZE + x;
+}
+
 export function terrainAt(map: GameMap, x: number, y: number): Terrain {
-  return map.terrain[y * map.size + x];
+  return map.terrain[cellIndex(x, y)];
 }
 
 /**
@@ -59,11 +56,4 @@ export function revealedSize(ring: number): number {
 
 export function isRevealed(map: GameMap, x: number, y: number): boolean {
   return cellRing(x, y) <= map.revealedRing;
-}
-
-/** The shortest distance between two rects, in cells; 0 when they touch. */
-export function rectDistance(a: Rect, b: Rect): number {
-  const dx = Math.max(0, b.x - (a.x + a.w), a.x - (b.x + b.w));
-  const dy = Math.max(0, b.y - (a.y + a.h), a.y - (b.y + b.h));
-  return Math.hypot(dx, dy);
 }

@@ -1,29 +1,46 @@
 import { MAP_SIZE } from "../../config/constants";
-import { MAP_GEN, RAW_RESOURCES, type MapGenParams } from "../../data/mapgen";
+import { RAW_RESOURCES } from "../../data/items";
+import { MAP_GEN, type MapGenParams } from "../../data/mapgen";
+import { assert } from "../assert";
+import { allCells, overlaps, rectDistance, type Rect } from "../geometry/rect";
 import {
+  cellIndex,
   cellRing,
-  rectDistance,
   revealedSize,
   Terrain,
   terrainAt,
   type GameMap,
-  type Rect,
 } from "../state/map";
 import { createValueNoise, fractalNoise } from "./noise";
 import { nextInt, seedRng, type RngState } from "./rng";
 
 /**
  * Generates the whole map from a seed. Each attempt uses the next sub-seed
- * until one passes the placement guarantees, so the same seed always gives the
- * same map.
+ * until every deposit finds a spot, so the same seed always gives the same map.
+ *
+ * Placement enforces the guarantees (FR7, FR8) by construction: the starter
+ * resources lie close to the Core, oil lies far from it, and no deposit sits on
+ * water, on the Core or on another deposit.
  */
 export function generateMap(
   seed: string,
   params: MapGenParams = MAP_GEN,
 ): GameMap {
+  const startingDeposits = params.rings[0]?.deposits ?? {};
+  for (const resource of params.starterResources) {
+    assert(
+      (startingDeposits[resource] ?? 0) > 0,
+      `starter resource ${resource} has no deposit in ring 0`,
+    );
+  }
+  params.rings
+    .slice(0, params.oilMinRing)
+    .forEach(({ deposits }, ring) =>
+      assert(!deposits["crude-oil"], `oil in ring ${ring}`),
+    );
   for (let subSeed = 0; subSeed < params.maxAttempts; subSeed++) {
     const map = tryGenerate(seed, subSeed, params);
-    if (map && meetsGuarantees(map, params)) return map;
+    if (map) return map;
   }
   throw new Error(
     `No map for seed "${seed}" met the guarantees in ${params.maxAttempts} attempts`,
@@ -41,7 +58,6 @@ function tryGenerate(
   const map: GameMap = {
     seed,
     subSeed,
-    size: MAP_SIZE,
     terrain: generateLakes(rng, params, core),
     deposits: [],
     core,
@@ -52,11 +68,11 @@ function tryGenerate(
     const { depositSize, deposits } = params.rings[ring];
     for (const resource of RAW_RESOURCES) {
       const count = deposits[resource] ?? 0;
+      const isOil = resource === "crude-oil";
       for (let i = 0; i < count; i++) {
         const isStarter =
           ring === 0 && i === 0 && params.starterResources.includes(resource);
-        const minDistance =
-          resource === "crude-oil" ? params.oilMinDistance : 0;
+        const minDistance = isOil ? params.oilMinDistance : 0;
         const maxDistance = isStarter ? params.starterDistance : Infinity;
         const rect = placeDeposit(rng, map, params, ring, depositSize, (r) => {
           const distance = rectDistance(map.core, r);
@@ -79,16 +95,13 @@ function generateLakes(
   const terrain: Terrain[] = new Array(MAP_SIZE * MAP_SIZE);
   for (let y = 0; y < MAP_SIZE; y++) {
     for (let x = 0; x < MAP_SIZE; x++) {
-      const value = noise(
-        (x + 0.5) / params.lakeScale,
-        (y + 0.5) / params.lakeScale,
-      );
       const nearCore =
         rectDistance(core, { x, y, w: 1, h: 1 }) <= params.coreClearance;
-      terrain[y * MAP_SIZE + x] =
-        value > params.lakeThreshold && !nearCore
-          ? Terrain.Water
-          : Terrain.Land;
+      const isLake =
+        !nearCore &&
+        noise((x + 0.5) / params.lakeScale, (y + 0.5) / params.lakeScale) >
+          params.lakeThreshold;
+      terrain[cellIndex(x, y)] = isLake ? Terrain.Water : Terrain.Land;
     }
   }
   return terrain;
@@ -125,27 +138,6 @@ function placeDeposit(
   return null;
 }
 
-function allCells(
-  rect: Rect,
-  test: (x: number, y: number) => boolean,
-): boolean {
-  for (let y = rect.y; y < rect.y + rect.h; y++) {
-    for (let x = rect.x; x < rect.x + rect.w; x++) {
-      if (!test(x, y)) return false;
-    }
-  }
-  return true;
-}
-
-function overlaps(a: Rect, b: Rect, gap = 0): boolean {
-  return (
-    a.x < b.x + b.w + gap &&
-    b.x < a.x + a.w + gap &&
-    a.y < b.y + b.h + gap &&
-    b.y < a.y + a.h + gap
-  );
-}
-
 /** No water under `rect`, and at least `gap` cells from the Core and deposits. */
 function isFree(map: GameMap, rect: Rect, gap: number): boolean {
   return (
@@ -153,33 +145,4 @@ function isFree(map: GameMap, rect: Rect, gap: number): boolean {
     !overlaps(rect, map.core, gap) &&
     map.deposits.every((d) => !overlaps(rect, d, gap))
   );
-}
-
-/**
- * The placement guarantees (FR7, FR8): the starter resources lie close to the
- * Core, oil lies far from it, and no deposit sits on water, on the Core or on
- * another deposit.
- */
-export function meetsGuarantees(map: GameMap, params: MapGenParams): boolean {
-  const starterNearby = params.starterResources.every((resource) =>
-    map.deposits.some(
-      (d) =>
-        d.resource === resource &&
-        rectDistance(map.core, d) <= params.starterDistance,
-    ),
-  );
-  const oilFarAway = map.deposits
-    .filter((d) => d.resource === "crude-oil")
-    .every(
-      (d) =>
-        rectDistance(map.core, d) >= params.oilMinDistance &&
-        allCells(d, (x, y) => cellRing(x, y) >= params.oilMinRing),
-    );
-  const clear = map.deposits.every(
-    (d, i) =>
-      allCells(d, (x, y) => terrainAt(map, x, y) === Terrain.Land) &&
-      !overlaps(d, map.core) &&
-      map.deposits.every((other, j) => i === j || !overlaps(d, other)),
-  );
-  return starterNearby && oilFarAway && clear;
 }
