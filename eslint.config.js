@@ -1,5 +1,6 @@
 import js from "@eslint/js";
 import prettier from "eslint-plugin-prettier/recommended";
+import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
 
 // Layer boundaries (architecture §Estrutura do Projeto): the simulation stays
@@ -13,19 +14,11 @@ const SIM_FORBIDDEN_LAYERS = [
   "debug",
 ];
 
-export default tseslint.config(
+export default defineConfig(
   { ignores: ["dist", ".claude", "_bmad", "_bmad-output", ".worktree"] },
   {
-    extends: [
-      js.configs.recommended,
-      ...tseslint.configs.recommended,
-      prettier,
-    ],
+    extends: [js.configs.recommended, tseslint.configs.recommended, prettier],
     files: ["**/*.{js,ts,tsx}"],
-    languageOptions: {
-      ecmaVersion: "latest",
-      sourceType: "module",
-    },
   },
   {
     files: ["src/sim/**/*.{ts,tsx}"],
@@ -33,17 +26,11 @@ export default tseslint.config(
       "no-restricted-imports": [
         "error",
         {
-          paths: [
-            {
-              name: "pixi.js",
-              message: "src/sim/ must not depend on rendering.",
-            },
-            { name: "preact", message: "src/sim/ must not depend on UI." },
-          ],
           patterns: [
             {
-              group: ["pixi.js/*", "@pixi/*", "preact/*", "@preact/*"],
-              message: "src/sim/ must not depend on rendering or UI.",
+              // Any bare package (pixi.js, preact, idb-keyval, ...) is off limits.
+              regex: "^[^.]",
+              message: "src/sim/ must not depend on external packages.",
             },
             {
               group: SIM_FORBIDDEN_LAYERS.flatMap((layer) => [

@@ -7,6 +7,6 @@ await app.init({
   preference: "webgl",
   antialias: true,
   autoDensity: true,
-  resolution: window.devicePixelRatio,
+  resolution: Math.min(window.devicePixelRatio, 2),
 });
 document.getElementById("pixi-container")!.appendChild(app.canvas);

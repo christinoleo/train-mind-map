@@ -13,6 +13,7 @@ describe("src/sim/ layer boundary", () => {
     'import { Application } from "pixi.js";',
     'import { h } from "preact";',
     'import { signal } from "@preact/signals";',
+    'import { get } from "idb-keyval";',
     'import { a } from "../../render/app";',
     'import { a } from "../../ui/hud";',
     'import { a } from "../../input/camera";',
