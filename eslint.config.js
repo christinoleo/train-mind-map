@@ -59,6 +59,25 @@ export default defineConfig(
   {
     files: ["src/sim/**/*.{js,ts,tsx}"],
     plugins: { layers: { rules: { "sim-boundary": simBoundary } } },
-    rules: { "layers/sim-boundary": "error" },
+    rules: {
+      "layers/sim-boundary": "error",
+      // Time and randomness enter the simulation as parameters (ADR-0002).
+      "no-restricted-properties": [
+        "error",
+        ...[
+          ["Math", "random"],
+          ["performance", "now"],
+        ].map(([object, property]) => ({
+          object,
+          property,
+          message:
+            "src/sim/ must stay deterministic: use the seeded rng or the tick.",
+        })),
+      ],
+      "no-restricted-globals": [
+        "error",
+        { name: "Date", message: "src/sim/ must not read the clock." },
+      ],
+    },
   },
 );
