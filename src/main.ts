@@ -3,6 +3,7 @@ import { HINT_MS, UI_PUBLISH_MS } from "./config/constants";
 import { h, render } from "preact";
 import { ITEMS, type ItemCounts } from "./data/items";
 import type { NodeKind } from "./data/nodes";
+import { FINAL_RESEARCH, type ResearchId } from "./data/research";
 import { MVP_SCENARIO } from "./data/scenarios/mvp";
 import { Camera } from "./input/camera";
 import { Controls, type Tool } from "./input/controls";
@@ -20,6 +21,7 @@ import { RemoveEdge } from "./sim/commands/removeEdge";
 import { RemoveNode } from "./sim/commands/removeNode";
 import { SetBoxConstruction } from "./sim/commands/setBoxConstruction";
 import { SetRecipe } from "./sim/commands/setRecipe";
+import { SetResearch } from "./sim/commands/setResearch";
 import { UpgradeEdge } from "./sim/commands/upgradeEdge";
 import { UpgradeNode } from "./sim/commands/upgradeNode";
 import { EventQueue } from "./sim/events";
@@ -31,6 +33,7 @@ import { isStorageFull } from "./sim/state/stock";
 import { tick } from "./sim/tick";
 import { edgeMenuInfo, type EdgeMenuInfo } from "./ui/EdgeMenu";
 import { nodeMenuInfo, type NodeMenuInfo } from "./ui/NodeMenu";
+import { researchInfo, type ResearchInfo } from "./ui/ResearchPanel";
 import { UiRoot } from "./ui/UiRoot";
 
 // Installed first so boot failures, map generation included, show the crash
@@ -68,10 +71,24 @@ const selectedNode = signal<NodeId | null>(null);
 const nodeMenu = signal<NodeMenuInfo | null>(null);
 const storageFull = signal(false);
 const canUndo = signal(false);
+const research = signal<ResearchInfo>(researchInfo(state));
+/** The research completed last, shown for a moment. */
+const completed = signal<ResearchId | null>(null);
+/** True while the end-of-content notice is open (FR110). */
+const ended = signal(false);
 let published = -Infinity;
 let lastFrame = performance.now();
 events.on("ConstructionPaid", renderer.showConstruction);
 events.on("ManualTapped", renderer.showTap);
+let completedTimer: number | undefined;
+// The research jingle plays here too, once there is audio (FR116).
+events.on("ResearchDone", (event) => {
+  completed.value = event.research;
+  window.clearTimeout(completedTimer);
+  completedTimer = window.setTimeout(() => (completed.value = null), HINT_MS);
+  if (event.research === FINAL_RESEARCH) ended.value = true;
+  publishResearch();
+});
 const placeTool = new PlaceTool({
   state,
   camera,
@@ -199,6 +216,14 @@ function publishMenu<Id, Info>(
   if (JSON.stringify(info) !== JSON.stringify(menu.peek())) menu.value = info;
 }
 
+/** Publishes the research panel's contents when they changed. */
+function publishResearch() {
+  const info = researchInfo(state);
+  if (JSON.stringify(info) !== JSON.stringify(research.peek())) {
+    research.value = info;
+  }
+}
+
 function undo() {
   const result = commands.undo(state);
   if (!result.ok) flashHint(result.reason);
@@ -231,7 +256,8 @@ loop = createLoop({
       if (!sameCounts(stock.value, state.stock)) stock.value = state.stock;
       const summary = powerSummary(state.power);
       if (!samePower(power.value, summary)) power.value = summary;
-      storageFull.value = isStorageFull(state.nodes);
+      storageFull.value = isStorageFull(state);
+      publishResearch();
       published = now;
     }
   },
@@ -286,6 +312,13 @@ render(
       onClose: () => (selectedNode.value = null),
     },
     undo: { canUndo, onUndo: undo },
+    research: {
+      research,
+      onChoose(id) {
+        commands.dispatch(state, new SetResearch(id));
+      },
+    },
+    researchNotice: { completed, ended },
   }),
   document.getElementById("ui-root")!,
 );

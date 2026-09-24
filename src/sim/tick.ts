@@ -5,6 +5,7 @@ import { extraction } from "./systems/extraction";
 import { flow } from "./systems/flow";
 import { power } from "./systems/power";
 import { production } from "./systems/production";
+import { research } from "./systems/research";
 import { stamina } from "./systems/stamina";
 import { updateStock } from "./systems/stock";
 
@@ -28,6 +29,7 @@ export const SYSTEMS: readonly System[] = [
   extraction,
   production,
   flow,
+  research,
   updateStock,
 ];
 

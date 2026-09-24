@@ -9,6 +9,7 @@ import {
   type RecipeId,
 } from "../../data/recipes";
 import { GENERATOR } from "../../data/power";
+import { LAB, SCIENCE_PACKS } from "../../data/research";
 import { TICK_MS } from "../../config/constants";
 import type { Emit } from "../events";
 import type {
@@ -40,6 +41,8 @@ export function secondsToTicks(seconds: number): number {
 type Batch = Pick<Recipe, "inputs" | "output" | "count"> & { ticks: number };
 
 function batchOf(node: ProducerNode): Batch | undefined {
+  // A Lab makes nothing; the research system runs it.
+  if (node.kind === "lab") return undefined;
   if (node.kind === "extractor") {
     return {
       inputs: {},
@@ -81,10 +84,17 @@ function smeltingFor(item: ItemId): RecipeId | undefined {
  * Hands `item` to `node`'s input buffers, from any input connector (FR25).
  * The item enters only when the active recipe consumes it and its buffer,
  * 2× what one batch needs, has room (FR24). An empty Furnace switches to the
- * smelting recipe of whatever arrives. A Generator takes its fuel (FR67).
- * Returns whether the item entered.
+ * smelting recipe of whatever arrives. A Generator takes its fuel (FR67),
+ * and a Lab science packs (FR40). Returns whether the item entered.
  */
 export function acceptItem(node: FactoryNode, item: ItemId): boolean {
+  if (node.kind === "lab") {
+    const { input } = node.production;
+    const have = input[item] ?? 0;
+    if (!SCIENCE_PACKS.includes(item) || have >= LAB.buffer) return false;
+    input[item] = have + 1;
+    return true;
+  }
   if (node.kind === "generator") {
     if (item !== GENERATOR.fuel || node.fuel >= GENERATOR.buffer) return false;
     node.fuel++;

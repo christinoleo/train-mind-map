@@ -152,9 +152,9 @@ function take(node: FactoryNode, port: number, links: Links) {
 }
 
 /** Hands `item` to `node`; returns whether it entered. */
-function deliver(node: FactoryNode, item: ItemId): boolean {
+function deliver(state: GameState, node: FactoryNode, item: ItemId): boolean {
   if (!isStorage(node)) return acceptItem(node, item);
-  if (storageRoom(node) === 0) return false;
+  if (storageRoom(state, node) === 0) return false;
   store(node, item, 1);
   return true;
 }
@@ -197,7 +197,7 @@ export const flow: System = (state, { emit }) => {
     stepEdge(
       edge,
       () => take(from, edge.fromPort, links),
-      (item) => deliver(to, item),
+      (item) => deliver(state, to, item),
     );
   }
   for (const node of state.nodes.values()) {

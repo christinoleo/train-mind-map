@@ -53,6 +53,8 @@ export function createNode(
       return { id, kind, x, y, next: 0, blocked: false };
     case "generator":
       return { id, kind, x, y, fuel: 0, burn: 0 };
+    case "lab":
+      return { id, kind, x, y, production: newProduction() };
     default:
       return { id, kind, x, y };
   }

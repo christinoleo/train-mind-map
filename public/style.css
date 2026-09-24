@@ -424,3 +424,127 @@ canvas {
 .menu-toggle[aria-checked="true"] {
   background: rgba(245, 197, 66, 0.22);
 }
+
+/* The research button, at the bottom-right corner, mirroring undo. It glows
+   while no research is chosen, so idle Labs are noticed. */
+#ui-root > .research-toggle {
+  position: fixed;
+  right: 16px;
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(19, 22, 28, 0.94);
+  color: #e4e7ee;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+#ui-root > .research-toggle[data-idle="true"] {
+  box-shadow: 0 0 0 2px #f87171;
+}
+
+#ui-root > .research {
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+}
+
+.research-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.research-item {
+  align-items: stretch;
+  gap: 4px;
+  border: 2px solid transparent;
+}
+
+.research-item[aria-pressed="true"] {
+  border-color: #f5c542;
+}
+
+.research-item[data-status="done"] {
+  opacity: 0.7;
+}
+
+.research-name {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.research-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.research-fill {
+  display: block;
+  height: 100%;
+  background: #f87171;
+}
+
+/* A completed research, for a moment, under the HUD. */
+#ui-root > .research-done {
+  position: fixed;
+  top: calc(96px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(74, 222, 128, 0.92);
+  color: #15181f;
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* The end of the prototype's content (FR110): a card over the running game. */
+#ui-root > .research-end {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: min(320px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 20px;
+  border-radius: 12px;
+  background: rgba(19, 22, 28, 0.96);
+  color: #e4e7ee;
+  font-family: system-ui, sans-serif;
+  text-align: center;
+}
+
+.research-end h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.research-end p {
+  margin: 0;
+  color: #8a93a6;
+  font-size: 0.9rem;
+}
+
+.research-end button {
+  min-height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  background: #f5c542;
+  color: #15181f;
+  font: inherit;
+  font-weight: 700;
+}

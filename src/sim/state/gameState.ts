@@ -2,6 +2,7 @@ import type { EdgeLevel } from "../../data/edges";
 import type { ItemCounts, ItemId, RawResource } from "../../data/items";
 import {
   STARTING_NODES,
+  STORAGE_CAPACITY,
   type NodeKind,
   type StorageKind,
 } from "../../data/nodes";
@@ -21,6 +22,7 @@ import {
 import type { GameMap } from "./map";
 import { createNode } from "./nodes";
 import { newPower, type Power } from "./power";
+import { newResearch, type ResearchState } from "./research";
 import { newStamina, type Stamina } from "./stamina";
 import { sumStock } from "./stock";
 
@@ -89,6 +91,11 @@ export type FactoryNode = NodeBase &
         blocked: boolean;
       }
     | {
+        /** Its buffer holds science packs; a batch is one pack (FR40). */
+        kind: "lab";
+        production: Production;
+      }
+    | {
         kind: "generator";
         /** Fuel items waiting in the input buffer. */
         fuel: number;
@@ -104,12 +111,16 @@ export type FactoryNode = NodeBase &
           | "generator"
           | "splitter"
           | "merger"
+          | "lab"
         >;
       }
   );
 
 /** A node that makes items. */
 export type ProducerNode = Extract<FactoryNode, { production: Production }>;
+
+/** A Lab, which consumes science packs for the active research (FR40). */
+export type LabNode = Extract<FactoryNode, { kind: "lab" }>;
 
 /** A node that burns fuel for power (FR32). */
 export type GeneratorNode = Extract<FactoryNode, { kind: "generator" }>;
@@ -162,6 +173,10 @@ export interface GameState {
   tapLevel: number;
   /** The highest edge level research has unlocked (Epic 4). */
   edgeLevel: EdgeLevel;
+  /** Items each storage kind holds; Caixas extras raises the Box's. */
+  storageCapacity: Record<StorageKind, number>;
+  /** The researches done and under way (FR109). */
+  research: ResearchState;
   /**
    * The global stock: everything the storage nodes hold, summed. A derived
    * cache, recomputed at the end of each tick and never saved.
@@ -197,6 +212,8 @@ export function createGameState(world: string | Scenario): GameState {
     stamina: newStamina(),
     tapLevel: 0,
     edgeLevel: 1,
+    storageCapacity: { ...STORAGE_CAPACITY },
+    research: newResearch(),
     stock: sumStock(nodes),
     power: newPower(),
   };
