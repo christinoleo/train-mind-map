@@ -12,7 +12,6 @@ import {
   footprint,
   isUnlocked,
 } from "../state/nodes";
-import { topologyChanged } from "../state/power";
 import { canAfford, debit } from "../state/stock";
 import type { Command } from "./command";
 import { RemoveNode } from "./removeNode";
@@ -68,7 +67,6 @@ export class PlaceNode implements Command {
       id,
       createNode(id, kind, x, y, { resource: fits.value, recipe: this.recipe }),
     );
-    topologyChanged(state);
     this.placed = id;
     emit({ type: "ConstructionPaid", site, draws });
   }

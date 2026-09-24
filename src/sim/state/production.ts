@@ -32,7 +32,7 @@ export function isCrafter(node: FactoryNode): node is CrafterNode {
   return isCrafterKind(node.kind);
 }
 
-function secondsToTicks(seconds: number): number {
+export function secondsToTicks(seconds: number): number {
   return Math.round((seconds * 1000) / TICK_MS);
 }
 

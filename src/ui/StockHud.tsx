@@ -88,8 +88,8 @@ function PowerMeter({ power }: { power: ReadonlySignal<PowerSummary> }) {
   const { supply, demand, short } = power.value;
   const numbers = `${formatCount(demand)}/${formatCount(supply)}`;
   const label = `${text.power}: ${text.powerUse} ${numbers}${short ? ` (${text.powerShort})` : ""}`;
-  const load =
-    supply === 0 ? (demand > 0 ? 1 : 0) : Math.min(1, demand / supply);
+  // With no supply, any demand fills the bar: x / 0 is Infinity.
+  const load = demand === 0 ? 0 : Math.min(1, demand / supply);
   return (
     <div class="power" title={label} data-short={short}>
       <span class="power-glyph" aria-hidden="true">

@@ -4,7 +4,7 @@ import type { Rect } from "../sim/geometry/rect";
 import type { Edge, GameState } from "../sim/state/gameState";
 import type { EdgeId, NodeId } from "../sim/state/ids";
 import { nodeRect } from "../sim/state/nodes";
-import { isShort } from "../sim/state/power";
+import { isShort, meshOfEdge } from "../sim/state/power";
 import type { Camera } from "../input/camera";
 import type { EdgePreview } from "../input/tools/connect";
 import type { Ghost } from "../input/tools/place";
@@ -129,7 +129,7 @@ export function createRenderer(
 
   /** True when the mesh an edge conducts power in is short (FR65). */
   const isEdgeShort = (edge: DeepReadonly<Edge>) => {
-    const mesh = state.power.meshOf.get(edge.from);
+    const mesh = meshOfEdge(state.power, edge);
     return mesh !== undefined && isShort(mesh);
   };
 

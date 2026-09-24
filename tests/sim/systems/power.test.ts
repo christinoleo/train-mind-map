@@ -6,6 +6,7 @@ import type { SimEvent } from "../../../src/sim/events";
 import {
   createGameState,
   type GameState,
+  type GeneratorNode,
   type ProducerNode,
 } from "../../../src/sim/state/gameState";
 import { allocateId, type NodeId } from "../../../src/sim/state/ids";
@@ -16,7 +17,6 @@ import {
   powerSummary,
   satisfactionOf,
   topologyChanged,
-  type GeneratorNode,
 } from "../../../src/sim/state/power";
 import { acceptItem, takeOutput } from "../../../src/sim/state/production";
 import {

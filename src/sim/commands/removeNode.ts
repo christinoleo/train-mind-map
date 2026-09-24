@@ -6,10 +6,8 @@ import { fail, ok, type Result } from "../result";
 import { checkRestore, edgesOf } from "../state/edges";
 import type { Edge, FactoryNode, GameState } from "../state/gameState";
 import type { NodeId } from "../state/ids";
-import { checkFootprint, nodeRect } from "../state/nodes";
-import { topologyChanged } from "../state/power";
-import { isProducer, newProduction } from "../state/production";
-import { canAfford, debit, deposit, isStorage } from "../state/stock";
+import { checkFootprint, emptied, nodeRect } from "../state/nodes";
+import { canAfford, debit, deposit } from "../state/stock";
 import type { Command } from "./command";
 import { putBackEdge, takeOutEdge } from "./removeEdge";
 
@@ -45,7 +43,6 @@ export class RemoveNode implements Command {
     const attached = edgesOf(state, this.id);
     // The node goes first, so no refund lands in the storage being removed.
     state.nodes.delete(this.id);
-    topologyChanged(state);
     this.edges = attached.map((edge) => ({
       edge,
       refunded: takeOutEdge(state, edge),
@@ -91,14 +88,10 @@ class RestoreNode implements Command {
   }
 
   apply(state: GameState, emit: Emit) {
-    const node = structuredClone(this.node);
-    if (isProducer(node)) node.production = newProduction();
-    if (isStorage(node)) node.items = {};
-    if (node.kind === "generator") node.fuel = node.burn = 0;
+    const node = emptied(this.node);
     const site = nodeRect(node);
     const draws = debit(state, this.refunded, site);
     state.nodes.set(node.id, node);
-    topologyChanged(state);
     emit({ type: "ConstructionPaid", site, draws });
     for (const { edge, refunded } of this.edges) {
       putBackEdge(state, edge, refunded, emit);

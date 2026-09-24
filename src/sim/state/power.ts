@@ -1,7 +1,7 @@
 import { CORE_POWER, GENERATOR, POWER_DEMAND } from "../../data/power";
-import { TICK_MS } from "../../config/constants";
-import type { FactoryNode, GameState } from "./gameState";
+import type { Edge, FactoryNode, GameState, GeneratorNode } from "./gameState";
 import type { NodeId } from "./ids";
+import { secondsToTicks } from "./production";
 
 /**
  * A connected group of nodes joined by edges, which shares one power supply
@@ -28,19 +28,17 @@ export interface Power {
   dirty: boolean;
 }
 
-export type GeneratorNode = Extract<FactoryNode, { kind: "generator" }>;
-
 export function newPower(): Power {
   return { meshes: [], meshOf: new Map(), dirty: true };
 }
 
-/** Marks the meshes stale; every command that adds or removes a node or edge calls it. */
+/** Marks the meshes stale; the command queue calls it after every command. */
 export function topologyChanged(state: GameState): void {
   state.power.dirty = true;
 }
 
 /** Ticks one fuel item burns for. */
-export const BURN_TICKS = Math.round((GENERATOR.seconds * 1000) / TICK_MS);
+export const BURN_TICKS = secondsToTicks(GENERATOR.seconds);
 
 /**
  * Groups the nodes into meshes with a union-find over the edges (FR61). The
@@ -85,16 +83,11 @@ export function buildMeshes(state: Readonly<GameState>): Power {
  * The ⚡ `node` drew in the previous tick: its rate while it was operating,
  * neither starved nor blocked (FR63, FR64), and nothing otherwise.
  */
-export function demandOf(node: FactoryNode): number {
+function demandOf(node: FactoryNode): number {
   const rate = POWER_DEMAND[node.kind] ?? 0;
   if (rate === 0 || !("production" in node)) return 0;
   const { status } = node.production;
   return status === "starved" || status === "blocked" ? 0 : rate;
-}
-
-/** True when the Generator has fuel burning or waiting in its buffer. */
-function canBurn(node: Readonly<GeneratorNode>): boolean {
-  return node.burn > 0 || node.fuel > 0;
 }
 
 /**
@@ -124,7 +117,8 @@ export function powerMesh(state: GameState, mesh: Mesh): void {
     const node = state.nodes.get(id)!;
     if (node.kind === "core") supply += CORE_POWER;
     else if (node.kind === "generator") {
-      const runs = demand > 0 ? burn(node) : canBurn(node);
+      // With nothing drawing, it runs only while it has fuel to burn.
+      const runs = demand > 0 ? burn(node) : node.burn > 0 || node.fuel > 0;
       if (runs) supply += GENERATOR.power;
     }
   }
@@ -141,9 +135,17 @@ export function satisfactionOf(state: Readonly<GameState>, id: NodeId): number {
 
 /** True when `mesh` draws more than it gets (FR65). */
 export function isShort(
-  mesh: Readonly<Pick<Mesh, "satisfaction" | "demand">>,
+  mesh: Readonly<Pick<Mesh, "supply" | "demand">>,
 ): boolean {
-  return mesh.satisfaction < 1 && mesh.demand > 0;
+  return mesh.demand > mesh.supply;
+}
+
+/** The mesh `edge` conducts power in: the one its nodes share. */
+export function meshOfEdge<M>(
+  power: { readonly meshOf: ReadonlyMap<NodeId, M> },
+  edge: Readonly<Pick<Edge, "from">>,
+): M | undefined {
+  return power.meshOf.get(edge.from);
 }
 
 /** What the HUD's ⚡ meter shows: every mesh added up (FR131). */

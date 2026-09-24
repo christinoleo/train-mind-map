@@ -6,8 +6,9 @@ import { CELL_PX, RESOURCE_STYLE, toWorld } from "../render/theme";
 import { buildPlanarIndex } from "../sim/geometry/planar";
 import type { GameState } from "../sim/state/gameState";
 import { nodeRect } from "../sim/state/nodes";
-import { isShort } from "../sim/state/power";
+import { isShort, meshOfEdge } from "../sim/state/power";
 import { edgeLineOf } from "../render/connectors";
+import { strokeLine } from "../render/edges";
 
 type StateView = DeepReadonly<GameState>;
 
@@ -157,9 +158,12 @@ const MESH_COLORS = [
  */
 export function drawPowerMeshes(state: StateView): Container {
   const g = new Graphics({ label: "overlay:power-meshes" });
-  const { meshes, meshOf } = state.power;
-  meshes.forEach((mesh, i) => {
-    const color = MESH_COLORS[i % MESH_COLORS.length];
+  const { meshes } = state.power;
+  const colorOf = new Map(
+    meshes.map((mesh, i) => [mesh, MESH_COLORS[i % MESH_COLORS.length]]),
+  );
+  for (const [mesh, color] of colorOf) {
+    const short = isShort(mesh);
     for (const id of mesh.nodes) {
       const node = state.nodes.get(id);
       if (!node) continue;
@@ -167,21 +171,18 @@ export function drawPowerMeshes(state: StateView): Container {
       g.rect(r.x, r.y, r.w, r.h)
         .fill({ color, alpha: 0.25 })
         .stroke({ color, width: 2 });
-      if (isShort(mesh)) {
+      if (short) {
         g.moveTo(r.x, r.y)
           .lineTo(r.x + r.w, r.y + r.h)
           .stroke({ color, width: 2 });
       }
     }
-  });
+  }
   for (const edge of state.edges.values()) {
-    const mesh = meshOf.get(edge.from);
+    const mesh = meshOfEdge(state.power, edge);
     const line = edgeLineOf(edge, state.nodes);
     if (!mesh || !line) continue;
-    const color = MESH_COLORS[meshes.indexOf(mesh) % MESH_COLORS.length];
-    g.moveTo(line[0].x, line[0].y);
-    for (const p of line.slice(1)) g.lineTo(p.x, p.y);
-    g.stroke({ color, width: CELL_PX * 0.2, alpha: 0.9 });
+    strokeLine(g, line, colorOf.get(mesh)!, 0.9, CELL_PX * 0.2);
   }
   return g;
 }

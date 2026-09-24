@@ -11,7 +11,6 @@ import {
 } from "../state/edges";
 import type { GameState } from "../state/gameState";
 import { allocateId, type EdgeId } from "../state/ids";
-import { topologyChanged } from "../state/power";
 import { debit } from "../state/stock";
 import type { Command } from "./command";
 import { RemoveEdge } from "./removeEdge";
@@ -74,7 +73,6 @@ export class ConnectEdge implements Command {
       path: route.path,
       items: [],
     });
-    topologyChanged(state);
     this.built = id;
     emit({ type: "ConstructionPaid", site, draws });
   }

@@ -6,7 +6,6 @@ import { pathLength } from "../geometry/route";
 import { checkRestore, edgeCost, pathBounds } from "../state/edges";
 import type { Edge, GameState } from "../state/gameState";
 import type { EdgeId } from "../state/ids";
-import { topologyChanged } from "../state/power";
 import { canAfford, debit, deposit } from "../state/stock";
 import type { Command } from "./command";
 
@@ -16,7 +15,6 @@ import type { Command } from "./command";
  */
 export function takeOutEdge(state: GameState, edge: Edge): ItemCounts {
   state.edges.delete(edge.id);
-  topologyChanged(state);
   const cost = edgeCost(pathLength(edge.path), edge.level);
   return deposit(state, cost, pathBounds(edge.path));
 }
@@ -38,7 +36,6 @@ export function putBackEdge(
     path: structuredClone(edge.path),
     items: [],
   });
-  topologyChanged(state);
   emit({ type: "ConstructionPaid", site, draws });
 }
 
