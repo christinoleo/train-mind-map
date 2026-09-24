@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   drawCoreRings,
   drawHashBuckets,
+  drawPowerMeshes,
   OverlayManager,
 } from "../../src/debug/overlays";
 import { createGameState, resetGameState } from "../../src/sim/state/gameState";
+import { buildMeshes } from "../../src/sim/state/power";
 
 function setup() {
   const layer = new Container();
@@ -103,6 +105,17 @@ describe("drawHashBuckets", () => {
   it("shades the buckets that hold water or nodes", () => {
     const g = drawHashBuckets(createGameState("buckets"));
     expect(g.label).toBe("overlay:hash-buckets");
+    expect(g.getLocalBounds().width).toBeGreaterThan(0);
+  });
+});
+
+describe("drawPowerMeshes", () => {
+  it("colours the nodes of every mesh", () => {
+    const state = createGameState("meshes");
+    expect(drawPowerMeshes(state).getLocalBounds().width).toBe(0);
+    state.power = buildMeshes(state);
+    const g = drawPowerMeshes(state);
+    expect(g.label).toBe("overlay:power-meshes");
     expect(g.getLocalBounds().width).toBeGreaterThan(0);
   });
 });

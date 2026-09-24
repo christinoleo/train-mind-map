@@ -5,6 +5,10 @@ import type { DeepReadonly } from "../render/readonly";
 import { CELL_PX, RESOURCE_STYLE, toWorld } from "../render/theme";
 import { buildPlanarIndex } from "../sim/geometry/planar";
 import type { GameState } from "../sim/state/gameState";
+import { nodeRect } from "../sim/state/nodes";
+import { isShort, meshOfEdge } from "../sim/state/power";
+import { edgeLineOf } from "../render/connectors";
+import { strokeLine } from "../render/edges";
 
 type StateView = DeepReadonly<GameState>;
 
@@ -138,6 +142,47 @@ export function drawHashBuckets(state: StateView): Container {
     g.rect(r.x, r.y, r.w, r.h)
       .fill({ color: 0x4fc3f7, alpha: Math.min(0.5, 0.04 * count) })
       .stroke({ color: 0x4fc3f7, alpha: 0.7, width: 1, pixelLine: true });
+  }
+  return g;
+}
+
+/** Distinct hues for neighbouring meshes; they repeat past the eighth. */
+const MESH_COLORS = [
+  0xff6b6b, 0x4fc3f7, 0xffd54f, 0x81c784, 0xba68c8, 0xff8a65, 0x4db6ac,
+  0xf06292,
+];
+
+/**
+ * The power meshes (FR157): each mesh's nodes and edges in one colour, a
+ * short mesh's nodes crossed out.
+ */
+export function drawPowerMeshes(state: StateView): Container {
+  const g = new Graphics({ label: "overlay:power-meshes" });
+  const { meshes } = state.power;
+  const colorOf = new Map(
+    meshes.map((mesh, i) => [mesh, MESH_COLORS[i % MESH_COLORS.length]]),
+  );
+  for (const [mesh, color] of colorOf) {
+    const short = isShort(mesh);
+    for (const id of mesh.nodes) {
+      const node = state.nodes.get(id);
+      if (!node) continue;
+      const r = toWorld(nodeRect(node));
+      g.rect(r.x, r.y, r.w, r.h)
+        .fill({ color, alpha: 0.25 })
+        .stroke({ color, width: 2 });
+      if (short) {
+        g.moveTo(r.x, r.y)
+          .lineTo(r.x + r.w, r.y + r.h)
+          .stroke({ color, width: 2 });
+      }
+    }
+  }
+  for (const edge of state.edges.values()) {
+    const mesh = meshOfEdge(state.power, edge);
+    const line = edgeLineOf(edge, state.nodes);
+    if (!mesh || !line) continue;
+    strokeLine(g, line, colorOf.get(mesh)!, 0.9, CELL_PX * 0.2);
   }
   return g;
 }

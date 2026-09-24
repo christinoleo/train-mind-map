@@ -6,6 +6,7 @@ import { EventQueue, type SimEvent } from "../../../src/sim/events";
 import { ok } from "../../../src/sim/result";
 import { createGameState } from "../../../src/sim/state/gameState";
 import type { NodeId } from "../../../src/sim/state/ids";
+import { topologyChanged } from "../../../src/sim/state/power";
 import { tick } from "../../../src/sim/tick";
 import { AddNode, bareNode, RemoveNode } from "../support/testCommands";
 
@@ -157,6 +158,7 @@ describe("undo", () => {
     state.nodes.set(id, bareNode(id));
     expect(commands.undo(state).ok).toBe(true);
     state.nodes.delete(id);
+    topologyChanged(state);
     step();
 
     expect(seen).toEqual([

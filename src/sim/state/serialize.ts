@@ -1,10 +1,11 @@
 import type { GameState } from "./gameState";
+import { newPower } from "./power";
 import { sumStock } from "./stock";
 
 type Pairs<T> = T extends Map<infer K, infer V> ? [K, V][] : T;
 
-/** The state that is saved: all of it but the derived `stock` cache. */
-type SavedState = Omit<GameState, "stock">;
+/** The state that is saved: all of it but the derived caches. */
+type SavedState = Omit<GameState, "stock" | "power">;
 
 /** GameState with every Map stored as an array of pairs, so it survives JSON. */
 export type SerializedState = { [K in keyof SavedState]: Pairs<SavedState[K]> };
@@ -12,7 +13,7 @@ export type SerializedState = { [K in keyof SavedState]: Pairs<SavedState[K]> };
 /** The saved state with Maps as pairs, still sharing its data with `state`. */
 function toPairs(state: GameState): SerializedState {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { stock, ...saved } = state;
+  const { stock, power, ...saved } = state;
   return { ...saved, nodes: [...state.nodes], edges: [...state.edges] };
 }
 
@@ -28,6 +29,7 @@ export function deserializeState(data: SerializedState): GameState {
     nodes,
     edges: new Map(copy.edges),
     stock: sumStock(nodes),
+    power: newPower(),
   };
 }
 

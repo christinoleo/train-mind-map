@@ -46,9 +46,19 @@ export function createNode(
     case "core":
     case "box":
       return { id, kind, x, y, items: {} };
+    case "generator":
+      return { id, kind, x, y, fuel: 0, burn: 0 };
     default:
       return { id, kind, x, y };
   }
+}
+
+/** `node` as it was placed: the same id, place and setup, with every buffer empty. */
+export function emptied(node: Readonly<FactoryNode>): FactoryNode {
+  return createNode(node.id, node.kind, node.x, node.y, {
+    resource: "resource" in node ? node.resource : undefined,
+    recipe: "recipe" in node ? (node.recipe ?? undefined) : undefined,
+  });
 }
 
 /** True when `kind` may run `recipe`: a Furnace smelts, an Assembler assembles. */

@@ -3,6 +3,7 @@ import type { Emit } from "./events";
 import type { GameState } from "./state/gameState";
 import { extraction } from "./systems/extraction";
 import { flow } from "./systems/flow";
+import { power } from "./systems/power";
 import { production } from "./systems/production";
 import { stamina } from "./systems/stamina";
 import { updateStock } from "./systems/stock";
@@ -22,6 +23,7 @@ export type System = (state: GameState, ctx: SystemContext) => void;
  * Each is added here by the task that builds it.
  */
 export const SYSTEMS: readonly System[] = [
+  power,
   stamina,
   extraction,
   production,

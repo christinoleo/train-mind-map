@@ -47,6 +47,8 @@ export const PALETTE = {
   /** An edge's stroke, until the items on it tint it (Epic 3). */
   edge: 0xcfd5e2,
   edgeAlpha: 0.4,
+  /** An edge glows dimmer while its mesh is short of power (FR65). */
+  edgeShortAlpha: 0.15,
 } as const;
 
 /** A 0xRRGGBB colour as a CSS hex string, for DOM and canvas 2D use. */

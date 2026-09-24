@@ -6,9 +6,8 @@ import { fail, ok, type Result } from "../result";
 import { checkRestore, edgesOf } from "../state/edges";
 import type { Edge, FactoryNode, GameState } from "../state/gameState";
 import type { NodeId } from "../state/ids";
-import { checkFootprint, nodeRect } from "../state/nodes";
-import { isProducer, newProduction } from "../state/production";
-import { canAfford, debit, deposit, isStorage } from "../state/stock";
+import { checkFootprint, emptied, nodeRect } from "../state/nodes";
+import { canAfford, debit, deposit } from "../state/stock";
 import type { Command } from "./command";
 import { putBackEdge, takeOutEdge } from "./removeEdge";
 
@@ -89,9 +88,7 @@ class RestoreNode implements Command {
   }
 
   apply(state: GameState, emit: Emit) {
-    const node = structuredClone(this.node);
-    if (isProducer(node)) node.production = newProduction();
-    if (isStorage(node)) node.items = {};
+    const node = emptied(this.node);
     const site = nodeRect(node);
     const draws = debit(state, this.refunded, site);
     state.nodes.set(node.id, node);

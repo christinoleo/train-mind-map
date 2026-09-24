@@ -19,19 +19,25 @@ const CHIP_MARGIN_PX = 8;
 type EdgeView = DeepReadonly<Edge>;
 type NodeView = DeepReadonly<FactoryNode>;
 
+/** An unselected edge's opacity, dimmer while its mesh is short (FR65). */
+function edgeAlpha(short: boolean): number {
+  return short ? PALETTE.edgeShortAlpha : PALETTE.edgeAlpha;
+}
+
 /** Strokes `line` onto `g` as an edge: round joins and caps. */
-function strokeLine(
+export function strokeLine(
   g: Graphics,
   line: readonly Point[],
   color: number,
   alpha: number,
+  width = EDGE_WIDTH,
 ) {
   g.moveTo(line[0].x, line[0].y);
-  for (const p of line.slice(1)) g.lineTo(p.x, p.y);
+  for (let i = 1; i < line.length; i++) g.lineTo(line[i].x, line[i].y);
   return g.stroke({
     color,
     alpha,
-    width: EDGE_WIDTH,
+    width,
     join: "round",
     cap: "round",
   });
@@ -40,8 +46,8 @@ function strokeLine(
 /**
  * Keeps one translucent stroke per edge in `layer` (GDD §Arte), diffing the
  * state's edges against the drawn ones each frame. An edge is redrawn when
- * it, either of its nodes or the selection changes. The item tint comes with
- * the items (Epic 3).
+ * it, either of its nodes or the selection changes; its mesh's shortage only
+ * dims it. The item tint comes with the items (Epic 3).
  */
 export class EdgeViews {
   private readonly views = new Map<
@@ -61,6 +67,8 @@ export class EdgeViews {
     edges: ReadonlyMap<EdgeId, EdgeView>,
     nodes: ReadonlyMap<NodeId, NodeView>,
     selected: EdgeId | null,
+    /** True when the edge's mesh is short of power. */
+    isShort: (edge: EdgeView) => boolean,
   ) {
     for (const [id, view] of this.views) {
       const edge = edges.get(id);
@@ -72,6 +80,8 @@ export class EdgeViews {
       ) {
         view.g.destroy();
         this.views.delete(id);
+      } else if (!view.selected) {
+        view.g.alpha = edgeAlpha(isShort(edge));
       }
     }
     for (const [id, edge] of edges) {
@@ -85,8 +95,9 @@ export class EdgeViews {
         new Graphics({ label: `edge:${id}` }),
         line,
         isSelected ? PALETTE.output : PALETTE.edge,
-        isSelected ? 0.9 : PALETTE.edgeAlpha,
+        1,
       );
+      g.alpha = isSelected ? 0.9 : edgeAlpha(isShort(edge));
       this.layer.addChild(g);
       this.views.set(id, { edge, from, to, selected: isSelected, g });
     }
