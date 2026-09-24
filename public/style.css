@@ -1,0 +1,14 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background-color: #0b1e3a;
+  touch-action: none;
+}
+
+#pixi-container,
+canvas {
+  display: block;
+}

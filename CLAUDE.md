@@ -15,3 +15,13 @@ The five default triage labels are used as-is (`needs-triage`, `needs-info`, `re
 ### Domain docs
 
 Single context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+## Dev commands
+
+- `npm run dev`: start the Vite dev server on port 8080.
+- `npm run build`: type-check with `tsc`, then build the production bundle into `dist/`.
+- `npm run preview`: serve the production build locally.
+- `npm run lint`: run ESLint with Prettier. It also enforces the layer boundary: `src/sim/` may import only `sim/`, `data/` and `config/`.
+- `npm test`: run the Vitest suite once. Tests live in `tests/`, mirroring `src/`.
+
+CI (`.github/workflows/ci.yml`) runs lint, test and build on every push to `main` and every pull request. The official PixiJS agent skills are copied into `.claude/skills/pixijs*` from `node_modules/pixi.js/skills/`; refresh them after upgrading `pixi.js`.
