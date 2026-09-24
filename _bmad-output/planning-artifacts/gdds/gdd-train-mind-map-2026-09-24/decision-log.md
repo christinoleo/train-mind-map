@@ -120,3 +120,11 @@
 - **The touch prototype was tested on a real phone** (branch `prototype/touch-ux`). It compared three schemes: A, drag and hold 300 ms to pin a bend; B, automatic routing; C, tap by tap. **B won.**
 - **Edges are auto-routed** along the shortest orthogonal grid path, avoiding nodes, water and edges, with a deterministic tie-break. There is no manual bend editing: to change a route, recreate the edge or move nodes. Moving a node re-routes the attached edges and is refused if any edge becomes invalid. See ADR-0007.
 - **Confirmed as is:** 2×2 and 3×3 node footprints, connector hit areas of 44 px or more, a 500 ms long press to move, and two-finger pan and pinch with edge auto-pan.
+
+## 2026-09-24 — Rendering performance (wayfinder issue #3)
+
+- **Measured on a real iPhone** (iOS 18.7, 430×873 at 3× DPR; a newer model than the iPhone 11 reference), in a cross-origin iframe with the stress page from #17:
+  - **5,000 visible items + 20 trains, LOD off: 60.1 FPS average, 30.5 at the 1% low, p99 frame 20 ms, sim update 1.4 ms.** That is 5× the target load.
+  - The WebGL context-loss recovery works on both platforms (as reported by the designer).
+- **iOS Low Power Mode caps the game at 30 FPS.** With it on, 1,000 and 5,000 items both gave exactly 33.3 ms per frame, which confirms the cap is external.
+- **Decision:** the render architecture (a single Pixi app, `ParticleContainer`, culling, LOD) is confirmed with no changes. Galaxy A52 numbers are still wanted when that device is available, but they are not blocking.
