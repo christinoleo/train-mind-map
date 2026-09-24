@@ -20,8 +20,8 @@ export function takeOutEdge(state: GameState, edge: Edge): ItemCounts {
 }
 
 /**
- * Puts a removed edge back with its id, route and level, taking back what
- * its removal refunded.
+ * Puts a removed edge back, empty, with its id, route and level, taking back
+ * what its removal refunded.
  */
 export function putBackEdge(
   state: GameState,
@@ -31,7 +31,7 @@ export function putBackEdge(
 ): void {
   const site = pathBounds(edge.path);
   const draws = debit(state, refunded, site);
-  state.edges.set(edge.id, structuredClone(edge));
+  state.edges.set(edge.id, { ...structuredClone(edge), items: [] });
   emit({ type: "ConstructionPaid", site, draws });
 }
 

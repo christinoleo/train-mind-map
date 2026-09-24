@@ -71,6 +71,7 @@ export class ConnectEdge implements Command {
       toPort: this.to.port,
       level: NEW_EDGE_LEVEL,
       path: route.path,
+      items: [],
     });
     this.built = id;
     emit({ type: "ConstructionPaid", site, draws });

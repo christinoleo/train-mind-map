@@ -20,3 +20,9 @@ export const EDGE_CELL_COST: readonly Cost[] = [
 
 /** The level a new edge starts at; upgrades raise it in place (FR58). */
 export const NEW_EDGE_LEVEL: EdgeLevel = 1;
+
+/** Items per second an edge carries at each level, 1 to 3 (GDD §Arestas, FR55). */
+export const EDGE_THROUGHPUT = [2, 4, 8] as const;
+
+/** Speed of items along an edge, in cells per second (FR55). */
+export const ITEM_SPEED = 3;

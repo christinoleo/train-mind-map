@@ -72,3 +72,10 @@ export const MIN_TOUCH_PX = 44;
  * segments, node rects and water under every bucket they touch.
  */
 export const HASH_BUCKET_CELLS = 8;
+
+/**
+ * Integer steps per cell that item positions on edges count in. At 3 cells/s
+ * and 2, 4 or 8 items/s, both the distance an item moves per tick and the
+ * spacing between items come out whole, so flow stays exact.
+ */
+export const FLOW_UNITS_PER_CELL = 40;

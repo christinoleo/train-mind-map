@@ -2,6 +2,7 @@ import type { CommandQueue } from "./commands/commandQueue";
 import type { Emit } from "./events";
 import type { GameState } from "./state/gameState";
 import { extraction } from "./systems/extraction";
+import { flow } from "./systems/flow";
 import { production } from "./systems/production";
 import { stamina } from "./systems/stamina";
 import { updateStock } from "./systems/stock";
@@ -24,6 +25,7 @@ export const SYSTEMS: readonly System[] = [
   stamina,
   extraction,
   production,
+  flow,
   updateStock,
 ];
 

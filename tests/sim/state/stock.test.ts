@@ -72,6 +72,7 @@ function addOutputEdge(state: GameState, from: NodeId, to: NodeId) {
     toPort: 0,
     level: 1,
     path: [{ x: 0, y: 0 }],
+    items: [],
   });
 }
 
