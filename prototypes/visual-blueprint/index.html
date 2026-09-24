@@ -1,0 +1,303 @@
+<title>Blueprint Look Lab</title>
+<!-- PROTOTYPE — throwaway. Answers wayfinder ticket #7: "Blueprint visual language".
+     Three structurally different visual languages for the same factory scene, switchable with the bottom bar (#A / #B / #C).
+     Each shows node cards with states (working, blocked, starved, no power), edges carrying items at the chosen zoom level,
+     the HUD (global stock, power, stamina) and the node palette. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;600&family=Barlow+Semi+Condensed:wght@500;600;700&family=Saira+Stencil+One&family=Space+Mono:wght@400;700&display=swap">
+<style>
+  :root { color-scheme: dark; }
+  html, body { height: 100%; }
+  body { margin: 0; overflow: hidden; font-family: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
+  #board { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .ui { position: fixed; inset: 0; pointer-events: none; }
+  .ui > * { pointer-events: auto; }
+  button { font: inherit; min-height: 44px; min-width: 44px; cursor: pointer; touch-action: manipulation; }
+  button:focus-visible { outline: 2px solid #ffb547; outline-offset: 2px; }
+  .switcher { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(10px + env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; gap: 2px; background: #f3f7ff; color: #0b1e3a; border-radius: 999px; padding: 3px; box-shadow: 0 6px 20px rgba(0,0,0,.45); z-index: 10; max-width: calc(100% - 24px); }
+  .switcher button { background: transparent; border: none; color: #0b1e3a; border-radius: 999px; font-size: 17px; }
+  .switcher span { font-weight: 700; font-size: 14px; padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .zoom { position: fixed; right: 12px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; z-index: 5; }
+  .zoom button { border-radius: 6px; font-size: 13px; font-weight: 700; padding: 0 8px; }
+
+  /* ---------- Variant A: cyanotype technical drawing ---------- */
+  body.A { background: #123a73; color: #eaf3ff; }
+  .A .hud { position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); left: 12px; right: 12px; display: flex; gap: 8px; flex-wrap: wrap; font-family: "Space Mono", ui-monospace, monospace; font-size: 11px; }
+  .A .hud .cell { border: 1.5px solid #eaf3ff; padding: 5px 8px; background: rgba(18,58,115,.85); }
+  .A .hud .cell b { font-weight: 700; }
+  .A .hud .meter { display: inline-block; width: 60px; height: 7px; border: 1px solid #eaf3ff; vertical-align: middle; margin-left: 4px; position: relative; }
+  .A .hud .meter i { position: absolute; inset: 1px auto 1px 1px; background: #eaf3ff; }
+  .A .palette { position: fixed; left: 12px; bottom: calc(64px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 6px; }
+  .A .palette button { background: rgba(18,58,115,.9); color: #eaf3ff; border: 1.5px solid #eaf3ff; font-family: "Space Mono", monospace; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; text-align: left; padding: 0 10px; }
+  .A .zoom button { background: #123a73; color: #eaf3ff; border: 1.5px solid #eaf3ff; font-family: "Space Mono", monospace; }
+  .A .titleblock { position: fixed; right: 12px; bottom: calc(64px + env(safe-area-inset-bottom, 0px)); border: 1.5px solid #eaf3ff; font-family: "Space Mono", monospace; font-size: 9.5px; line-height: 1.5; padding: 6px 8px; background: rgba(18,58,115,.85); text-transform: uppercase; letter-spacing: .05em; }
+
+  /* ---------- Variant B: node-editor cards (Godot-like visual scripting) ---------- */
+  body.B { background: #1b1f27; color: #e4e7ee; }
+  .B .hud { position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); display: flex; gap: 14px; align-items: center; background: #262b36; border-radius: 12px; padding: 8px 14px; box-shadow: 0 6px 18px rgba(0,0,0,.35); font-size: 14px; font-weight: 600; max-width: calc(100% - 24px); overflow-x: auto; }
+  .B .hud .res { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .B .hud .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .B .hud .bar { width: 46px; height: 6px; background: #3a4150; border-radius: 3px; overflow: hidden; }
+  .B .hud .bar i { display: block; height: 100%; border-radius: 3px; }
+  .B .palette { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(62px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 8px; background: #262b36; padding: 6px; border-radius: 14px; box-shadow: 0 6px 18px rgba(0,0,0,.35); max-width: calc(100% - 24px); overflow-x: auto; }
+  .B .palette button { background: #323846; color: #e4e7ee; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 4px 10px; }
+  .B .palette button i { width: 26px; height: 5px; border-radius: 3px; display: block; }
+  .B .zoom button { background: #262b36; color: #e4e7ee; border: none; }
+
+  /* ---------- Variant C: schematic / CAD symbols ---------- */
+  body.C { background: #0a0d0c; color: #b8f5d0; }
+  .C .hud { position: fixed; top: 0; bottom: 0; left: 0; width: 118px; padding: calc(10px + env(safe-area-inset-top, 0px)) 10px 80px; background: linear-gradient(90deg, rgba(10,13,12,.96), rgba(10,13,12,.82)); border-right: 1px solid #1f3a2c; font-family: "Martian Mono", ui-monospace, monospace; font-size: 10px; display: flex; flex-direction: column; gap: 10px; }
+  .C .hud h2 { font-family: "Saira Stencil One", "Arial Narrow", sans-serif; font-weight: 400; font-size: 15px; margin: 0; color: #7dffb0; letter-spacing: .04em; }
+  .C .hud .row { display: flex; justify-content: space-between; border-bottom: 1px dashed #1f3a2c; padding-bottom: 3px; font-variant-numeric: tabular-nums; }
+  .C .hud .gauge { height: 6px; background: repeating-linear-gradient(90deg, #1f3a2c 0 4px, transparent 4px 6px); position: relative; }
+  .C .hud .gauge i { position: absolute; inset: 0 auto 0 0; background: repeating-linear-gradient(90deg, #7dffb0 0 4px, transparent 4px 6px); }
+  .C .palette { position: fixed; left: 0; width: 118px; bottom: calc(60px + env(safe-area-inset-bottom, 0px)); padding: 0 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .C .palette button { background: #0f1614; color: #b8f5d0; border: 1px solid #2b5a41; border-radius: 0; font-family: "Martian Mono", monospace; font-size: 9px; padding: 2px; }
+  .C .zoom button { background: #0f1614; color: #b8f5d0; border: 1px solid #2b5a41; border-radius: 0; font-family: "Martian Mono", monospace; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<canvas id="board"></canvas>
+<div class="ui" id="ui"></div>
+<div class="zoom" id="zoom"></div>
+<div class="switcher" role="group" aria-label="Variante do protótipo">
+  <button id="prev" type="button" aria-label="Variante anterior">◀</button>
+  <span id="vlabel"></span>
+  <button id="next" type="button" aria-label="Próxima variante">▶</button>
+</div>
+
+<script>
+"use strict";
+// ---------- shared scene (identical across variants) ----------
+// Items: colour + shape pairs so they stay distinguishable without colour (colour-blind safety).
+const ITEMS = {
+  iron_ore:   { name: "minério de ferro", color: "#9fb3c8", shape: "circle" },
+  copper_ore: { name: "minério de cobre", color: "#e8894a", shape: "circle" },
+  coal:       { name: "carvão", color: "#4a4f57", shape: "square" },
+  stone:      { name: "pedra", color: "#c9b28f", shape: "square" },
+  iron_plate: { name: "placa de ferro", color: "#d9e4f2", shape: "diamond" },
+  copper_plate:{ name: "placa de cobre", color: "#ff9d5c", shape: "diamond" },
+  gear:       { name: "engrenagem", color: "#b9c7d8", shape: "gear" },
+  red_science:{ name: "ciência vermelha", color: "#ff4d5e", shape: "flask" },
+};
+const NODES = [
+  { id: "core", kind: "Núcleo", x: 20, y: 9, w: 3, h: 3, cat: "core", state: "working", recipe: null, ins: 4, outs: 2 },
+  { id: "ex1", kind: "Extrator", x: 6, y: 4, w: 2, h: 2, cat: "extract", state: "working", recipe: "iron_ore", ins: 0, outs: 1 },
+  { id: "ex2", kind: "Extrator", x: 6, y: 10, w: 2, h: 2, cat: "extract", state: "no_power", recipe: "copper_ore", ins: 0, outs: 1 },
+  { id: "ex3", kind: "Extrator", x: 6, y: 15, w: 2, h: 2, cat: "extract", state: "working", recipe: "coal", ins: 0, outs: 1 },
+  { id: "fu1", kind: "Fornalha", x: 11, y: 4, w: 2, h: 2, cat: "smelt", state: "working", recipe: "iron_plate", ins: 2, outs: 1 },
+  { id: "fu2", kind: "Fornalha", x: 11, y: 10, w: 2, h: 2, cat: "smelt", state: "starved", recipe: "copper_plate", ins: 2, outs: 1 },
+  { id: "as1", kind: "Montadora", x: 15, y: 3, w: 3, h: 3, cat: "assemble", state: "blocked", recipe: "gear", ins: 3, outs: 1 },
+  { id: "gen", kind: "Gerador", x: 11, y: 15, w: 2, h: 2, cat: "power", state: "working", recipe: null, ins: 1, outs: 0 },
+  { id: "box", kind: "Caixa", x: 20, y: 15, w: 2, h: 2, cat: "store", state: "working", recipe: null, ins: 2, outs: 2 },
+];
+const EDGES = [
+  { from: "ex1", fo: 0, to: "fu1", ti: 0, items: ["iron_ore"], bends: [] },
+  { from: "ex2", fo: 0, to: "fu2", ti: 0, items: ["copper_ore"], bends: [] },
+  { from: "fu1", fo: 0, to: "as1", ti: 1, items: ["iron_plate"], bends: [[14, 5], [14, 4.5]] },
+  { from: "as1", fo: 0, to: "core", ti: 0, items: ["gear"], bends: [[19, 4.5], [19, 9.8]] },
+  { from: "fu2", fo: 0, to: "core", ti: 2, items: ["copper_plate"], bends: [[16, 11], [16, 11.1]] },
+  { from: "ex3", fo: 0, to: "gen", ti: 0, items: ["coal"], bends: [] },
+  { from: "core", fo: 1, to: "box", ti: 0, items: ["iron_plate", "gear"], bends: [[24, 11], [24, 14], [19, 14], [19, 15.66]] },
+];
+const DEPOSITS = [
+  { x: 5, y: 3, w: 4, h: 4, item: "iron_ore" }, { x: 5, y: 9, w: 4, h: 4, item: "copper_ore" }, { x: 5, y: 14, w: 4, h: 4, item: "coal" },
+];
+const LAKE = { x: 26, y: 2, w: 5, h: 8 };
+const STATE_TXT = { working: "trabalhando", blocked: "bloqueado", starved: "faminto", no_power: "sem energia" };
+const STOCK = [["iron_plate", 1240], ["copper_plate", 318], ["gear", 96], ["stone", 55], ["red_science", 12]];
+const POWER = { supply: 13, demand: 16 }, STAMINA = { now: 14, max: 20 };
+const PALETTE = ["Extrator", "Fornalha", "Montadora", "Gerador", "Caixa", "Laboratório"];
+
+// ---------- variant themes ----------
+const V = {
+  A: { name: "A — Cianotipia técnica", bg: "#123a73", grid: "rgba(234,243,255,.10)", grid2: "rgba(234,243,255,.22)", ink: "#eaf3ff", dim: "rgba(234,243,255,.55)", ok: "#eaf3ff", bad: "#ffd23f", edge: "#eaf3ff" },
+  B: { name: "B — Editor de nós", bg: "#1b1f27", grid: "rgba(255,255,255,.04)", grid2: "rgba(255,255,255,.08)", ink: "#e4e7ee", dim: "#8a93a6", ok: "#4ade80", bad: "#f87171", edge: "#8a93a6",
+       cat: { core: "#f5c542", extract: "#d9a45b", smelt: "#e0735a", assemble: "#6b9cff", power: "#b98cff", store: "#6fcf97" } },
+  C: { name: "C — Esquemático", bg: "#0a0d0c", grid: "rgba(125,255,176,.05)", grid2: "rgba(125,255,176,.11)", ink: "#b8f5d0", dim: "#4f8a68", ok: "#7dffb0", bad: "#ff5c7a", edge: "#7dffb0" },
+};
+let variant = (location.hash || "#A").slice(1); if (!V[variant]) variant = "A";
+let lod = "medio"; // longe | medio | perto
+const LOD_SCALE = { longe: 14, medio: 30, perto: 52 };
+
+// ---------- geometry ----------
+const byId = Object.fromEntries(NODES.map(n => [n.id, n]));
+const outPt = (n, i) => [n.x + n.w, n.y + (i + 1) * n.h / (n.outs + 1)];
+const inPt = (n, i) => [n.x, n.y + (i + 1) * n.h / (n.ins + 1)];
+function edgePts(e) { const a = outPt(byId[e.from], e.fo), b = inPt(byId[e.to], e.ti); return [a, ...e.bends, b]; }
+
+const cv = document.getElementById("board"), ctx = cv.getContext("2d");
+let W, H, DPR, S, ox, oy;
+function layout() {
+  DPR = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR;
+  S = LOD_SCALE[lod] * Math.min(1, W / 420 + 0.25);
+  const left = variant === "C" ? 118 : 0;
+  ox = left + (W - left) / 2 - 16 * S; oy = H / 2 - 10 * S;
+}
+addEventListener("resize", layout);
+const X = x => ox + x * S, Y = y => oy + y * S;
+
+// ---------- item glyphs (shape + colour) ----------
+function glyph(item, x, y, r, style) {
+  const it = ITEMS[item]; ctx.fillStyle = style === "mono" ? V[variant].ink : it.color;
+  ctx.strokeStyle = variant === "C" ? V.C.bg : "rgba(0,0,0,.45)"; ctx.lineWidth = 1;
+  ctx.beginPath();
+  if (it.shape === "circle") ctx.arc(x, y, r, 0, 7);
+  else if (it.shape === "square") ctx.rect(x - r * .85, y - r * .85, r * 1.7, r * 1.7);
+  else if (it.shape === "diamond") { ctx.moveTo(x, y - r * 1.15); ctx.lineTo(x + r * 1.15, y); ctx.lineTo(x, y + r * 1.15); ctx.lineTo(x - r * 1.15, y); ctx.closePath(); }
+  else if (it.shape === "gear") { for (let k = 0; k < 12; k++) { const a = k * Math.PI / 6, rr = k % 2 ? r * .75 : r * 1.15; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } ctx.closePath(); }
+  else if (it.shape === "flask") { ctx.moveTo(x - r * .35, y - r * 1.1); ctx.lineTo(x + r * .35, y - r * 1.1); ctx.lineTo(x + r * .35, y - r * .3); ctx.lineTo(x + r * 1.05, y + r); ctx.lineTo(x - r * 1.05, y + r); ctx.lineTo(x - r * .35, y - r * .3); ctx.closePath(); }
+  ctx.fill(); if (r > 3) ctx.stroke();
+}
+
+// ---------- background ----------
+function background(t) {
+  const v = V[variant]; ctx.fillStyle = v.bg; ctx.fillRect(0, 0, W, H);
+  const step = S; ctx.lineWidth = 1;
+  for (let gx = ((ox % step) + step) % step, k = Math.floor(-ox / step); gx < W; gx += step, k++) { ctx.strokeStyle = k % 5 === 0 ? v.grid2 : v.grid; ctx.beginPath(); ctx.moveTo(Math.round(gx) + .5, 0); ctx.lineTo(Math.round(gx) + .5, H); ctx.stroke(); }
+  for (let gy = ((oy % step) + step) % step, k = Math.floor(-oy / step); gy < H; gy += step, k++) { ctx.strokeStyle = k % 5 === 0 ? v.grid2 : v.grid; ctx.beginPath(); ctx.moveTo(0, Math.round(gy) + .5); ctx.lineTo(W, Math.round(gy) + .5); ctx.stroke(); }
+  // lake
+  if (variant === "A") { ctx.strokeStyle = v.ink; ctx.lineWidth = 1.2; ctx.save(); ctx.beginPath(); ctx.rect(X(LAKE.x), Y(LAKE.y), LAKE.w * S, LAKE.h * S); ctx.clip(); for (let d = -LAKE.h * S; d < LAKE.w * S; d += 7) { ctx.beginPath(); ctx.moveTo(X(LAKE.x) + d, Y(LAKE.y)); ctx.lineTo(X(LAKE.x) + d + LAKE.h * S, Y(LAKE.y) + LAKE.h * S); ctx.stroke(); } ctx.restore(); ctx.strokeRect(X(LAKE.x), Y(LAKE.y), LAKE.w * S, LAKE.h * S); }
+  else if (variant === "B") { ctx.fillStyle = "#1e3a5f"; roundRect(X(LAKE.x), Y(LAKE.y), LAKE.w * S, LAKE.h * S, S * .6); ctx.fill(); }
+  else { ctx.strokeStyle = "#2b6f8f"; ctx.setLineDash([3, 4]); ctx.strokeRect(X(LAKE.x), Y(LAKE.y), LAKE.w * S, LAKE.h * S); ctx.setLineDash([]); ctx.fillStyle = "#2b6f8f"; ctx.font = `10px "Martian Mono", monospace`; ctx.fillText("H₂O", X(LAKE.x) + 4, Y(LAKE.y) + 14); }
+  // deposits
+  for (const d of DEPOSITS) {
+    const it = ITEMS[d.item];
+    if (variant === "A") { ctx.strokeStyle = v.ink; ctx.setLineDash([2, 3]); ctx.strokeRect(X(d.x), Y(d.y), d.w * S, d.h * S); ctx.setLineDash([]); for (let i = 0; i < d.w; i++) for (let j = 0; j < d.h; j++) if ((i + j) % 2 === 0) glyph(d.item, X(d.x + i + .5), Y(d.y + j + .5), Math.max(1.5, S * .08), "mono"); }
+    else if (variant === "B") { ctx.fillStyle = it.color + "22"; roundRect(X(d.x), Y(d.y), d.w * S, d.h * S, S * .3); ctx.fill(); for (let i = 0; i < d.w; i++) for (let j = 0; j < d.h; j++) if ((i * 3 + j) % 2 === 0) glyph(d.item, X(d.x + i + .5), Y(d.y + j + .5), Math.max(2, S * .1)); }
+    else { ctx.strokeStyle = it.color; ctx.lineWidth = 1; for (let k = 0; k < d.w + d.h; k++) { ctx.beginPath(); ctx.moveTo(X(d.x) + k * S * .5, Y(d.y)); ctx.lineTo(X(d.x), Y(d.y) + k * S * .5); ctx.globalAlpha = .35; ctx.stroke(); ctx.globalAlpha = 1; } }
+  }
+}
+function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+// ---------- edges ----------
+function drawEdges(t) {
+  const v = V[variant];
+  for (const e of EDGES) {
+    const pts = edgePts(e).map(([x, y]) => [X(x), Y(y)]);
+    const starved = byId[e.to].state === "starved" && false, blocked = byId[e.from].state === "blocked";
+    const path = () => { ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); };
+    if (variant === "A") { ctx.strokeStyle = v.ink; ctx.lineWidth = 1.6; path(); ctx.stroke(); }
+    else if (variant === "B") { ctx.strokeStyle = ITEMS[e.items[0]].color; ctx.globalAlpha = .55; ctx.lineWidth = Math.max(2, S * .12); ctx.lineJoin = "round"; path(); ctx.stroke(); ctx.globalAlpha = 1; }
+    else { ctx.strokeStyle = v.edge; ctx.lineWidth = Math.max(3, S * .2); path(); ctx.stroke(); ctx.strokeStyle = v.bg; ctx.lineWidth = Math.max(1.4, S * .2 - 2.4); path(); ctx.stroke(); }
+    // items
+    const segs = []; let acc = 0; for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i][0] - pts[i-1][0], pts[i][1] - pts[i-1][1]); segs.push([pts[i-1], pts[i], acc, l]); acc += l; }
+    if (lod === "longe") { // far zoom: the edge becomes a stroke coloured by its item mix
+      e.items.forEach((it, k) => { ctx.strokeStyle = ITEMS[it].color; ctx.lineWidth = 4; ctx.setLineDash([10, 10 * (e.items.length - 1) + .01]); ctx.lineDashOffset = -k * 10 - (blocked ? 0 : t / 40); path(); ctx.stroke(); }); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      continue;
+    }
+    const gap = S * .9, speed = blocked ? 0 : S * 3;
+    for (let d0 = 0, k = 0; d0 < acc; d0 += gap, k++) {
+      const d = (d0 + t / 1000 * speed) % acc, sg = segs.find(s => d >= s[2] && d <= s[2] + s[3]) || segs[segs.length - 1], u = (d - sg[2]) / (sg[3] || 1);
+      const x = sg[0][0] + (sg[1][0] - sg[0][0]) * u, y = sg[0][1] + (sg[1][1] - sg[0][1]) * u, it = e.items[k % e.items.length];
+      if (lod === "medio") { ctx.fillStyle = ITEMS[it].color; ctx.beginPath(); ctx.arc(x, y, Math.max(2.2, S * .09), 0, 7); ctx.fill(); }
+      else glyph(it, x, y, S * .17);
+    }
+  }
+}
+
+// ---------- nodes ----------
+const STATE_MARK = { working: "", blocked: "■", starved: "○", no_power: "ϟ" };
+function drawNodes(t) {
+  const v = V[variant], small = lod === "longe";
+  for (const n of NODES) {
+    const x = X(n.x), y = Y(n.y), w = n.w * S, h = n.h * S, st = n.state, alert = st !== "working";
+    if (variant === "A") { // technical drawing: outlined block, title strip, stamped status
+      ctx.fillStyle = v.bg; ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
+      ctx.strokeStyle = v.ink; ctx.lineWidth = 1.8; ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+      ctx.lineWidth = .8; ctx.strokeRect(x + 4, y + 4, w - 8, h - 8);
+      if (!small) {
+        ctx.fillStyle = v.ink; ctx.font = `700 ${Math.max(8, S * .26)}px "Space Mono", monospace`; ctx.textBaseline = "top";
+        ctx.fillText(n.kind.toUpperCase(), x + 7, y + 7);
+        if (n.recipe) glyph(n.recipe, x + w / 2, y + h * .6, S * .3, "mono");
+        if (alert) { ctx.save(); ctx.translate(x + w - 6, y + h - 6); ctx.rotate(-.18); ctx.strokeStyle = v.bad; ctx.fillStyle = v.bad; ctx.lineWidth = 1.5; const label = STATE_TXT[st].toUpperCase(); ctx.font = `700 ${Math.max(7, S * .2)}px "Space Mono", monospace`; const tw = ctx.measureText(label).width; ctx.strokeRect(-tw - 8, -S * .32, tw + 6, S * .3); ctx.textBaseline = "middle"; ctx.fillText(label, -tw - 5, -S * .17); ctx.restore(); }
+      } else if (alert) { ctx.fillStyle = v.bad; ctx.fillRect(x + w - 8, y + 2, 6, 6); }
+    } else if (variant === "B") { // node-editor card: rounded, coloured header, status pill
+      const c = v.cat[n.cat];
+      ctx.shadowColor = "rgba(0,0,0,.4)"; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
+      ctx.fillStyle = "#2b303c"; roundRect(x + 1, y + 1, w - 2, h - 2, S * .25); ctx.fill(); ctx.shadowColor = "transparent";
+      ctx.save(); roundRect(x + 1, y + 1, w - 2, h - 2, S * .25); ctx.clip(); ctx.fillStyle = c; ctx.fillRect(x, y, w, Math.max(6, S * .55)); ctx.restore();
+      if (alert) { ctx.strokeStyle = st === "no_power" ? "#facc15" : v.bad; ctx.lineWidth = 2; roundRect(x + 1, y + 1, w - 2, h - 2, S * .25); ctx.stroke(); }
+      if (!small) {
+        ctx.fillStyle = "#15181f"; ctx.font = `700 ${Math.max(9, S * .3)}px "Barlow Semi Condensed", sans-serif`; ctx.textBaseline = "middle"; ctx.fillText(n.kind, x + 7, y + S * .29);
+        if (n.recipe) glyph(n.recipe, x + w / 2, y + h * .58, S * .28);
+        if (alert) { const label = STATE_TXT[st], fs = Math.max(8, S * .22); ctx.font = `600 ${fs}px "Barlow Semi Condensed", sans-serif`; const tw = ctx.measureText(label).width + 10; ctx.fillStyle = st === "no_power" ? "#facc15" : v.bad; roundRect(x + w / 2 - tw / 2, y + h - fs - 8, tw, fs + 4, (fs + 4) / 2); ctx.fill(); ctx.fillStyle = "#15181f"; ctx.fillText(label, x + w / 2 - tw / 2 + 5, y + h - fs / 2 - 6); }
+      }
+    } else { // schematic symbol: shape encodes category, status as blinking annotation
+      ctx.strokeStyle = alert ? v.bad : v.ink; ctx.lineWidth = 1.6; ctx.fillStyle = v.bg;
+      const cx = x + w / 2, cy = y + h / 2, r = Math.min(w, h) / 2 - 3;
+      ctx.beginPath();
+      if (n.cat === "extract") { ctx.moveTo(cx - r, cy + r); ctx.lineTo(cx, cy - r); ctx.lineTo(cx + r, cy + r); ctx.closePath(); }
+      else if (n.cat === "smelt") { ctx.arc(cx, cy, r, 0, 7); }
+      else if (n.cat === "power") { ctx.arc(cx, cy, r, 0, 7); ctx.moveTo(cx - r * .5, cy); ctx.bezierCurveTo(cx - r * .2, cy - r * .6, cx + r * .2, cy + r * .6, cx + r * .5, cy); }
+      else if (n.cat === "store") { ctx.rect(cx - r, cy - r * .7, r * 2, r * 1.4); ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy); }
+      else if (n.cat === "core") { for (let k = 0; k < 6; k++) { const a = Math.PI / 3 * k + Math.PI / 6; ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } ctx.closePath(); }
+      else { ctx.rect(x + 3, y + 3, w - 6, h - 6); ctx.moveTo(x + 3, y + 3); ctx.lineTo(x + w - 3, y + h - 3); }
+      ctx.fill(); ctx.stroke();
+      if (!small) {
+        ctx.fillStyle = v.ink; ctx.font = `${Math.max(8, S * .22)}px "Martian Mono", monospace`; ctx.textBaseline = "top"; ctx.fillText(n.kind.slice(0, 3).toUpperCase() + "-" + n.id.slice(-1), x, y + h + 2);
+        if (n.recipe) glyph(n.recipe, cx, cy + (n.cat === "extract" ? r * .3 : 0), S * .18);
+        if (alert && Math.floor(t / 500) % 2 === 0) { ctx.fillStyle = v.bad; ctx.font = `${Math.max(8, S * .22)}px "Martian Mono", monospace`; ctx.fillText("! " + STATE_TXT[st], x, y - S * .32); }
+      }
+    }
+    // connectors
+    const cr = Math.max(3, S * .13);
+    for (let i = 0; i < n.ins; i++) { const [px, py] = inPt(n, i); ctx.beginPath(); ctx.arc(X(px), Y(py), cr, 0, 7); ctx.fillStyle = V[variant].bg; ctx.fill(); ctx.strokeStyle = variant === "B" ? "#cfd5e2" : v.ink; ctx.lineWidth = 1.4; ctx.stroke(); }
+    for (let i = 0; i < n.outs; i++) { const [px, py] = outPt(n, i); ctx.beginPath(); if (variant === "C") ctx.rect(X(px) - cr, Y(py) - cr, cr * 2, cr * 2); else ctx.arc(X(px), Y(py), cr, 0, 7); ctx.fillStyle = variant === "B" ? "#ffb547" : v.ink; ctx.fill(); }
+  }
+}
+
+// ---------- HTML chrome per variant ----------
+const ui = document.getElementById("ui");
+function fmt(n) { return n >= 1000 ? (n / 1000).toFixed(1).replace(".", ",") + "K" : String(n); }
+function chrome() {
+  document.body.className = variant;
+  const pw = Math.round(POWER.supply / POWER.demand * 100), low = POWER.supply < POWER.demand;
+  if (variant === "A") ui.innerHTML = `
+    <div class="hud">
+      ${STOCK.slice(0, 3).map(([k, n]) => `<span class="cell">${ITEMS[k].name.toUpperCase()} <b>${fmt(n)}</b></span>`).join("")}
+      <span class="cell">ENERGIA <b>${POWER.supply}/${POWER.demand} ⚡</b>${low ? " ▲" : ""}</span>
+      <span class="cell">FÔLEGO <span class="meter"><i style="width:${STAMINA.now / STAMINA.max * 100}%"></i></span></span>
+    </div>
+    <div class="palette">${PALETTE.map(p => `<button type="button">${p}</button>`).join("")}</div>
+    <div class="titleblock">Projeto: fábrica 01<br>Escala 1 célula = 1 u<br>Folha A-1 · rev. 3</div>`;
+  else if (variant === "B") ui.innerHTML = `
+    <div class="hud">
+      ${STOCK.slice(0, 3).map(([k, n]) => `<span class="res"><span class="dot" style="background:${ITEMS[k].color}"></span>${fmt(n)}</span>`).join("")}
+      <span class="res">⚡ <span class="bar"><i style="width:${Math.min(100, pw)}%;background:${low ? "#facc15" : "#4ade80"}"></i></span>${POWER.supply}/${POWER.demand}</span>
+      <span class="res">✋ <span class="bar"><i style="width:${STAMINA.now / STAMINA.max * 100}%;background:#6b9cff"></i></span></span>
+    </div>
+    <div class="palette">${PALETTE.map((p, i) => `<button type="button"><i style="background:${Object.values(V.B.cat)[i % 6]}"></i>${p}</button>`).join("")}</div>`;
+  else ui.innerHTML = `
+    <div class="hud">
+      <h2>ESTOQUE</h2>
+      ${STOCK.map(([k, n]) => `<div class="row"><span>${k.replace("_", " ").slice(0, 10)}</span><span>${fmt(n)}</span></div>`).join("")}
+      <h2>ENERGIA</h2>
+      <div class="row"><span>${POWER.supply}/${POWER.demand} ⚡</span><span style="color:${low ? "#ff5c7a" : "inherit"}">${pw}%</span></div>
+      <div class="gauge"><i style="width:${Math.min(100, pw)}%"></i></div>
+      <h2>FÔLEGO</h2>
+      <div class="gauge"><i style="width:${STAMINA.now / STAMINA.max * 100}%"></i></div>
+    </div>
+    <div class="palette">${PALETTE.map(p => `<button type="button">${p.slice(0, 5).toUpperCase()}</button>`).join("")}</div>`;
+  document.getElementById("zoom").innerHTML = ["longe", "medio", "perto"].map(z => `<button type="button" data-z="${z}" style="${z === lod ? "outline:2px solid currentColor" : ""}">${z === "medio" ? "médio" : z}</button>`).join("");
+  document.querySelectorAll("#zoom button").forEach(b => b.onclick = () => { lod = b.dataset.z; layout(); chrome(); });
+  document.getElementById("vlabel").textContent = V[variant].name;
+}
+function setVariant(v) { variant = v; try { history.replaceState(null, "", "#" + v); } catch (_) {} layout(); chrome(); }
+const order = Object.keys(V);
+document.getElementById("prev").onclick = () => setVariant(order[(order.indexOf(variant) + 2) % 3]);
+document.getElementById("next").onclick = () => setVariant(order[(order.indexOf(variant) + 1) % 3]);
+addEventListener("keydown", e => { if (e.key === "ArrowLeft") document.getElementById("prev").click(); if (e.key === "ArrowRight") document.getElementById("next").click(); });
+addEventListener("hashchange", () => { const v = location.hash.slice(1); if (V[v] && v !== variant) setVariant(v); });
+
+// drag to pan (so small phones can see the whole scene)
+let drag = null;
+cv.addEventListener("pointerdown", e => { drag = { x: e.clientX, y: e.clientY }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener("pointermove", e => { if (!drag) return; ox += e.clientX - drag.x; oy += e.clientY - drag.y; drag = { x: e.clientX, y: e.clientY }; });
+cv.addEventListener("pointerup", () => drag = null); cv.addEventListener("pointercancel", () => drag = null);
+
+setVariant(variant);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function frame(t) { ctx.setTransform(DPR, 0, 0, DPR, 0, 0); background(t); drawEdges(reduce ? 0 : t); drawNodes(t); requestAnimationFrame(frame); }
+requestAnimationFrame(frame);
+</script>
