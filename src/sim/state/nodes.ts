@@ -9,6 +9,7 @@ import {
 import { assert } from "../assert";
 import { allCells, overlaps, type Rect } from "../geometry/rect";
 import { fail, ok, type Result } from "../result";
+import { edgeCrosses } from "./edges";
 import type { FactoryNode, GameState } from "./gameState";
 import type { NodeId } from "./ids";
 import { depositUnder, isRevealedRect, Terrain, terrainAt } from "./map";
@@ -85,7 +86,7 @@ export function isUnlocked(
 
 /**
  * Checks that a node of `kind` fits at (x, y): on revealed land, clear of
- * other nodes, and off deposits, except an Extractor, which must sit wholly
+ * other nodes and edges, and off deposits, except an Extractor, which must sit wholly
  * on one (FR17). On success it returns the resource under an
  * Extractor, or `undefined` for other kinds.
  */
@@ -99,6 +100,7 @@ export function checkFootprint(
   const rect = footprint(kind, x, y);
   if (!isRevealedRect(map, rect)) return fail("out_of_bounds");
   if (isOccupied(state, rect)) return fail("occupied");
+  if (edgeCrosses(state, rect)) return fail("crosses_edge");
   if (!allCells(rect, (cx, cy) => terrainAt(map, cx, cy) === Terrain.Land)) {
     return fail("on_water");
   }

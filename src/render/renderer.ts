@@ -2,10 +2,12 @@ import { Container, Graphics, type Application } from "pixi.js";
 import type { SimEventOf } from "../sim/events";
 import type { Rect } from "../sim/geometry/rect";
 import type { GameState } from "../sim/state/gameState";
-import type { NodeId } from "../sim/state/ids";
+import type { EdgeId, NodeId } from "../sim/state/ids";
 import { nodeRect } from "../sim/state/nodes";
 import type { Camera } from "../input/camera";
+import type { EdgePreview } from "../input/tools/connect";
 import type { Ghost } from "../input/tools/place";
+import { EdgePreviewView, EdgeViews } from "./edges";
 import { Flights } from "./flights";
 import { createLayers, type Layers } from "./layers";
 import { applyLod } from "./lod";
@@ -30,6 +32,10 @@ export interface Renderer {
   centerOn(x: number, y: number): void;
   /** Shows the placement preview, or hides it with `null`. */
   setGhost(ghost: Ghost | null): void;
+  /** Shows the edge being dragged, or hides it with `null`. */
+  setEdgePreview(preview: EdgePreview | null): void;
+  /** Highlights the edge whose menu is open, or none with `null`. */
+  setSelectedEdge(id: EdgeId | null): void;
   /** Flies the items a construction took from storage to its site. */
   showConstruction(paid: SimEventOf<"ConstructionPaid">): void;
   /** Pops the tapped cell and flies its item to the Core. */
@@ -50,6 +56,10 @@ export function createRenderer(
   const world = app.stage.addChild(new Container({ label: "world" }));
   const layers = createLayers(world);
   const nodeViews = new NodeViews(layers.nodes);
+  const edgeViews = new EdgeViews(layers.edges);
+  const edgePreviewView = new EdgePreviewView(layers.overlays);
+  let edgePreview: EdgePreview | null = null;
+  let selectedEdge: EdgeId | null = null;
   const ghostLayer = layers.overlays.addChild(
     new Container({ label: "ghost", alpha: GHOST_ALPHA, visible: false }),
   );
@@ -111,6 +121,7 @@ export function createRenderer(
     contextLost = false;
     drawnMap = null;
     nodeViews.clear();
+    edgeViews.clear();
     flights.clear();
     drawnCard = null;
   });
@@ -135,7 +146,9 @@ export function createRenderer(
       camera.setViewport(app.screen.width, app.screen.height);
       if (drawnMap !== map || drawnRing !== map.revealedRing) rebuildMap();
       nodeViews.sync(state.nodes);
+      edgeViews.sync(state.edges, state.nodes, selectedEdge);
       drawGhostLayer();
+      edgePreviewView.update(edgePreview, camera, app.screen.width);
       flights.update(performance.now());
       world.scale.set(camera.scale);
       world.position.set(camera.x, camera.y);
@@ -149,9 +162,14 @@ export function createRenderer(
     setGhost(next) {
       ghost = next;
     },
+    setEdgePreview(next) {
+      edgePreview = next;
+    },
+    setSelectedEdge(id) {
+      selectedEdge = id;
+    },
     showConstruction({ site, draws }) {
-      const to = centerOf(site);
-      if (!to) return;
+      const to = rectCenter(site);
       const now = performance.now();
       draws.forEach(({ storage, item }, i) => {
         const from = centerOf(storage);

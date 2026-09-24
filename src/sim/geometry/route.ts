@@ -19,6 +19,11 @@ export interface Route {
   length: number;
 }
 
+/** A route's length in cells, as `Route.length` counts it (FR54). */
+export function pathLength(path: readonly Point[]): number {
+  return polylineLength(path) + 1;
+}
+
 /** Where a route may run, and how long it may be. */
 export interface RouteLimits {
   /** The cells a route must stay inside; the whole map by default. */
@@ -140,7 +145,7 @@ export function routeEdge(
     }
   }
   if (toCell !== fromCell) path.push(to);
-  return ok({ path, length: polylineLength(path) + 1 });
+  return ok({ path, length: pathLength(path) });
 }
 
 /**

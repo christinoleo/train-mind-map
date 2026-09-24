@@ -1,10 +1,10 @@
-import { CELL_PX } from "../../config/constants";
 import { ManualTap } from "../../sim/commands/manualTap";
 import type { FailReason, Result } from "../../sim/result";
 import type { GameState } from "../../sim/state/gameState";
 import type { Camera } from "../camera";
 import type { Tool } from "../controls";
 import type { GesturePoint } from "../gestures";
+import { worldToCell } from "../hitTest";
 
 export interface TapToolDeps {
   state: Readonly<GameState>;
@@ -36,9 +36,7 @@ export class TapTool implements Tool {
   constructor(private readonly deps: TapToolDeps) {}
 
   tap(p: GesturePoint) {
-    const world = this.deps.camera.toWorld(p.x, p.y);
-    const x = Math.floor(world.x / CELL_PX);
-    const y = Math.floor(world.y / CELL_PX);
+    const { x, y } = worldToCell(this.deps.camera.toWorld(p.x, p.y));
     const result = this.deps.dispatch(new ManualTap(x, y));
     if (result.ok) this.tell(null);
     else if (TOLD.includes(result.reason)) this.tell(result.reason);

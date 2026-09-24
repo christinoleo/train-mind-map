@@ -1,3 +1,6 @@
+import type { FailReason } from "../sim/result";
+import { strings } from "./strings";
+
 const STEPS = [
   { size: 1_000_000, suffix: "M" },
   { size: 1_000, suffix: "K" },
@@ -17,4 +20,21 @@ export function formatCount(n: number): string {
     return `${String(shown).replace(".", ",")}${suffix}`;
   }
   return String(n);
+}
+
+/**
+ * Why a dragged edge cannot be built, for its chip: the reason, or, for an
+ * edge over the length limit, its length against the limit ("Longa demais
+ * 14/12"). Water gets its own wording: the shared reason speaks of nodes.
+ */
+export function edgeReasonText(
+  reason: FailReason,
+  length: number | null,
+  max: number,
+): string {
+  if (reason === "out_of_range" && length !== null) {
+    return `${strings.edge.tooLong} ${length}/${max}`;
+  }
+  if (reason === "on_water") return strings.edge.onWater;
+  return strings.reasons[reason];
 }

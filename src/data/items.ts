@@ -34,3 +34,14 @@ export type ItemCounts = Partial<Record<ItemId, number>>;
 export function itemEntries(counts: Readonly<ItemCounts>): [ItemId, number][] {
   return Object.entries(counts) as [ItemId, number][];
 }
+
+/** Adds `counts` into `into`, item by item, and returns `into`. */
+export function addCounts(
+  into: ItemCounts,
+  counts: Readonly<ItemCounts>,
+): ItemCounts {
+  for (const [item, count] of itemEntries(counts)) {
+    into[item] = (into[item] ?? 0) + count;
+  }
+  return into;
+}

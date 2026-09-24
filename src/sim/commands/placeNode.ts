@@ -61,13 +61,14 @@ export class PlaceNode implements Command {
     const fits = checkFootprint(state, kind, x, y);
     if (!fits.ok) throw new Error("PlaceNode applied without validating");
     const id = allocateId(state.nextIds, "node");
-    const draws = debit(state, NODES[kind].cost, footprint(kind, x, y));
+    const site = footprint(kind, x, y);
+    const draws = debit(state, NODES[kind].cost, site);
     state.nodes.set(
       id,
       createNode(id, kind, x, y, { resource: fits.value, recipe: this.recipe }),
     );
     this.placed = id;
-    emit({ type: "ConstructionPaid", site: id, draws });
+    emit({ type: "ConstructionPaid", site, draws });
   }
 
   invert(): Command {
