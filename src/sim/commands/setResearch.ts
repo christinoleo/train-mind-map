@@ -7,7 +7,8 @@ import type { Command } from "./command";
 /**
  * Chooses the research the Labs work on (FR109), or none with `null`. A
  * research must be open: not done, with every research it requires done.
- * Switching keeps the packs already spent on the one left. It is a session
+ * Switching keeps the packs already spent on the one left, and a pack under
+ * way still counts for the research it was taken for. It is a session
  * choice, not construction, so it has no undo.
  */
 export class SetResearch implements Command {

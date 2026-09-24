@@ -1,5 +1,4 @@
 import type { ReadonlySignal, Signal } from "@preact/signals";
-import { useState } from "preact/hooks";
 import {
   RESEARCH,
   RESEARCH_IDS,
@@ -59,6 +58,8 @@ function unlocks(id: ResearchId): string {
 
 interface Props {
   research: ReadonlySignal<ResearchInfo>;
+  /** True while the panel is open; it shares the menus' place on screen. */
+  open: Signal<boolean>;
   onChoose(id: ResearchId): void;
 }
 
@@ -67,8 +68,7 @@ interface Props {
  * (FR109): every research with what it unlocks and its progress in packs.
  * Tapping an open one makes it the research the Labs work on.
  */
-export function ResearchPanel({ research, onChoose }: Props) {
-  const [open, setOpen] = useState(false);
+export function ResearchPanel({ research, open, onChoose }: Props) {
   const text = strings.research;
   const info = research.value;
   return (
@@ -76,15 +76,15 @@ export function ResearchPanel({ research, onChoose }: Props) {
       <button
         type="button"
         class="research-toggle"
-        aria-expanded={open}
+        aria-expanded={open.value}
         aria-label={text.title}
         title={text.title}
         data-idle={info.idle}
-        onClick={() => setOpen(!open)}
+        onClick={() => (open.value = !open.value)}
       >
         {text.glyph}
       </button>
-      {open && (
+      {open.value && (
         <div class="menu research" role="dialog" aria-label={text.title}>
           <header class="menu-head">
             <span>{text.title}</span>
@@ -92,7 +92,7 @@ export function ResearchPanel({ research, onChoose }: Props) {
               type="button"
               class="menu-close"
               aria-label={strings.menu.close}
-              onClick={() => setOpen(false)}
+              onClick={() => (open.value = false)}
             >
               {strings.menu.closeGlyph}
             </button>

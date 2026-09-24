@@ -61,7 +61,7 @@ function setup(labs = 1, powered = true) {
 function finish(state: GameState, id: ResearchId, events: SimEvent[] = []) {
   state.research.active = id;
   state.research.progress[id] = RESEARCH[id].cost - 1;
-  creditPack(state, (e) => events.push(e));
+  creditPack(state, id, (e) => events.push(e));
 }
 
 describe("Lab", () => {
@@ -130,6 +130,20 @@ describe("Lab", () => {
     run(1 + LAB_TICKS);
     expect(state.research.progress["edge-2"]).toBe(3);
     expect(state.research.progress.railway).toBe(1);
+  });
+});
+
+describe("switching research", () => {
+  it("credits a pack under way to the research it was taken for", () => {
+    const { state, run, choose, done } = setup();
+    state.research.progress["splitter-merger"] = 9;
+    choose("splitter-merger");
+    run(2);
+    choose("railway");
+    run(LAB_TICKS);
+    expect(done()).toEqual(["splitter-merger"]);
+    expect(state.research.active).toBe("railway");
+    expect(state.research.progress.railway ?? 0).toBe(0);
   });
 });
 

@@ -67,18 +67,18 @@ function applyEffect(state: GameState, effect: ResearchEffect): void {
 }
 
 /**
- * Credits one consumed pack to the active research. When that completes it,
- * its content unlocks at once and `ResearchDone` is emitted (FR116); the
- * Labs then idle until the player chooses the next one.
+ * Credits one consumed pack to research `id`, the one it was taken for. When
+ * that completes it, its content unlocks at once and `ResearchDone` is
+ * emitted (FR116); if it was the active one, the Labs then idle until the
+ * player chooses the next.
  */
-export function creditPack(state: GameState, emit: Emit): void {
+export function creditPack(state: GameState, id: ResearchId, emit: Emit): void {
   const { research } = state;
-  const id = research.active;
-  if (id === null) return;
+  if (research.done.includes(id)) return;
   research.progress[id] = (research.progress[id] ?? 0) + 1;
   if (packsLeft(state, id) > 0) return;
   research.done.push(id);
-  research.active = null;
+  if (research.active === id) research.active = null;
   for (const effect of RESEARCH[id].effects) applyEffect(state, effect);
   emit({ type: "ResearchDone", research: id });
 }

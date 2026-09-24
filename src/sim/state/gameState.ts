@@ -1,3 +1,4 @@
+import type { ResearchId } from "../../data/research";
 import type { EdgeLevel } from "../../data/edges";
 import type { ItemCounts, ItemId, RawResource } from "../../data/items";
 import {
@@ -94,6 +95,8 @@ export type FactoryNode = NodeBase &
         /** Its buffer holds science packs; a batch is one pack (FR40). */
         kind: "lab";
         production: Production;
+        /** The research the pack under way was taken for, or `null`. */
+        research: ResearchId | null;
       }
     | {
         kind: "generator";

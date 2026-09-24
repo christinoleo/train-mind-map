@@ -71,6 +71,7 @@ const selectedNode = signal<NodeId | null>(null);
 const nodeMenu = signal<NodeMenuInfo | null>(null);
 const storageFull = signal(false);
 const canUndo = signal(false);
+const researchOpen = signal(false);
 const research = signal<ResearchInfo>(researchInfo(state));
 /** The research completed last, shown for a moment. */
 const completed = signal<ResearchId | null>(null);
@@ -188,6 +189,19 @@ effect(() => {
   } else {
     placeTool.deselect();
     controls.tool = buildTool;
+  }
+});
+// The research panel and the menus share one place on screen: opening one
+// closes the others.
+effect(() => {
+  if (researchOpen.value) {
+    selectedEdge.value = null;
+    selectedNode.value = null;
+  }
+});
+effect(() => {
+  if (selectedEdge.value !== null || selectedNode.value !== null) {
+    researchOpen.value = false;
   }
 });
 effect(() => {
@@ -314,6 +328,7 @@ render(
     undo: { canUndo, onUndo: undo },
     research: {
       research,
+      open: researchOpen,
       onChoose(id) {
         commands.dispatch(state, new SetResearch(id));
       },
