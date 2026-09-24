@@ -1,0 +1,447 @@
+<title>Touch Graph Lab</title>
+<!-- PROTOTYPE — throwaway. Answers wayfinder ticket #2: "Touch UX for building the graph on a phone".
+     Three variants of edge creation, switchable with the bottom bar (or #A / #B / #C in the URL).
+     A: drag from the connector, hold 300 ms to pin a bend.
+     B: drag from connector to connector; the edge routes itself.
+     C: tap the connector, tap cells to add bends, tap the target to finish. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;600&family=Barlow+Semi+Condensed:wght@500;600&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --paper: #0b1e3a;
+    --grid: #15315a;
+    --grid-strong: #1d3f70;
+    --ink: #d7e6ff;
+    --ink-dim: #8aa6cf;
+    --amber: #ffb547;
+    --ok: #5be0a0;
+    --bad: #ff5d6c;
+    --panel: rgba(8, 22, 45, 0.92);
+    --mono: "Martian Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    --ui: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0; overflow: hidden; background: var(--paper); color: var(--ink);
+    font-family: var(--ui); -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none; overscroll-behavior: none;
+  }
+  #board { position: fixed; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
+  .hud {
+    position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); left: 12px; right: 12px;
+    display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; font-family: var(--mono); font-size: 10.5px;
+  }
+  .chip { background: var(--panel); border: 1px solid var(--grid-strong); padding: 5px 8px; border-radius: 4px; }
+  .chip b { color: var(--amber); font-weight: 600; }
+  .chip.bad { border-color: var(--bad); color: var(--bad); }
+  .chip.ok { border-color: var(--ok); color: var(--ok); }
+  .palette {
+    position: fixed; left: 12px; bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .tools {
+    position: fixed; right: 12px; bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
+  }
+  button {
+    font-family: var(--ui); font-size: 15px; font-weight: 600; letter-spacing: 0.02em;
+    color: var(--ink); background: var(--panel); border: 1px solid var(--grid-strong);
+    min-height: 44px; min-width: 44px; padding: 0 12px; border-radius: 6px; touch-action: manipulation;
+  }
+  button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+  button.on { border-color: var(--amber); color: var(--amber); }
+  button small { font-family: var(--mono); font-size: 10px; color: var(--ink-dim); margin-left: 6px; font-weight: 400; }
+  .switcher {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    display: flex; align-items: center; gap: 4px; background: #f3f7ff; color: #0b1e3a;
+    border-radius: 999px; padding: 4px; box-shadow: 0 6px 20px rgba(0,0,0,.45); max-width: calc(100% - 24px);
+  }
+  .switcher button { background: transparent; color: #0b1e3a; border: none; border-radius: 999px; font-size: 18px; }
+  .switcher span { font-family: var(--ui); font-weight: 600; font-size: 14px; padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .help {
+    position: fixed; top: calc(40px + env(safe-area-inset-top, 0px)); left: 12px; right: 12px;
+    font-size: 13.5px; color: var(--ink-dim); pointer-events: none; max-width: 36ch; line-height: 1.35;
+  }
+  .help strong { color: var(--ink); font-weight: 600; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+
+<canvas id="board"></canvas>
+<div class="hud" id="hud"></div>
+<div class="help" id="help"></div>
+<div class="palette" id="palette"></div>
+<div class="tools" id="tools">
+  <button id="undo" type="button">↶ Desfazer</button>
+  <button id="del" type="button" hidden>Remover</button>
+  <button id="cancel" type="button" hidden>Cancelar</button>
+</div>
+<div class="switcher" role="group" aria-label="Variante do protótipo">
+  <button id="prev" type="button" aria-label="Variante anterior">◀</button>
+  <span id="vlabel"></span>
+  <button id="next" type="button" aria-label="Próxima variante">▶</button>
+</div>
+
+<script>
+"use strict";
+// ---------- constants (the numbers under test, from GDD / architecture) ----------
+const TAP_SLOP = 8;          // px: movement above this is a drag
+const LONG_PRESS = 500;      // ms: hold on a node to move it
+const BEND_HOLD = 300;       // ms: hold still while drawing to pin a bend (variant A)
+const MIN_TARGET = 44;       // px: minimum touch target
+const EDGE_MAX = 12;         // cells: level-1 edge maximum length
+const EDGE_PAN = 48;         // px: auto-pan band at the screen edge
+const COLS = 64, ROWS = 64;
+
+const VARIANTS = {
+  A: { name: "A — Arrastar e segurar", help: "<strong>Arraste</strong> do conector de saída (direita). <strong>Segure 0,3 s parado</strong> para fixar uma dobra. Solte no conector de entrada." },
+  B: { name: "B — Rota automática", help: "<strong>Arraste</strong> do conector de saída até um de entrada. A aresta desvia sozinha dos nós, da água e das outras arestas." },
+  C: { name: "C — Toque a toque", help: "<strong>Toque</strong> no conector de saída, <strong>toque em células</strong> para dobrar e <strong>toque</strong> no conector de entrada para ligar." },
+};
+const KINDS = {
+  extractor: { label: "Extrator", w: 2, h: 2, ins: 0, outs: 1, color: "#e0a458" },
+  furnace:   { label: "Fornalha", w: 2, h: 2, ins: 2, outs: 1, color: "#e0735a" },
+  assembler: { label: "Montadora", w: 3, h: 3, ins: 3, outs: 1, color: "#7aa7ff" },
+  box:       { label: "Caixa", w: 2, h: 2, ins: 2, outs: 2, color: "#9fd18b" },
+  core:      { label: "Núcleo", w: 3, h: 3, ins: 4, outs: 2, color: "#ffd166" },
+};
+
+// ---------- state ----------
+let variant = (location.hash || "#A").slice(1);
+if (!VARIANTS[variant]) variant = "A";
+let nodes = [], edges = [], nextId = 1;
+const lakes = [{ x: 38, y: 20, w: 7, h: 12 }, { x: 22, y: 40, w: 10, h: 5 }];
+const deposits = [{ x: 26, y: 26, w: 4, h: 4, c: "#c7cfd9", label: "ferro" }, { x: 44, y: 36, w: 3, h: 3, c: "#e08a4f", label: "cobre" }];
+const history = [];
+const cam = { x: 0, y: 0, s: 34 };  // screen px per cell
+let status = { text: "pronto", kind: "" };
+let placing = null;       // kind being placed from the palette
+let selected = null;      // {type:'node'|'edge', id}
+let draw = null;          // edge being drawn
+let moving = null;        // node being moved
+const ptrs = new Map();
+let gesture = null;       // one-finger gesture state
+let pinch = null;
+
+function addNode(kind, x, y) { const n = { id: nextId++, kind, x, y }; nodes.push(n); return n; }
+function seed() {
+  nodes = []; edges = []; nextId = 1;
+  const core = addNode("core", 30, 31);
+  const ex = addNode("extractor", 27, 27);
+  addNode("furnace", 24, 33);
+  addNode("assembler", 34, 26);
+  edges.push({ id: nextId++, from: ex.id, fo: 0, to: core.id, ti: 0, bends: [{ x: 29.5, y: 28 }, { x: 29.5, y: 31.5 }] });
+}
+seed();
+
+// ---------- geometry ----------
+const K = n => KINDS[n.kind];
+const nodeById = id => nodes.find(n => n.id === id);
+function outPt(n, i) { const k = K(n); return { x: n.x + k.w, y: n.y + (i + 1) * k.h / (k.outs + 1) }; }
+function inPt(n, i) { const k = K(n); return { x: n.x, y: n.y + (i + 1) * k.h / (k.ins + 1) }; }
+function edgePts(e) { const a = nodeById(e.from), b = nodeById(e.to); return [outPt(a, e.fo), ...e.bends, inPt(b, e.ti)]; }
+function lenOf(pts) { let L = 0; for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i].x - pts[i-1].x, pts[i].y - pts[i-1].y); return Math.ceil(L - 1e-6); }
+function orient(a, b, c) { const v = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x); return Math.abs(v) < 1e-9 ? 0 : v > 0 ? 1 : -1; }
+function onSeg(a, b, p) { return Math.min(a.x, b.x) - 1e-9 <= p.x && p.x <= Math.max(a.x, b.x) + 1e-9 && Math.min(a.y, b.y) - 1e-9 <= p.y && p.y <= Math.max(a.y, b.y) + 1e-9; }
+function segX(p1, p2, p3, p4) {
+  const o1 = orient(p1, p2, p3), o2 = orient(p1, p2, p4), o3 = orient(p3, p4, p1), o4 = orient(p3, p4, p2);
+  if (o1 !== o2 && o3 !== o4) return true;
+  return (o1 === 0 && onSeg(p1, p2, p3)) || (o2 === 0 && onSeg(p1, p2, p4)) || (o3 === 0 && onSeg(p3, p4, p1)) || (o4 === 0 && onSeg(p3, p4, p2));
+}
+function segRect(a, b, r) { // Liang–Barsky against a rect shrunk slightly, so touching the border at a connector is fine
+  const e = 0.06, x0 = r.x + e, y0 = r.y + e, x1 = r.x + r.w - e, y1 = r.y + r.h - e;
+  let t0 = 0, t1 = 1; const dx = b.x - a.x, dy = b.y - a.y;
+  for (const [p, q] of [[-dx, a.x - x0], [dx, x1 - a.x], [-dy, a.y - y0], [dy, y1 - a.y]]) {
+    if (Math.abs(p) < 1e-12) { if (q < 0) return false; continue; }
+    const t = q / p; if (p < 0) { if (t > t1) return false; if (t > t0) t0 = t; } else { if (t < t0) return false; if (t < t1) t1 = t; }
+  }
+  return true;
+}
+const rectOf = n => ({ x: n.x, y: n.y, w: K(n).w, h: K(n).h });
+function validate(pts, ignoreEdgeId) {
+  const L = lenOf(pts);
+  if (L > EDGE_MAX) return { ok: false, why: `longa demais ${L}/${EDGE_MAX}` };
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i-1], b = pts[i];
+    for (const lk of lakes) if (segRect(a, b, lk)) return { ok: false, why: "atravessa água" };
+    for (const n of nodes) if (segRect(a, b, rectOf(n))) return { ok: false, why: `atravessa ${K(n).label}` };
+    for (const e of edges) {
+      if (e.id === ignoreEdgeId) continue;
+      const q = edgePts(e);
+      for (let j = 1; j < q.length; j++) if (segX(a, b, q[j-1], q[j])) return { ok: false, why: "cruza outra aresta" };
+    }
+  }
+  return { ok: true, why: `ok · ${L}/${EDGE_MAX} células` };
+}
+function nodeFree(kind, x, y, ignoreId) {
+  const k = KINDS[kind], r = { x, y, w: k.w, h: k.h };
+  if (x < 0 || y < 0 || x + k.w > COLS || y + k.h > ROWS) return false;
+  const ov = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  for (const n of nodes) if (n.id !== ignoreId && ov(r, rectOf(n))) return false;
+  for (const l of lakes) if (ov(r, l)) return false;
+  for (const e of edges) { const q = edgePts(e); for (let j = 1; j < q.length; j++) if (segRect(q[j-1], q[j], r)) return false; }
+  return true;
+}
+
+// Variant B: grid BFS between the cells next to the two connectors, avoiding nodes, water and existing edges.
+function autoRoute(a, b, ignoreEdgeId) {
+  const block = new Uint8Array(COLS * ROWS);
+  const mark = r => { for (let y = Math.floor(r.y); y < Math.ceil(r.y + r.h); y++) for (let x = Math.floor(r.x); x < Math.ceil(r.x + r.w); x++) if (x >= 0 && y >= 0 && x < COLS && y < ROWS) block[y * COLS + x] = 1; };
+  nodes.forEach(n => mark(rectOf(n))); lakes.forEach(mark);
+  for (const e of edges) { if (e.id === ignoreEdgeId) continue; const q = edgePts(e);
+    for (let j = 1; j < q.length; j++) { const s = q[j-1], t = q[j], n = Math.ceil(Math.hypot(t.x - s.x, t.y - s.y) * 3) + 1;
+      for (let k = 0; k <= n; k++) { const px = s.x + (t.x - s.x) * k / n, py = s.y + (t.y - s.y) * k / n; mark({ x: Math.floor(px - 0.01), y: Math.floor(py - 0.01), w: 1, h: 1 }); mark({ x: Math.floor(px), y: Math.floor(py), w: 1, h: 1 }); } } }
+  const sx = Math.floor(a.x), sy = Math.floor(a.y), tx = Math.floor(b.x) - 1, ty = Math.floor(b.y);
+  if ([sx, tx].some(v => v < 0 || v >= COLS) || block[sy * COLS + sx] || block[ty * COLS + tx]) return null;
+  const prev = new Int32Array(COLS * ROWS).fill(-1), q = [sy * COLS + sx]; prev[q[0]] = q[0];
+  for (let h = 0; h < q.length; h++) { const c = q[h]; if (c === ty * COLS + tx) break; const cx = c % COLS, cy = (c / COLS) | 0;
+    for (const [dx, dy] of [[1,0],[0,1],[0,-1],[-1,0]]) { const nx = cx + dx, ny = cy + dy, ni = ny * COLS + nx;
+      if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS || block[ni] || prev[ni] !== -1) continue; prev[ni] = c; q.push(ni); } }
+  if (prev[ty * COLS + tx] === -1) return null;
+  const cells = []; for (let c = ty * COLS + tx; ; c = prev[c]) { cells.push({ x: c % COLS + 0.5, y: ((c / COLS) | 0) + 0.5 }); if (c === prev[c]) break; }
+  cells.reverse();
+  const full = [a, { x: cells[0].x, y: a.y }, ...cells, { x: cells[cells.length - 1].x, y: b.y }, b];
+  const same = (p, q) => Math.abs(p.x - q.x) < 1e-9 && Math.abs(p.y - q.y) < 1e-9;
+  const dedup = full.filter((p, i) => i === 0 || !same(p, full[i - 1]));
+  const out = [dedup[0]];
+  for (let i = 1; i < dedup.length - 1; i++) if (orient(out[out.length - 1], dedup[i], dedup[i + 1]) !== 0) out.push(dedup[i]);
+  out.push(dedup[dedup.length - 1]);
+  return out.slice(1, -1);
+}
+
+// ---------- coordinates & hit testing ----------
+const cv = document.getElementById("board"), ctx = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+function resize() { DPR = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR; }
+addEventListener("resize", resize); resize();
+cam.x = 32 - W / 2 / cam.s; cam.y = 31 - H / 2 / cam.s;
+const toScreen = p => ({ x: (p.x - cam.x) * cam.s, y: (p.y - cam.y) * cam.s });
+const toWorld = p => ({ x: p.x / cam.s + cam.x, y: p.y / cam.s + cam.y });
+function hitConnector(sp, dir) { // dir 'out'|'in'; hit radius never below MIN_TARGET/2 on screen
+  let best = null, bd = Math.max(MIN_TARGET / 2, cam.s * 0.45);
+  for (const n of nodes) { const k = K(n), cnt = dir === "out" ? k.outs : k.ins;
+    for (let i = 0; i < cnt; i++) { const p = toScreen(dir === "out" ? outPt(n, i) : inPt(n, i)), d = Math.hypot(p.x - sp.x, p.y - sp.y);
+      if (d < bd) { bd = d; best = { node: n, i }; } } }
+  return best;
+}
+function hitNode(sp) { const w = toWorld(sp); return nodes.find(n => w.x >= n.x && w.x <= n.x + K(n).w && w.y >= n.y && w.y <= n.y + K(n).h) || null; }
+function hitEdge(sp) { const w = toWorld(sp), tol = Math.max(MIN_TARGET / 2, 10) / cam.s; let best = null, bd = tol;
+  for (const e of edges) { const q = edgePts(e); for (let j = 1; j < q.length; j++) { const a = q[j-1], b = q[j], dx = b.x - a.x, dy = b.y - a.y, t = Math.max(0, Math.min(1, ((w.x - a.x) * dx + (w.y - a.y) * dy) / (dx * dx + dy * dy || 1))), d = Math.hypot(a.x + dx * t - w.x, a.y + dy * t - w.y); if (d < bd) { bd = d; best = e; } } }
+  return best; }
+const usedOut = (n, i) => edges.some(e => e.from === n.id && e.fo === i);
+const usedIn = (n, i) => edges.some(e => e.to === n.id && e.ti === i);
+const cellCenter = w => ({ x: Math.floor(w.x) + 0.5, y: Math.floor(w.y) + 0.5 });
+
+// ---------- actions ----------
+function snapshot() { history.push(JSON.stringify({ nodes, edges, nextId })); if (history.length > 20) history.shift(); }
+function undo() { const s = history.pop(); if (!s) return say("nada para desfazer", "bad"); ({ nodes, edges, nextId } = JSON.parse(s)); selected = null; say("desfeito", ""); }
+function say(text, kind) { status = { text, kind }; }
+function finishEdge(target) {
+  if (!target) return;
+  const pts = [draw.start, ...draw.bends, inPt(target.node, target.i)];
+  const bends = variant === "B" ? autoRoute(draw.start, inPt(target.node, target.i)) : draw.bends;
+  if (variant === "B" && !bends) { say("sem rota livre", "bad"); return; }
+  const full = variant === "B" ? [draw.start, ...bends, inPt(target.node, target.i)] : pts;
+  if (target.node.id === draw.from.id) return say("mesmo nó", "bad");
+  if (usedIn(target.node, target.i)) return say("entrada ocupada", "bad");
+  const v = validate(full);
+  if (!v.ok) return say(v.why, "bad");
+  snapshot();
+  edges.push({ id: nextId++, from: draw.from.id, fo: draw.fo, to: target.node.id, ti: target.i, bends: bends.map(p => ({ ...p })) });
+  say("aresta criada · " + v.why.replace("ok · ", ""), "ok");
+}
+function startDraw(hit, sp) {
+  if (usedOut(hit.node, hit.i)) { say("saída ocupada", "bad"); return false; }
+  draw = { from: hit.node, fo: hit.i, start: outPt(hit.node, hit.i), bends: [], cursor: toWorld(sp), stillSince: performance.now(), stillAt: { ...sp } };
+  return true;
+}
+
+// ---------- input ----------
+cv.addEventListener("pointerdown", ev => {
+  cv.setPointerCapture(ev.pointerId);
+  ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (ptrs.size === 2) { // two fingers always cancel the tool and pan/pinch
+    if (draw && variant !== "C") { draw = null; say("cancelado (dois dedos)", ""); }
+    if (moving) { moving.node.x = moving.ox; moving.node.y = moving.oy; moving = null; }
+    gesture = null;
+    const [a, b] = [...ptrs.values()];
+    pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), s: cam.s, mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, w: toWorld({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }) };
+    return;
+  }
+  if (ptrs.size > 2) return;
+  const sp = { x: ev.clientX, y: ev.clientY };
+  gesture = { start: sp, last: sp, t: performance.now(), moved: false, id: ev.pointerId, mode: null, longTimer: null };
+  const outHit = hitConnector(sp, "out");
+  if (outHit && variant !== "C") { if (startDraw(outHit, sp)) gesture.mode = "draw"; return; }
+  const nh = hitNode(sp);
+  if (nh && !placing) gesture.longTimer = setTimeout(() => {
+    if (gesture && !gesture.moved) { gesture.mode = "move"; moving = { node: nh, ox: nh.x, oy: nh.y, grab: { x: toWorld(sp).x - nh.x, y: toWorld(sp).y - nh.y } }; say(`movendo ${K(nh).label}`, ""); navigator.vibrate && navigator.vibrate(15); }
+  }, LONG_PRESS);
+});
+cv.addEventListener("pointermove", ev => {
+  if (!ptrs.has(ev.pointerId)) return;
+  ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (pinch && ptrs.size === 2) {
+    const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y), mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    cam.s = Math.max(12, Math.min(90, pinch.s * d / pinch.d));
+    cam.x = pinch.w.x - mid.x / cam.s; cam.y = pinch.w.y - mid.y / cam.s; return;
+  }
+  if (!gesture || ev.pointerId !== gesture.id) return;
+  const sp = { x: ev.clientX, y: ev.clientY };
+  if (!gesture.moved && Math.hypot(sp.x - gesture.start.x, sp.y - gesture.start.y) > TAP_SLOP) { gesture.moved = true; clearTimeout(gesture.longTimer); if (!gesture.mode) gesture.mode = "pan"; }
+  if (gesture.mode === "pan") { cam.x -= (sp.x - gesture.last.x) / cam.s; cam.y -= (sp.y - gesture.last.y) / cam.s; }
+  if (gesture.mode === "draw" && draw) {
+    draw.cursor = toWorld(sp);
+    if (Math.hypot(sp.x - draw.stillAt.x, sp.y - draw.stillAt.y) > TAP_SLOP) { draw.stillAt = { ...sp }; draw.stillSince = performance.now(); }
+  }
+  if (gesture.mode === "move" && moving) {
+    const w = toWorld(sp); moving.node.x = Math.round(w.x - moving.grab.x); moving.node.y = Math.round(w.y - moving.grab.y);
+  }
+  gesture.last = sp;
+});
+function endPointer(ev) {
+  if (!ptrs.has(ev.pointerId)) return;
+  ptrs.delete(ev.pointerId);
+  if (pinch) { if (ptrs.size < 2) pinch = null; gesture = null; return; }
+  if (!gesture || ev.pointerId !== gesture.id) return;
+  clearTimeout(gesture.longTimer);
+  const sp = { x: ev.clientX, y: ev.clientY }, g = gesture; gesture = null;
+  if (g.mode === "draw") { const tgt = hitConnector(sp, "in"); if (tgt) finishEdge(tgt); else say("solte num conector de entrada", "bad"); draw = null; return; }
+  if (g.mode === "move") { finishMove(); return; }
+  if (g.moved) return;
+  onTap(sp);
+}
+cv.addEventListener("pointerup", endPointer);
+cv.addEventListener("pointercancel", endPointer);
+
+function finishMove() {
+  const n = moving.node, free = nodeFree(n.kind, n.x, n.y, n.id);
+  const bad = edges.filter(e => e.from === n.id || e.to === n.id).map(e => validate(edgePts(e), e.id)).find(v => !v.ok);
+  if (!free || bad) { const x = n.x, y = n.y; n.x = moving.ox; n.y = moving.oy; say(!free ? "posição ocupada" : "aresta ficaria inválida: " + bad.why, "bad"); moving = null; return; }
+  const x = n.x, y = n.y; n.x = moving.ox; n.y = moving.oy; snapshot(); n.x = x; n.y = y;
+  say(`${K(n).label} movido`, "ok"); moving = null;
+}
+function onTap(sp) {
+  const w = toWorld(sp);
+  if (placing) {
+    const k = KINDS[placing], x = Math.floor(w.x - k.w / 2 + 0.5), y = Math.floor(w.y - k.h / 2 + 0.5);
+    if (!nodeFree(placing, x, y)) return say("não cabe aqui", "bad");
+    snapshot(); addNode(placing, x, y); say(`${k.label} colocado`, "ok"); return;
+  }
+  if (variant === "C") {
+    if (draw) {
+      const tgt = hitConnector(sp, "in"); if (tgt) { finishEdge(tgt); draw = null; syncButtons(); return; }
+      draw.bends.push(cellCenter(w)); draw.cursor = cellCenter(w); say(`dobra ${draw.bends.length}`, ""); return;
+    }
+    const o = hitConnector(sp, "out"); if (o) { startDraw(o, sp); say("toque nas células e depois na entrada", ""); syncButtons(); return; }
+  }
+  const n = hitNode(sp); if (n) { selected = { type: "node", id: n.id }; say(`${K(n).label} selecionado`, ""); syncButtons(); return; }
+  const e = hitEdge(sp); if (e) { selected = { type: "edge", id: e.id }; say("aresta selecionada", ""); syncButtons(); return; }
+  selected = null; syncButtons();
+}
+
+// ---------- UI chrome ----------
+const $ = id => document.getElementById(id);
+function renderPalette() {
+  $("palette").innerHTML = "";
+  for (const kind of ["extractor", "furnace", "assembler", "box"]) {
+    const k = KINDS[kind], b = document.createElement("button");
+    b.type = "button"; b.innerHTML = `${k.label}<small>${k.w}×${k.h}</small>`; if (placing === kind) b.className = "on";
+    b.onclick = () => { placing = placing === kind ? null : kind; say(placing ? `toque no mapa para colocar ${k.label}` : "pronto", ""); renderPalette(); };
+    $("palette").appendChild(b);
+  }
+}
+function syncButtons() { $("del").hidden = !selected; $("cancel").hidden = !(draw && variant === "C"); }
+$("undo").onclick = undo;
+$("del").onclick = () => {
+  if (!selected) return; snapshot();
+  if (selected.type === "edge") edges = edges.filter(e => e.id !== selected.id);
+  else { if (nodeById(selected.id).kind === "core") { history.pop(); return say("o Núcleo não pode ser removido", "bad"); } edges = edges.filter(e => e.from !== selected.id && e.to !== selected.id); nodes = nodes.filter(n => n.id !== selected.id); }
+  selected = null; say("removido", ""); syncButtons();
+};
+$("cancel").onclick = () => { draw = null; say("cancelado", ""); syncButtons(); };
+function setVariant(v) { variant = v; draw = null; try { history.replaceState(null, "", "#" + v); } catch (_) { location.hash = v; } $("vlabel").textContent = VARIANTS[v].name; $("help").innerHTML = VARIANTS[v].help; say("pronto", ""); syncButtons(); }
+const order = Object.keys(VARIANTS);
+$("prev").onclick = () => setVariant(order[(order.indexOf(variant) + order.length - 1) % order.length]);
+$("next").onclick = () => setVariant(order[(order.indexOf(variant) + 1) % order.length]);
+addEventListener("keydown", e => { if (e.target.closest && e.target.closest("input,textarea,[contenteditable]")) return; if (e.key === "ArrowLeft") $("prev").click(); if (e.key === "ArrowRight") $("next").click(); if (e.key === "Escape") { draw = null; placing = null; renderPalette(); syncButtons(); } });
+addEventListener("hashchange", () => { const v = location.hash.slice(1); if (VARIANTS[v] && v !== variant) setVariant(v); });
+renderPalette(); setVariant(variant);
+
+// ---------- frame ----------
+let lastT = performance.now();
+function frame(t) {
+  const dt = Math.min(0.05, (t - lastT) / 1000); lastT = t;
+  // Variant A: holding still pins a bend at the cell under the finger.
+  if (draw && variant === "A" && gesture && gesture.mode === "draw" && t - draw.stillSince > BEND_HOLD) {
+    const c = cellCenter(draw.cursor), last = draw.bends[draw.bends.length - 1];
+    if (!last || last.x !== c.x || last.y !== c.y) { draw.bends.push(c); say(`dobra ${draw.bends.length} fixada`, ""); navigator.vibrate && navigator.vibrate(10); }
+    draw.stillSince = Infinity;
+  }
+  // Auto-pan when a drag nears the screen edge.
+  if (gesture && (gesture.mode === "draw" || gesture.mode === "move")) {
+    const p = gesture.last; let vx = 0, vy = 0;
+    if (p.x < EDGE_PAN) vx = -1; else if (p.x > W - EDGE_PAN) vx = 1;
+    if (p.y < EDGE_PAN + 40) vy = -1; else if (p.y > H - EDGE_PAN - 60) vy = 1;
+    if (vx || vy) { cam.x += vx * 9 * dt; cam.y += vy * 9 * dt; if (draw) draw.cursor = toWorld(p); if (moving) { const w = toWorld(p); moving.node.x = Math.round(w.x - moving.grab.x); moving.node.y = Math.round(w.y - moving.grab.y); } }
+  }
+  paint(t); hud(); requestAnimationFrame(frame);
+}
+function line(pts, color, width, dash) { ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash || []); ctx.beginPath(); pts.forEach((p, i) => { const s = toScreen(p); i ? ctx.lineTo(s.x, s.y) : ctx.moveTo(s.x, s.y); }); ctx.stroke(); ctx.setLineDash([]); }
+function paint(t) {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = "#0b1e3a"; ctx.fillRect(0, 0, W, H);
+  // grid
+  const x0 = Math.floor(cam.x), y0 = Math.floor(cam.y), x1 = Math.ceil(cam.x + W / cam.s), y1 = Math.ceil(cam.y + H / cam.s);
+  ctx.lineWidth = 1;
+  for (let x = x0; x <= x1; x++) { ctx.strokeStyle = x % 4 === 0 ? "#1d3f70" : "#132b50"; const s = toScreen({ x, y: 0 }).x; ctx.beginPath(); ctx.moveTo(s + .5, 0); ctx.lineTo(s + .5, H); ctx.stroke(); }
+  for (let y = y0; y <= y1; y++) { ctx.strokeStyle = y % 4 === 0 ? "#1d3f70" : "#132b50"; const s = toScreen({ x: 0, y }).y; ctx.beginPath(); ctx.moveTo(0, s + .5); ctx.lineTo(W, s + .5); ctx.stroke(); }
+  // lakes & deposits
+  for (const l of lakes) { const a = toScreen(l); ctx.fillStyle = "rgba(64,140,220,.28)"; ctx.fillRect(a.x, a.y, l.w * cam.s, l.h * cam.s); ctx.strokeStyle = "rgba(120,190,255,.5)"; ctx.strokeRect(a.x + .5, a.y + .5, l.w * cam.s, l.h * cam.s); }
+  for (const d of deposits) { const a = toScreen(d); ctx.fillStyle = d.c + "33"; ctx.fillRect(a.x, a.y, d.w * cam.s, d.h * cam.s); ctx.fillStyle = d.c; for (let i = 0; i < d.w * 2; i++) for (let j = 0; j < d.h * 2; j++) if ((i + j) % 3 === 0) { ctx.beginPath(); ctx.arc(a.x + (i + .5) * cam.s / 2, a.y + (j + .5) * cam.s / 2, Math.max(1.2, cam.s * .06), 0, 7); ctx.fill(); } }
+  // edges with items
+  for (const e of edges) {
+    const q = edgePts(e), sel = selected && selected.type === "edge" && selected.id === e.id;
+    line(q, sel ? "#ffb547" : "#cfe3ff", sel ? 3 : 2);
+    const L = lenOf(q), segs = []; let acc = 0; for (let j = 1; j < q.length; j++) { const l = Math.hypot(q[j].x - q[j-1].x, q[j].y - q[j-1].y); segs.push([q[j-1], q[j], acc, l]); acc += l; }
+    const dotColor = KINDS[nodeById(e.from).kind].color;
+    for (let k = 0; k < acc; k += 1.5) { const d = (k + t / 1000 * 3) % acc; const sg = segs.find(s => d >= s[2] && d <= s[2] + s[3]) || segs[segs.length - 1]; const u = (d - sg[2]) / (sg[3] || 1); const p = toScreen({ x: sg[0].x + (sg[1].x - sg[0].x) * u, y: sg[0].y + (sg[1].y - sg[0].y) * u }); ctx.fillStyle = dotColor; ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(2, cam.s * .1), 0, 7); ctx.fill(); }
+  }
+  // nodes
+  for (const n of nodes) {
+    const k = K(n), a = toScreen(n), w = k.w * cam.s, h = k.h * cam.s, sel = (selected && selected.type === "node" && selected.id === n.id) || (moving && moving.node === n);
+    const bad = moving && moving.node === n && !nodeFree(n.kind, n.x, n.y, n.id);
+    ctx.fillStyle = "#0e2748"; ctx.fillRect(a.x + 2, a.y + 2, w - 4, h - 4);
+    ctx.fillStyle = k.color; ctx.fillRect(a.x + 2, a.y + 2, w - 4, Math.min(h * .28, cam.s * .7));
+    ctx.strokeStyle = bad ? "#ff5d6c" : sel ? "#ffb547" : "#8aa6cf"; ctx.lineWidth = sel ? 2.5 : 1.2; ctx.strokeRect(a.x + 2.5, a.y + 2.5, w - 5, h - 5);
+    if (cam.s > 18) { ctx.fillStyle = "#d7e6ff"; ctx.font = `600 ${Math.max(10, Math.min(14, cam.s * .38))}px "Barlow Semi Condensed", sans-serif`; ctx.textBaseline = "middle"; ctx.fillText(k.label, a.x + 7, a.y + h * .55); }
+    const cr = Math.max(4, cam.s * .16);
+    for (let i = 0; i < k.ins; i++) { const p = toScreen(inPt(n, i)); ctx.fillStyle = usedIn(n, i) ? "#cfe3ff" : "#0b1e3a"; ctx.strokeStyle = "#cfe3ff"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(p.x, p.y, cr, 0, 7); ctx.fill(); ctx.stroke(); }
+    for (let i = 0; i < k.outs; i++) { const p = toScreen(outPt(n, i)); ctx.fillStyle = usedOut(n, i) ? "#cfe3ff" : "#ffb547"; ctx.beginPath(); ctx.arc(p.x, p.y, cr, 0, 7); ctx.fill(); }
+  }
+  // edge in progress with a live planar preview
+  if (draw) {
+    let pts, v;
+    const tgt = gesture && gesture.last ? hitConnector(gesture.last, "in") : null;
+    const endP = tgt ? inPt(tgt.node, tgt.i) : draw.cursor;
+    if (variant === "B") { const r = tgt ? autoRoute(draw.start, endP) : null; pts = r ? [draw.start, ...r, endP] : [draw.start, endP]; v = tgt ? (r ? validate(pts) : { ok: false, why: "sem rota livre" }) : validate([draw.start, draw.cursor]); }
+    else { pts = [draw.start, ...draw.bends, endP]; v = validate(pts); }
+    line(pts, v.ok ? "#5be0a0" : "#ff5d6c", 3, tgt ? null : [8, 6]);
+    for (const b of draw.bends) { const s = toScreen(b); ctx.fillStyle = "#ffb547"; ctx.fillRect(s.x - 4, s.y - 4, 8, 8); }
+    if (variant === "A" && gesture && gesture.mode === "draw" && isFinite(draw.stillSince)) { // bend hold ring
+      const f = Math.min(1, (performance.now() - draw.stillSince) / BEND_HOLD), s = gesture.last;
+      ctx.strokeStyle = "#ffb547"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(s.x, s.y - 46, 14, -Math.PI / 2, -Math.PI / 2 + f * Math.PI * 2); ctx.stroke();
+    }
+    draw.preview = v;
+  }
+  // placement ghost follows the last touch
+  if (placing && gesture && gesture.last) { const k = KINDS[placing], w = toWorld(gesture.last), x = Math.floor(w.x - k.w / 2 + .5), y = Math.floor(w.y - k.h / 2 + .5), a = toScreen({ x, y }); ctx.strokeStyle = nodeFree(placing, x, y) ? "#5be0a0" : "#ff5d6c"; ctx.setLineDash([6, 4]); ctx.strokeRect(a.x, a.y, k.w * cam.s, k.h * cam.s); ctx.setLineDash([]); }
+}
+function hud() {
+  const g = pinch ? "pinça/pan (2 dedos)" : gesture ? (gesture.mode || (gesture.moved ? "arraste" : "toque…")) : "—";
+  const pv = draw && draw.preview ? `<span class="chip ${draw.preview.ok ? "ok" : "bad"}">${draw.preview.why}</span>` : "";
+  $("hud").innerHTML = `<span class="chip">gesto <b>${g}</b></span><span class="chip ${status.kind}">${status.text}</span>${pv}<span class="chip">nós <b>${nodes.length}</b> · arestas <b>${edges.length}</b> · zoom <b>${cam.s.toFixed(0)}px</b>/célula</span>`;
+}
+requestAnimationFrame(frame);
+</script>
