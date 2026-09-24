@@ -14,7 +14,7 @@ import { resetGameState, type GameState } from "../sim/state/gameState";
 import { strings } from "../ui/strings";
 import { GiveItems, SetRevealedRing } from "./cheats";
 import { DebugPanel } from "./DebugPanel";
-import { drawCoreRings, OverlayManager } from "./overlays";
+import { drawCoreRings, drawHashBuckets, OverlayManager } from "./overlays";
 import { PerfMonitor, type PerfSnapshot } from "./perf";
 
 /** What main.ts hands to the debug tools. */
@@ -74,6 +74,12 @@ export function installDebugTools(debug: DebugGame) {
     id: "core-rings",
     label: strings.debug.coreRings,
     draw: drawCoreRings,
+  });
+  overlays.register({
+    id: "hash-buckets",
+    label: strings.debug.hashBuckets,
+    draw: drawHashBuckets,
+    live: true,
   });
   // Like the map layers, overlays drop every GPU handle from the lost context.
   debug.app.canvas.addEventListener("webglcontextrestored", () =>

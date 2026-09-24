@@ -66,3 +66,9 @@ export const STORAGE_PREFIX = "train-mind-map:";
 
 /** Smallest side of anything tappable, in screen pixels, at any zoom (FR133). */
 export const MIN_TOUCH_PX = 44;
+
+/**
+ * Side of a spatial-hash bucket, in cells. The planar index files edge
+ * segments, node rects and water under every bucket they touch.
+ */
+export const HASH_BUCKET_CELLS = 8;

@@ -29,6 +29,13 @@ export function overlaps(a: Rect, b: Rect, gap = 0): boolean {
   );
 }
 
+/** True when cell (x, y) lies inside `rect`. */
+export function containsCell(rect: Rect, x: number, y: number): boolean {
+  return (
+    x >= rect.x && x < rect.x + rect.w && y >= rect.y && y < rect.y + rect.h
+  );
+}
+
 /** True when `inner` lies wholly inside `outer`. */
 export function containsRect(outer: Rect, inner: Rect): boolean {
   return (

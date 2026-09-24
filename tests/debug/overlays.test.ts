@@ -1,6 +1,10 @@
 import { Container } from "pixi.js";
 import { describe, expect, it } from "vitest";
-import { drawCoreRings, OverlayManager } from "../../src/debug/overlays";
+import {
+  drawCoreRings,
+  drawHashBuckets,
+  OverlayManager,
+} from "../../src/debug/overlays";
 import { createGameState, resetGameState } from "../../src/sim/state/gameState";
 
 function setup() {
@@ -57,6 +61,28 @@ describe("OverlayManager", () => {
     expect(draws()).toBe(drawn + 1);
   });
 
+  it("redraws a live overlay on every tick, and the others only on map changes", () => {
+    const { state, overlays, draws } = setup();
+    let liveDraws = 0;
+    overlays.register({
+      id: "live",
+      label: "live",
+      live: true,
+      draw: () => {
+        liveDraws++;
+        return new Container();
+      },
+    });
+    overlays.setEnabled("test", true);
+    overlays.setEnabled("live", true);
+    overlays.refresh();
+    const [still, live] = [draws(), liveDraws];
+    state.tick++;
+    overlays.refresh();
+    expect(draws()).toBe(still);
+    expect(liveDraws).toBe(live + 1);
+  });
+
   it("rejects a duplicate id", () => {
     const { overlays } = setup();
     expect(() =>
@@ -69,6 +95,14 @@ describe("drawCoreRings", () => {
   it("draws around the Core", () => {
     const g = drawCoreRings(createGameState("rings"));
     expect(g.label).toBe("overlay:core-rings");
+    expect(g.getLocalBounds().width).toBeGreaterThan(0);
+  });
+});
+
+describe("drawHashBuckets", () => {
+  it("shades the buckets that hold water or nodes", () => {
+    const g = drawHashBuckets(createGameState("buckets"));
+    expect(g.label).toBe("overlay:hash-buckets");
     expect(g.getLocalBounds().width).toBeGreaterThan(0);
   });
 });

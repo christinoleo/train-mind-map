@@ -5,6 +5,7 @@ import {
   cellIndex,
   revealedSize,
   Terrain,
+  waterRuns,
   type GameMap,
 } from "../sim/state/map";
 import type { DeepReadonly } from "./readonly";
@@ -38,25 +39,6 @@ export function isInside(rect: Rect, bounds: Rect): boolean {
     rect.x + rect.w <= bounds.x + bounds.w &&
     rect.y + rect.h <= bounds.y + bounds.h
   );
-}
-
-/** The water cells inside `bounds`, merged into one-row runs. */
-export function waterRuns(map: MapView, bounds: Rect): Rect[] {
-  const runs: Rect[] = [];
-  for (let y = bounds.y; y < bounds.y + bounds.h; y++) {
-    let start = -1;
-    const end = bounds.x + bounds.w;
-    for (let x = bounds.x; x < end; x++) {
-      const water = map.terrain[cellIndex(x, y)] === Terrain.Water;
-      if (water && start < 0) start = x;
-      if (!water && start >= 0) {
-        runs.push({ x: start, y, w: x - start, h: 1 });
-        start = -1;
-      }
-    }
-    if (start >= 0) runs.push({ x: start, y, w: end - start, h: 1 });
-  }
-  return runs;
 }
 
 /**

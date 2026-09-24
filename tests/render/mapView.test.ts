@@ -4,7 +4,6 @@ import {
   isInside,
   revealedBounds,
   roundedCorners,
-  waterRuns,
 } from "../../src/render/mapView";
 import { RESOURCE_STYLE } from "../../src/render/theme";
 import { createGameState } from "../../src/sim/state/gameState";
@@ -13,6 +12,7 @@ import {
   isRevealed,
   revealedSize,
   Terrain,
+  waterRuns,
   type GameMap,
 } from "../../src/sim/state/map";
 import { hashState } from "../../src/sim/state/serialize";
