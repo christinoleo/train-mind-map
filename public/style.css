@@ -389,8 +389,8 @@ canvas {
   color: #f5c542;
 }
 
-/* The round dark buttons: undo, research and settings. */
-#ui-root > :is(.undo, .research-toggle, .settings-toggle) {
+/* The round dark buttons: undo, research, settings and the rail layer. */
+#ui-root > :is(.undo, .research-toggle, .settings-toggle, .rail-toggle) {
   border: 0;
   border-radius: 50%;
   background: rgba(19, 22, 28, 0.94);
@@ -599,6 +599,21 @@ canvas {
   width: 44px;
   height: 44px;
   font-size: 1.3rem;
+}
+
+/* The rail layer toggle (FR78), beside research at the bottom-right,
+   mirroring settings. It glows while the rail layer is in focus. */
+#ui-root > .rail-toggle {
+  position: fixed;
+  right: 72px;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  width: 44px;
+  height: 44px;
+  font-size: 1.3rem;
+}
+
+#ui-root > .rail-toggle[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px #ff9f1c;
 }
 
 /* An onboarding hint (FR139): a capsule in the node-editor style whose

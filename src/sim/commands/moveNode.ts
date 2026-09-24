@@ -6,6 +6,7 @@ import {
   type Point,
 } from "../geometry/planar";
 import { pathLength, type Route } from "../geometry/route";
+import { hasRails } from "../rail/rails";
 import { fail, ok, type FailReason, type Result } from "../result";
 import {
   checkJoins,
@@ -91,6 +92,10 @@ export function planMove(
   const moved: FactoryNode = { ...structuredClone(node), x, y };
   if (node.kind === "core") {
     return { node: moved, edges: [], check: fail("immovable") };
+  }
+  // Rails are not re-routed: a Station moves only once its rails are gone.
+  if (hasRails(state, id)) {
+    return { node: moved, edges: [], check: fail("has_rails") };
   }
   const attached = edgesOf(state, id);
   const fits = checkFootprint(

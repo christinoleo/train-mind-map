@@ -2,7 +2,7 @@ import { Container, Graphics, type Application } from "pixi.js";
 import type { SimEventOf } from "../sim/events";
 import type { Rect } from "../sim/geometry/rect";
 import type { Edge, GameState } from "../sim/state/gameState";
-import type { EdgeId, NodeId } from "../sim/state/ids";
+import type { EdgeId, NodeId, RailId } from "../sim/state/ids";
 import { nodeRect } from "../sim/state/nodes";
 import { isShort, meshOfEdge } from "../sim/state/power";
 import type { Camera } from "../input/camera";
@@ -11,11 +11,11 @@ import type { Ghost } from "../input/tools/place";
 import { EdgePreviewView, EdgeViews } from "./edges";
 import { Flights } from "./flights";
 import { ItemViews } from "./items";
-import { createLayers, type Layers } from "./layers";
+import { applyFocus, createLayers, type Focus, type Layers } from "./layers";
 import { applyLod } from "./lod";
 import { drawDeposits, drawTerrain, revealedBounds } from "./mapView";
 import { drawGhostOutline, drawNodeCard, NodeViews } from "./nodes";
-import { drawRailPorts, RailPortViews } from "./rails";
+import { drawRailPorts, RailPortViews, RailViews } from "./rails";
 import type { DeepReadonly } from "./readonly";
 import {
   BUILD_FLIGHT_MS,
@@ -25,6 +25,7 @@ import {
   ITEM_COLOR,
   TAP_FLIGHT_MS,
   toWorld,
+  UNFOCUSED_ALPHA,
 } from "./theme";
 
 export interface Renderer {
@@ -41,6 +42,10 @@ export interface Renderer {
   setEdgePreview(preview: EdgePreview | null): void;
   /** Highlights the edge whose menu is open, or none with `null`. */
   setSelectedEdge(id: EdgeId | null): void;
+  /** Highlights the rail whose menu is open, or none with `null`. */
+  setSelectedRail(id: RailId | null): void;
+  /** Brings the factory or the rail layer into focus, dimming the other. */
+  setFocus(focus: Focus): void;
   /** Fades the node being moved and its edges, or none with `null`. */
   setMoving(id: NodeId | null): void;
   /** Flies the items a construction took from storage to its site. */
@@ -64,6 +69,9 @@ export function createRenderer(
   const layers = createLayers(world);
   const nodeViews = new NodeViews(layers.nodes);
   const railPortViews = new RailPortViews(layers.rails);
+  const railViews = new RailViews(layers.rails);
+  let selectedRail: RailId | null = null;
+  applyFocus(layers, "factory", UNFOCUSED_ALPHA);
   const edgeViews = new EdgeViews(layers.edges);
   const itemViews = new ItemViews(layers.items, app.renderer);
   const edgePreviewView = new EdgePreviewView(layers.overlays);
@@ -133,6 +141,7 @@ export function createRenderer(
     drawnMap = null;
     nodeViews.clear();
     railPortViews.clear();
+    railViews.clear();
     edgeViews.clear();
     itemViews.clear();
     flights.clear();
@@ -167,6 +176,7 @@ export function createRenderer(
       if (drawnMap !== map || drawnRing !== map.revealedRing) rebuildMap();
       nodeViews.sync(state.nodes, moving);
       railPortViews.sync(state.nodes, moving);
+      railViews.sync(state.rails, selectedRail);
       edgeViews.sync(
         state.edges,
         state.nodes,
@@ -207,6 +217,12 @@ export function createRenderer(
     },
     setSelectedEdge(id) {
       selectedEdge = id;
+    },
+    setSelectedRail(id) {
+      selectedRail = id;
+    },
+    setFocus(focus) {
+      applyFocus(layers, focus, UNFOCUSED_ALPHA);
     },
     setMoving(id) {
       moving = id;

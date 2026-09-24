@@ -10,8 +10,10 @@ import { ConnectEdge } from "../sim/commands/connectEdge";
 import { ManualTap } from "../sim/commands/manualTap";
 import { MoveNode } from "../sim/commands/moveNode";
 import { PlaceNode } from "../sim/commands/placeNode";
+import { PlaceRail } from "../sim/commands/placeRail";
 import { RemoveEdge } from "../sim/commands/removeEdge";
 import { RemoveNode } from "../sim/commands/removeNode";
+import { RemoveRail } from "../sim/commands/removeRail";
 import { SetRecipe } from "../sim/commands/setRecipe";
 import { UpgradeEdge } from "../sim/commands/upgradeEdge";
 import { UpgradeNode } from "../sim/commands/upgradeNode";
@@ -55,6 +57,8 @@ const CODECS: Readonly<Record<string, Codec>> = {
   ConnectEdge: codec(ConnectEdge, (c) => [c.from, c.to]),
   RemoveEdge: codec(RemoveEdge, (c) => [c.id]),
   UpgradeEdge: codec(UpgradeEdge, (c) => [c.id, c.level]),
+  PlaceRail: codec(PlaceRail, (c) => [c.from, c.to]),
+  RemoveRail: codec(RemoveRail, (c) => [c.id]),
   ManualTap: codec(ManualTap, (c) => [c.x, c.y]),
   SetRevealedRing: codec(SetRevealedRing, (c) => [c.ring]),
   GiveItems: codec(GiveItems, (c) => [c.perItem]),

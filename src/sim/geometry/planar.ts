@@ -17,6 +17,22 @@ export interface Point {
   y: number;
 }
 
+/** True when `path` runs from `start` to `end`. */
+export function joins(
+  path: readonly Point[],
+  start: Point,
+  end: Point,
+): boolean {
+  const first = path[0];
+  const last = path[path.length - 1];
+  return (
+    first.x === start.x &&
+    first.y === start.y &&
+    last.x === end.x &&
+    last.y === end.y
+  );
+}
+
 /** Sign of the turn a → b → c: 1 counter-clockwise, -1 clockwise, 0 collinear. */
 export function orientation(a: Point, b: Point, c: Point): number {
   return Math.sign((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));

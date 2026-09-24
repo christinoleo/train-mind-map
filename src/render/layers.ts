@@ -24,3 +24,19 @@ export function createLayers(world: Container): Layers {
   }
   return layers;
 }
+
+/** The layer the player works on (FR78). */
+export type Focus = "factory" | "rails";
+
+/** The layers each focus keeps bright; the others dim. */
+const FOCUS_LAYERS: Record<Focus, readonly LayerName[]> = {
+  factory: ["edges", "items", "nodes"],
+  rails: ["rails", "trains"],
+};
+
+/** Dims the layers out of `focus` to `alpha`, and shows the rest in full. */
+export function applyFocus(layers: Layers, focus: Focus, alpha: number) {
+  const other: Focus = focus === "factory" ? "rails" : "factory";
+  for (const name of FOCUS_LAYERS[focus]) layers[name].alpha = 1;
+  for (const name of FOCUS_LAYERS[other]) layers[name].alpha = alpha;
+}

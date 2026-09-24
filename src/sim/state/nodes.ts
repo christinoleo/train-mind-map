@@ -7,9 +7,10 @@ import {
   type RecipeId,
 } from "../../data/recipes";
 import { assert } from "../assert";
-import { allCells, overlaps, type Rect } from "../geometry/rect";
+import { allCells, containsCell, overlaps, type Rect } from "../geometry/rect";
+import { railCells } from "../rail/route";
 import { fail, ok, type Result } from "../result";
-import { edgeCrosses } from "./edges";
+import { edgeCrosses, pathBounds } from "./edges";
 import type { FactoryNode, GameState } from "./gameState";
 import type { NodeId } from "./ids";
 import { depositUnder, isRevealedRect, Terrain, terrainAt } from "./map";
@@ -99,6 +100,31 @@ export function isOccupied(state: Readonly<GameState>, rect: Rect): boolean {
   return false;
 }
 
+/**
+ * True when a rail runs through a cell of `rect`, or through a corner of it:
+ * a diagonal step needs both cells beside it free (FR81).
+ */
+export function railCrosses(state: Readonly<GameState>, rect: Rect): boolean {
+  for (const rail of state.rails.values()) {
+    if (!overlaps(pathBounds(rail.path), rect)) continue;
+    const cells = railCells(rail.path);
+    for (let i = 0; i < cells.length; i++) {
+      const c = cells[i];
+      if (containsCell(rect, c.x, c.y)) return true;
+      const prev = cells[i - 1];
+      if (prev && prev.x !== c.x && prev.y !== c.y) {
+        if (
+          containsCell(rect, c.x, prev.y) ||
+          containsCell(rect, prev.x, c.y)
+        ) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 /** True when research, or the start, has made `kind` buildable (FR18). */
 export function isUnlocked(
   state: Readonly<GameState>,
@@ -124,6 +150,7 @@ export function checkFootprint(
   if (!isRevealedRect(map, rect)) return fail("out_of_bounds");
   if (isOccupied(state, rect)) return fail("occupied");
   if (edgeCrosses(state, rect)) return fail("crosses_edge");
+  if (railCrosses(state, rect)) return fail("crosses_rail");
   if (!allCells(rect, (cx, cy) => terrainAt(map, cx, cy) === Terrain.Land)) {
     return fail("on_water");
   }

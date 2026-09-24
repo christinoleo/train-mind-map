@@ -9,6 +9,7 @@ import {
 import { countsAbove, itemEntries, type ItemCounts } from "../../data/items";
 import { NODES, type Cost, type NodeKind } from "../../data/nodes";
 import {
+  joins,
   segmentHitsRect,
   segments,
   type PlanarIndex,
@@ -279,16 +280,7 @@ export function checkJoins(
   start: Point,
   end: Point,
 ): Result {
-  const first = path[0];
-  const last = path[path.length - 1];
-  if (
-    first.x !== start.x ||
-    first.y !== start.y ||
-    last.x !== end.x ||
-    last.y !== end.y
-  ) {
-    return fail("no_route");
-  }
+  if (!joins(path, start, end)) return fail("no_route");
   return index.checkPath(path);
 }
 
