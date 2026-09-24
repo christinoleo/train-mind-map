@@ -1,9 +1,7 @@
+import { generateMap } from "../mapgen/generate";
 import { seedRng, type RngState } from "../mapgen/rng";
 import { initialNextIds, type EdgeId, type NextIds, type NodeId } from "./ids";
-
-export interface MapInfo {
-  seed: string;
-}
+import type { GameMap } from "./map";
 
 export interface FactoryNode {
   id: NodeId;
@@ -20,7 +18,7 @@ export interface Edge {
 export interface GameState {
   tick: number;
   rng: RngState;
-  map: MapInfo;
+  map: GameMap;
   nextIds: NextIds;
   nodes: Map<NodeId, FactoryNode>;
   edges: Map<EdgeId, Edge>;
@@ -30,7 +28,7 @@ export function createGameState(seed: string): GameState {
   return {
     tick: 0,
     rng: seedRng(seed),
-    map: { seed },
+    map: generateMap(seed),
     nextIds: initialNextIds(),
     nodes: new Map(),
     edges: new Map(),
