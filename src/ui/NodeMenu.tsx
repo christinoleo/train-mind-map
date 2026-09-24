@@ -5,6 +5,7 @@ import { UpgradeNode, nodeUpgradeCost } from "../sim/commands/upgradeNode";
 import type { FailReason } from "../sim/result";
 import type { GameState } from "../sim/state/gameState";
 import type { NodeId } from "../sim/state/ids";
+import { stationCapacity } from "../sim/rail/station";
 import { canRun } from "../sim/state/nodes";
 import { isCrafter } from "../sim/state/production";
 import { isStorage, storageCapacity, storedCount } from "../sim/state/stock";
@@ -21,8 +22,9 @@ export interface NodeMenuInfo {
   /** What removing it gives back; `null` for the Core, which stays. */
   refund: Cost | null;
   /**
-   * How full the Core or a Box is, and a Box's "não usar em construção"
-   * option (`null` on the Core); `null` for kinds that store nothing.
+   * How full the Core, a Box or a Station's buffer is, and a Box's "não
+   * usar em construção" option (`null` on the others); `null` for kinds that
+   * hold nothing.
    */
   storage: {
     stored: number;
@@ -67,7 +69,13 @@ export function nodeMenuInfo(
           capacity: storageCapacity(state, node),
           noConstruction: node.kind === "box" ? node.noConstruction : null,
         }
-      : null,
+      : node.kind === "station"
+        ? {
+            stored: storedCount(node),
+            capacity: stationCapacity(),
+            noConstruction: null,
+          }
+        : null,
   };
 }
 
@@ -85,7 +93,7 @@ interface Props {
  * The node menu, opened by tapping a node (FR22, FR27): the recipe of a
  * Furnace or Assembler, which loses the items inside when changed, an
  * upgrade in place, which pays the difference, and removal, which refunds
- * the whole cost. The Core and a Box show how full they are, and a Box
+ * the whole cost. The Core, a Box and a Station show how full they are, and a Box
  * has its "não usar em construção" option (FR71). A long press on the node
  * moves it instead.
  */

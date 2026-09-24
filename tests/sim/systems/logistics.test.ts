@@ -17,7 +17,9 @@ import {
   store,
   storedCount,
   storedItems,
+  sumStock,
 } from "../../../src/sim/state/stock";
+import { stationCapacity } from "../../../src/sim/rail/station";
 import { flow } from "../../../src/sim/systems/flow";
 
 /**
@@ -219,5 +221,54 @@ describe("storage nodes on edges (FR28, FR29, FR73)", () => {
     expect(isStorageFull(w.state)).toBe(true);
     box.items[0].count--;
     expect(isStorageFull(w.state)).toBe(false);
+  });
+});
+
+describe("the Station's buffer (FR92)", () => {
+  it("fills from its input edges up to twice the largest train's load", () => {
+    const w = world();
+    const station = w.put("station");
+    const sources = [w.box(["iron-plate", 150]), w.box(["copper-plate", 150])];
+    const edges = sources.map((source, port) =>
+      w.wire(source, 0, station, port),
+    );
+    w.run(1200);
+    expect(stationCapacity()).toBe(200);
+    expect(storedCount(station)).toBe(200);
+    expect(edges.every(isEdgeFull)).toBe(true);
+  });
+
+  it("blocks its input edges once full, and loses nothing", () => {
+    const w = world();
+    const station = w.put("station");
+    const source = w.box(["iron-plate", 300]);
+    const edge = w.wire(source, 0, station);
+    w.run(1200);
+    expect(isEdgeFull(edge)).toBe(true);
+    expect(storedCount(station) + edge.items.length + storedCount(source)).toBe(
+      300,
+    );
+  });
+
+  it("drains through its output edges, the oldest items first", () => {
+    const w = world();
+    const station = w.put("station");
+    store(station, "iron-plate", 2);
+    store(station, "brick", 1);
+    const sink = w.box();
+    w.wire(station, 2, sink);
+    w.run(100);
+    expect(storedCount(station)).toBe(0);
+    expect(sink.items).toEqual([
+      { item: "iron-plate", count: 2 },
+      { item: "brick", count: 1 },
+    ]);
+  });
+
+  it("stays out of the global stock", () => {
+    const w = world();
+    const station = w.put("station");
+    store(station, "iron-plate", 10);
+    expect(sumStock(w.state.nodes)["iron-plate"]).toBeUndefined();
   });
 });

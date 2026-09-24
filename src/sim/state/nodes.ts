@@ -48,6 +48,8 @@ export function createNode(
       return { id, kind, x, y, items: [] };
     case "box":
       return { id, kind, x, y, items: [], noConstruction: false };
+    case "station":
+      return { id, kind, x, y, items: [] };
     case "splitter":
     case "merger":
       return { id, kind, x, y, next: 0, blocked: false };
@@ -55,8 +57,6 @@ export function createNode(
       return { id, kind, x, y, fuel: 0, burn: 0 };
     case "lab":
       return { id, kind, x, y, production: newProduction(), research: null };
-    default:
-      return { id, kind, x, y };
   }
 }
 
