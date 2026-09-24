@@ -209,6 +209,7 @@ describe("ConnectEdge validation", () => {
         { x: 55, y: 45 },
         { x: 55, y: 55 },
       ],
+      items: [],
     });
     expect(new ConnectEdge(out(a), into(b)).validate(state)).toEqual(
       fail("crosses_edge"),

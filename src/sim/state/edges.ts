@@ -1,6 +1,9 @@
+import { FLOW_UNITS_PER_CELL } from "../../config/constants";
 import {
   EDGE_CELL_COST,
   EDGE_MAX_LENGTH,
+  EDGE_THROUGHPUT,
+  ITEM_SPEED,
   type EdgeLevel,
 } from "../../data/edges";
 import { itemEntries, type ItemCounts } from "../../data/items";
@@ -12,7 +15,7 @@ import {
   type Point,
 } from "../geometry/planar";
 import type { Rect } from "../geometry/rect";
-import { routeEdge, type Route } from "../geometry/route";
+import { pathLength, routeEdge, type Route } from "../geometry/route";
 import { fail, ok, type Result } from "../result";
 import type { Edge, FactoryNode, GameState } from "./gameState";
 import type { NodeId } from "./ids";
@@ -259,4 +262,27 @@ export function checkRestore(
     return fail("no_route");
   }
   return index.checkPath(edge.path);
+}
+
+/**
+ * Least flow units between two items on an edge at `level`: speed ÷
+ * throughput, which caps the edge at its throughput (FR55).
+ */
+export function spacingUnits(level: EdgeLevel): number {
+  return (ITEM_SPEED * FLOW_UNITS_PER_CELL) / EDGE_THROUGHPUT[level - 1];
+}
+
+/** An edge's length in flow units: from its output connector to its input. */
+export function edgeUnits(edge: Pick<Edge, "path">): number {
+  return pathLength(edge.path) * FLOW_UNITS_PER_CELL;
+}
+
+/**
+ * True when an edge is full (FR57): its front item waits at a node that
+ * refuses it, and the queue behind has backed up to the output connector.
+ */
+export function isEdgeFull(edge: Readonly<Edge>): boolean {
+  const front = edge.items[0];
+  const back = edge.items[edge.items.length - 1];
+  return front?.pos === edgeUnits(edge) && back.pos < spacingUnits(edge.level);
 }

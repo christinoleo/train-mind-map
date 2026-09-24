@@ -67,6 +67,15 @@ export type ProducerNode = Extract<FactoryNode, { production: Production }>;
 /** A Furnace or Assembler: a node that runs a recipe. */
 export type CrafterNode = Extract<FactoryNode, { kind: CrafterKind }>;
 
+/** An item on its way along an edge (FR55–FR57). */
+export interface EdgeItem {
+  item: ItemId;
+  /** Distance from the output connector, in flow units (`FLOW_UNITS_PER_CELL`). */
+  pos: number;
+  /** `pos` at the start of the tick, which the render interpolates from. */
+  prevPos: number;
+}
+
 export interface Edge {
   id: EdgeId;
   /** The node whose output the edge leaves from. */
@@ -80,6 +89,8 @@ export interface Edge {
   level: EdgeLevel;
   /** The route: its first cell, each bend and its last cell (ADR-0007). */
   path: Point[];
+  /** The items in transit, the one nearest the input connector first. */
+  items: EdgeItem[];
 }
 
 /**
