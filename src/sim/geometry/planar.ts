@@ -84,9 +84,9 @@ export function segments(path: readonly Point[]): [Point, Point][] {
 /** The sum of a polyline's segment lengths, in cells, rounded up. */
 export function polylineLength(path: readonly Point[]): number {
   let sum = 0;
-  for (const [a, b] of segments(path)) {
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
+  for (let i = 1; i < path.length; i++) {
+    const dx = path[i].x - path[i - 1].x;
+    const dy = path[i].y - path[i - 1].y;
     // Math.sqrt is exactly rounded on every engine, unlike Math.hypot.
     sum += Math.sqrt(dx * dx + dy * dy);
   }

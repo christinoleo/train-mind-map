@@ -1,36 +1,13 @@
 import { FLOW_UNITS_PER_CELL, TICK_MS } from "../../config/constants";
-import { EDGE_THROUGHPUT, ITEM_SPEED, type EdgeLevel } from "../../data/edges";
+import { ITEM_SPEED } from "../../data/edges";
 import type { ItemId } from "../../data/items";
-import { pathLength } from "../geometry/route";
+import { edgeUnits, spacingUnits } from "../state/edges";
 import type { Edge } from "../state/gameState";
 import { acceptItem, takeOutput } from "../state/production";
 import type { System } from "../tick";
 
 /** Flow units an item moves along an edge each tick. */
 export const STEP_UNITS = (ITEM_SPEED * FLOW_UNITS_PER_CELL * TICK_MS) / 1000;
-
-/**
- * Least flow units between two items on an edge at `level`: speed ÷
- * throughput, which caps the edge at its throughput (FR55).
- */
-export function spacingUnits(level: EdgeLevel): number {
-  return (ITEM_SPEED * FLOW_UNITS_PER_CELL) / EDGE_THROUGHPUT[level - 1];
-}
-
-/** An edge's length in flow units: from its output connector to its input. */
-export function edgeUnits(edge: Pick<Edge, "path">): number {
-  return pathLength(edge.path) * FLOW_UNITS_PER_CELL;
-}
-
-/**
- * True when an edge is full (FR57): its front item waits at a node that
- * refuses it, and the queue behind has backed up to the output connector.
- */
-export function isEdgeFull(edge: Readonly<Edge>): boolean {
-  const front = edge.items[0];
-  const back = edge.items[edge.items.length - 1];
-  return front?.pos === edgeUnits(edge) && back.pos < spacingUnits(edge.level);
-}
 
 /**
  * Moves an edge's items one tick. Each item moves `STEP_UNITS` but keeps its
@@ -56,7 +33,7 @@ export function stepEdge(
   }
   let limit = end;
   for (const it of items) {
-    // After a downgrade an item may sit closer than the spacing; it waits.
+    // Items never move back: one closer than the spacing waits.
     it.pos = Math.min(it.pos + STEP_UNITS, Math.max(limit, it.pos));
     limit = it.pos - spacing;
   }

@@ -25,9 +25,8 @@ import {
   edgeUnits,
   isEdgeFull,
   spacingUnits,
-  STEP_UNITS,
-  stepEdge,
-} from "../../../src/sim/systems/flow";
+} from "../../../src/sim/state/edges";
+import { STEP_UNITS, stepEdge } from "../../../src/sim/systems/flow";
 import { tick } from "../../../src/sim/tick";
 
 /** A bare edge `cells` long at `level`, not attached to any node. */
@@ -63,17 +62,25 @@ function drive(
         taken++;
         return source();
       },
-      (item) => accept(item) && delivered.push(item) > 0,
+      (item) => {
+        if (!accept(item)) return false;
+        delivered.push(item);
+        return true;
+      },
     );
   }
   return { delivered, taken };
 }
 
 describe("edge throughput", () => {
-  it.each(EDGE_LEVELS.map((level) => [level, [2, 4, 8][level - 1]]))(
+  it.each([
+    [1, 2],
+    [2, 4],
+    [3, 8],
+  ] as const)(
     "carries level %i at %i items/s over 60 s",
     (level, perSecond) => {
-      const edge = bareEdge(level as EdgeLevel);
+      const edge = bareEdge(level);
       drive(edge, 100); // warm up until items reach the far end
       const { delivered, taken } = drive(edge, 600);
       expect(delivered).toHaveLength(perSecond * 60);
@@ -81,13 +88,15 @@ describe("edge throughput", () => {
     },
   );
 
-  it("does not depend on the edge's length", () => {
-    const short = bareEdge(3, 1);
-    const long = bareEdge(3, 30);
-    drive(short, 200);
-    drive(long, 200);
-    expect(drive(short, 600).delivered).toHaveLength(480);
-    expect(drive(long, 600).delivered).toHaveLength(480);
+  it.each([1, 30])("carries the same on a %i-cell edge", (cells) => {
+    const edge = bareEdge(3, cells);
+    drive(edge, 200);
+    expect(drive(edge, 600).delivered).toHaveLength(480);
+  });
+
+  it.each(EDGE_LEVELS)("counts whole flow units at level %i", (level) => {
+    expect(Number.isInteger(STEP_UNITS)).toBe(true);
+    expect(Number.isInteger(spacingUnits(level))).toBe(true);
   });
 
   it("moves items at 3 cells/s", () => {

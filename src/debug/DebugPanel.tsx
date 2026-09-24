@@ -36,11 +36,13 @@ function PerfOverlay({ game, subscribe }: Props) {
   if (!perf) return null;
   const { state } = game;
   const heap = perf.heapMb === null ? t.notAvailable : perf.heapMb.toFixed(1);
+  let items = 0;
+  for (const edge of state.edges.values()) items += edge.items.length;
   return (
     <pre class="debug-perf">
       {`FPS ${perf.fps.toFixed(0)} · ${game.loop.speed}×\n`}
       {`${t.tick} ${perf.tickMs.toFixed(2)} ms · ${t.render} ${perf.renderMs.toFixed(2)} ms\n`}
-      {`${t.nodes} ${state.nodes.size} · ${t.edges} ${state.edges.size} · ${t.items} 0 · ${t.trains} 0\n`}
+      {`${t.nodes} ${state.nodes.size} · ${t.edges} ${state.edges.size} · ${t.items} ${items} · ${t.trains} 0\n`}
       {`${t.heap} ${heap} MB`}
     </pre>
   );

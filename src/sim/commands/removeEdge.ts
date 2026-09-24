@@ -31,7 +31,11 @@ export function putBackEdge(
 ): void {
   const site = pathBounds(edge.path);
   const draws = debit(state, refunded, site);
-  state.edges.set(edge.id, { ...structuredClone(edge), items: [] });
+  state.edges.set(edge.id, {
+    ...edge,
+    path: structuredClone(edge.path),
+    items: [],
+  });
   emit({ type: "ConstructionPaid", site, draws });
 }
 
