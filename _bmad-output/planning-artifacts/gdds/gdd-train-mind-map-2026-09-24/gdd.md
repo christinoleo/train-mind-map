@@ -407,7 +407,7 @@ A geração garante a distância de cada recurso-chave por anel. Isso transforma
 
 - Navegadores Chrome/Android e Safari/iOS atuais, em retrato e paisagem. Desktop: Chrome, Firefox e Safari.
 - Salvamento automático local a cada 30 s e ao sair da aba. Exportar e importar o save como texto.
-- Funciona offline depois do primeiro carregamento, instalável como PWA.
+- Publicado no **itch.io** como HTML5 (página pública), atualizado a cada push no `main`. Sem PWA (o itch não suporta). Exportar e importar o save protege contra o Safari do iOS apagar o armazenamento; no iOS dentro do itch, o jogo sugere exportar.
 - Tecnologia: TypeScript + PixiJS (renderização WebGL), com a simulação separada da renderização. A arquitetura detalhada fica em `gds-game-architecture`. Engines completas (Godot, Unity) e bibliotecas de diagrama (DOM/SVG) foram descartadas por peso e desempenho.
 
 ### Assets

@@ -84,3 +84,15 @@
 - **Map:** a small copper deposit (3×3, one Extractor, 0.5/s) sits near the base; a big copper deposit sits behind a 1-cell-wide land corridor between lakes that is at least 16 cells long. No relay Box fits, edges cannot span it, and only rail passes.
 - **MVP goal (user):** no win goal. The only goal in the full game is the rocket. When "Protótipo final" completes, an "end of prototype content" notice appears and the game stays open.
 - **Pacing (user):** keep the Ferrovia at about 30 min. The first-train target for the MVP is 25–45 min.
+
+## 2026-09-24 — v1.7 (Hosting, wayfinder issue #9)
+
+- **Host (user):** itch.io, as HTML5, on a public page. Every push to `main` publishes via GitHub Actions and butler (the `html5` channel).
+- **PWA (user):** dropped, because itch.io strips service workers and manifests inside its iframe. FR145 and the PWA part of NFR14 are withdrawn.
+- **Debug (user):** `?debug=1` only outside itch (dev server and preview).
+- **iOS saves (user):** export/import (already in the MVP), plus a notice in the itch iframe on iOS suggesting an export. Cloud save is post-MVP.
+- **Research facts:**
+  - the itch storage domain is shared across all games, so keys use the `train-mind-map:` prefix;
+  - Vite needs `base: './'`;
+  - a build must stay under 1,000 files;
+  - after the first push, set the page type to HTML by hand.

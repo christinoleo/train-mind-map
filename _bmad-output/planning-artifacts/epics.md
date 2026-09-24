@@ -213,7 +213,7 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 - **FR142** Conquistas: marcos de ritmo (1º extrator, 1ª ciência vermelha, 1º trem, petróleo, foguete), "foguete em < X h" e "nenhuma aresta nível 1"; estatística de melhor tempo por seed.
 - **FR143** Onboarding completo (além das 3 dicas do MVP).
 - **FR144** Tela de erro "Algo deu errado" com os botões Recarregar e Exportar save, mostrada quando ocorre um bug.
-- **FR145** Aviso "Nova versão — recarregar" quando o PWA detecta atualização.
+- **FR145** ~~Aviso "Nova versão — recarregar" do PWA~~ (descartado na issue #9: sem PWA no itch.io).
 - **FR146** Todo texto visível ao jogador está em pt-BR, num módulo de strings pronto para i18n.
 
 #### Arte e áudio
@@ -256,7 +256,7 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 - **NFR11** Acessibilidade de cor: todo item e estado é distinguível sem depender só da cor (cor + forma).
 - **NFR12** Legibilidade: um gargalo é identificável em até 3 s de olhar, sem abrir menus.
 - **NFR13** Plataforma: Chrome/Android e Safari/iOS atuais em retrato e paisagem; desktop em Chrome, Firefox e Safari.
-- **NFR14** PWA: instalável e funcional offline depois do primeiro carregamento; sem servidor, sem contas, sem rede.
+- **NFR14** Hospedagem: itch.io HTML5, página pública, publicada a cada push no `main` via butler. Sem PWA nem service worker. Chaves de armazenamento com o prefixo `train-mind-map:`. No iOS dentro do iframe, sugerir exportar o save (issue #9).
 - **NFR15** Hospedagem estática (GitHub Pages, Cloudflare Pages ou similar).
 - **NFR16** Robustez: perda de contexto WebGL no iOS Safari é recuperada sem perder a partida.
 - **NFR17** Áudio: no máximo 8 vozes simultâneas de SFX; SFX iguais em menos de 50 ms são agregados.

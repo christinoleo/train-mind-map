@@ -7,7 +7,7 @@ version: '1.0'
 stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8, 9]
 status: 'complete'
 engine: 'PixiJS 8.21 + TypeScript 6.0 + Vite 8'
-platform: 'web mobile (PWA) + web desktop'
+platform: 'web mobile + web desktop (itch.io HTML5)'
 
 # Source Documents
 gdd: '_bmad-output/planning-artifacts/gdds/gdd-train-mind-map-2026-09-24/gdd.md'
@@ -19,7 +19,7 @@ brief: '_bmad-output/planning-artifacts/briefs/brief-train-mind-map-2026-09-24/b
 
 ## Resumo Executivo
 
-A arquitetura do **train-mind-map** usa **TypeScript + PixiJS 8 (WebGL)**, empacotada com Vite 8. O alvo é o navegador mobile como PWA, com meta de ≤ 5 MB e 60 FPS num Galaxy A52 e num iPhone 11.
+A arquitetura do **train-mind-map** usa **TypeScript + PixiJS 8 (WebGL)**, empacotada com Vite 8. O alvo é o navegador mobile, publicado no itch.io como HTML5, com meta de ≤ 5 MB e 60 FPS num Galaxy A52 e num iPhone 11.
 
 **Decisões-chave:**
 - **Simulação pura e determinística** em `sim/`, com tick fixo de 100 ms e sem dependência do Pixi ou do DOM. Roda na main thread e está pronta para ir para um Worker.
@@ -570,8 +570,14 @@ onPointerUp() { if (this.result.ok) dispatch(new ConnectEdge(this.preview)); }
 
 - **Boot:** atlas de ícones e SFX curtos (≤ 1 MB). A música ambiente é carregada sob demanda depois que o jogo fica interativo.
 - **Áudio:** formato único AAC em `.m4a` (Safari e Chrome), limite de 8 vozes simultâneas de SFX. SFX iguais em menos de 50 ms são agregados.
-- **PWA:** `vite-plugin-pwa` com `generateSW` e pré-cache do shell e dos assets de boot. Uma atualização mostra o aviso "Nova versão — recarregar". Manifest com `orientation: any`.
-- **Hospedagem:** estática (GitHub Pages, Cloudflare Pages ou similar), a definir no deploy. Não exige servidor.
+- ~~PWA~~ **(descartado na issue #9: o itch.io não suporta service worker nem manifest dentro do iframe)** `vite-plugin-pwa` com `generateSW` e pré-cache do shell e dos assets de boot. Uma atualização mostra o aviso "Nova versão — recarregar". Manifest com `orientation: any`.
+- **Hospedagem (issue #9): itch.io, página HTML5 pública.**
+  - Todo push no `main` publica via GitHub Actions + `butler push dist <ITCH_USER>/<ITCH_GAME>:html5 --userversion <sha>`, com o segredo `BUTLER_API_KEY` e as variáveis de repositório `ITCH_USER` e `ITCH_GAME`.
+  - Vite com `base: './'`, porque o jogo é servido em `/html/{uploadId}/` num iframe cross-site em `html-classic.itch.zone`. O build deve ter menos de 1.000 arquivos.
+  - **Sem PWA e sem service worker.** Não usar `vite-plugin-pwa`.
+  - **Armazenamento:** o domínio do itch é compartilhado por todos os jogos. Toda chave e todo banco IndexedDB levam o prefixo `train-mind-map:`, e nenhuma chave inclui o caminho do build (os saves sobrevivem a novos uploads).
+  - **iOS:** o Safari pode apagar ou deixar só em memória o armazenamento dentro do iframe. Quando o jogo roda em iframe no iOS, mostrar um aviso que sugere exportar o save. O exportar/importar é o seguro.
+  - **Debug** (`?debug=1`) só fora do itch: dev server e `npm run preview`. O build do itch continua contendo o chunk lazy, mas sem gatilho.
 
 ### Geração de mapa
 
