@@ -3,9 +3,11 @@
 // reason into feedback. Bugs throw and reach the global error handler.
 
 export type FailReason =
+  | "bad_replay"
   | "connector_taken"
   | "crosses_edge"
   | "crosses_node"
+  | "immovable"
   | "indestructible"
   | "locked"
   | "max_level"

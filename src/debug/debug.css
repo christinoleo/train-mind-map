@@ -103,3 +103,23 @@
 #debug-root button:disabled {
   opacity: 0.4;
 }
+
+.debug-file {
+  position: relative;
+  padding: 1px 6px;
+  border: 1px solid #8a93a6;
+  border-radius: 3px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.debug-file input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.debug-error {
+  color: #f87171;
+}

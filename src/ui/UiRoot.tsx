@@ -3,12 +3,17 @@ import type { ComponentProps } from "preact";
 import type { ItemCounts } from "../data/items";
 import type { PowerSummary } from "../sim/state/power";
 import { EdgeMenu } from "./EdgeMenu";
+import { NodeMenu } from "./NodeMenu";
 import { Palette } from "./Palette";
 import { StockHud } from "./StockHud";
+import { UndoButton } from "./UndoButton";
 
 type Props = ComponentProps<typeof Palette> & {
   /** The edge menu, open while an edge is selected. */
   edgeMenu: ComponentProps<typeof EdgeMenu>;
+  /** The node menu, open while a node is selected. */
+  nodeMenu: ComponentProps<typeof NodeMenu>;
+  undo: ComponentProps<typeof UndoButton>;
   /** The global stock, published by the UI bridge. */
   stock: ReadonlySignal<ItemCounts>;
   /** The stamina points left. */
@@ -17,13 +22,23 @@ type Props = ComponentProps<typeof Palette> & {
   power: ReadonlySignal<PowerSummary>;
 };
 
-// The DOM overlay layer above the canvas: the HUD capsule and the palette now,
-// menus in later tasks.
-export function UiRoot({ stock, stamina, power, edgeMenu, ...palette }: Props) {
+// The DOM overlay layer above the canvas: the HUD capsule, the menus, the
+// undo button and the palette.
+export function UiRoot({
+  stock,
+  stamina,
+  power,
+  edgeMenu,
+  nodeMenu,
+  undo,
+  ...palette
+}: Props) {
   return (
     <>
       <StockHud stock={stock} stamina={stamina} power={power} />
       <EdgeMenu {...edgeMenu} />
+      <NodeMenu {...nodeMenu} />
+      <UndoButton {...undo} />
       <Palette {...palette} />
     </>
   );

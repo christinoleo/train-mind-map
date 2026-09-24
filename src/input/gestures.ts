@@ -16,6 +16,8 @@ export interface GestureHandlers {
   tap(p: GesturePoint): void;
   /** One pointer stayed still for `LONG_PRESS_MS`; no tap follows. */
   longPress(p: GesturePoint): void;
+  /** The long-pressed pointer lifted without dragging. */
+  holdEnd(p: GesturePoint): void;
   /**
    * One pointer moved past the drag threshold. `from` is where it went down;
    * `held` tells whether a long press fired first.
@@ -126,6 +128,7 @@ export class GestureTracker {
     this.pointers.delete(id);
     if (this.pointers.size > 0) return;
     if (canTap && this.phase === "pressed") this.handlers.tap(p);
+    if (this.phase === "held") this.handlers.holdEnd(p);
     if (this.phase === "dragging") this.handlers.dragEnd(p);
     this.reset();
   }
@@ -190,6 +193,22 @@ export function autoPanVelocity(
     vx: edgeSpeed(x, width),
     vy: edgeSpeed(y, height),
   };
+}
+
+/**
+ * Pans `camera` for `dtMs` while pointer `p` sits in the band along the
+ * screen's edge, so a drag reaches past it (FR14).
+ */
+export function panAtEdge(
+  camera: { panBy(dx: number, dy: number): void },
+  p: GesturePoint,
+  viewport: { width: number; height: number },
+  dtMs: number,
+) {
+  const { vx, vy } = autoPanVelocity(p.x, p.y, viewport.width, viewport.height);
+  if (vx !== 0 || vy !== 0) {
+    camera.panBy((-vx * dtMs) / 1000, (-vy * dtMs) / 1000);
+  }
 }
 
 function edgeSpeed(pos: number, size: number): number {

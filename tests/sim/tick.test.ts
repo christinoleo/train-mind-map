@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { Command } from "../../src/sim/commands/command";
-import { CommandQueue } from "../../src/sim/commands/commandQueue";
+import {
+  CommandQueue,
+  type ReplayEntry,
+} from "../../src/sim/commands/commandQueue";
 import { EventQueue } from "../../src/sim/events";
 import { nextInt } from "../../src/sim/mapgen/rng";
 import { createGameState, type GameState } from "../../src/sim/state/gameState";
@@ -31,15 +33,12 @@ function play(seed: string, ticks: number) {
   return { state, log: commands.replayLog };
 }
 
-function replay(seed: string, ticks: number, log: [number, Command][]) {
+function replay(seed: string, ticks: number, log: readonly ReplayEntry[]) {
   const state = createGameState(seed);
   const commands = new CommandQueue();
   const events = new EventQueue();
-  let next = 0;
+  commands.schedule(log);
   while (state.tick < ticks) {
-    while (next < log.length && log[next][0] === state.tick) {
-      commands.replay(log[next++][1]);
-    }
     tick(state, commands, events.emit, [drawSystem]);
     events.drain();
   }

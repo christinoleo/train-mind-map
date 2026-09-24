@@ -14,6 +14,7 @@ import {
   GHOST_COLOR,
   PALETTE,
   RESOURCE_STYLE,
+  MOVING_ALPHA,
 } from "./theme";
 
 /** Height of a card's category header, in world units. */
@@ -164,7 +165,8 @@ export class NodeViews {
 
   constructor(private readonly layer: Container) {}
 
-  sync(nodes: ReadonlyMap<NodeId, NodeView>) {
+  /** `faded` names the node being moved, drawn faint, or none with `null`. */
+  sync(nodes: ReadonlyMap<NodeId, NodeView>, faded: NodeId | null = null) {
     for (const [id, view] of this.views) {
       if (nodes.get(id) !== view.node) {
         view.card.destroy({ children: true });
@@ -180,6 +182,9 @@ export class NodeViews {
       card.position.set(node.x * CELL_PX, node.y * CELL_PX);
       this.layer.addChild(card);
       this.views.set(id, { node, card });
+    }
+    for (const [id, { card }] of this.views) {
+      card.alpha = id === faded ? MOVING_ALPHA : 1;
     }
   }
 

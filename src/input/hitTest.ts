@@ -1,6 +1,8 @@
 import { CELL_PX, MIN_TOUCH_PX } from "../config/constants";
 import type { Point } from "../sim/geometry/planar";
-import type { Rect } from "../sim/geometry/rect";
+import { containsCell, type Rect } from "../sim/geometry/rect";
+import type { FactoryNode, GameState } from "../sim/state/gameState";
+import { nodeRect } from "../sim/state/nodes";
 
 /**
  * True when world point (`x`, `y`) falls on `rect`, in world units, grown
@@ -52,4 +54,16 @@ export function distanceToLine(p: Point, line: readonly Point[]): number {
     best = Math.min(best, distanceToSegment(p, line[i - 1], line[i]));
   }
   return best;
+}
+
+/** The node covering world point `world`, if any. */
+export function nodeAt(
+  state: Readonly<GameState>,
+  world: Point,
+): FactoryNode | undefined {
+  const { x, y } = worldToCell(world);
+  for (const node of state.nodes.values()) {
+    if (containsCell(nodeRect(node), x, y)) return node;
+  }
+  return undefined;
 }

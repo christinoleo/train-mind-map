@@ -9,7 +9,7 @@ import type { Renderer } from "../render/renderer";
 import type { Command } from "../sim/commands/command";
 import type { CommandQueue } from "../sim/commands/commandQueue";
 import type { EventQueue } from "../sim/events";
-import type { Result } from "../sim/result";
+import { ok, type Result } from "../sim/result";
 import { resetGameState, type GameState } from "../sim/state/gameState";
 import { strings } from "../ui/strings";
 import { GiveItems, SetRevealedRing } from "./cheats";
@@ -21,6 +21,7 @@ import {
   OverlayManager,
 } from "./overlays";
 import { PerfMonitor, type PerfSnapshot } from "./perf";
+import { decodeReplay, encodeReplay } from "./replay";
 
 /** What main.ts hands to the debug tools. */
 export interface DebugGame {
@@ -32,6 +33,8 @@ export interface DebugGame {
   renderer: Renderer;
   camera: Camera;
   controls: Controls;
+  /** The world the game started on. */
+  world: string | Scenario;
 }
 
 /** `window.game`: the live game for the DevTools console and for agents. */
@@ -43,6 +46,17 @@ export interface GameConsole extends DebugGame {
    * default), dropping queued commands and undo.
    */
   regenerate(world?: string | Scenario): void;
+  replay: {
+    /** The replay so far, as text (FR159). */
+    export(): string;
+    /** Saves the replay so far as a text file. */
+    download(): void;
+    /**
+     * Restarts the game on a replay's world and plays its log again, at
+     * the simulation speed.
+     */
+    load(text: string): Result;
+  };
   cheats: {
     /** Simulation speed; 0 pauses, so queued commands wait until it resumes. */
     setSpeed(speed: number): void;
@@ -98,6 +112,8 @@ export function installDebugTools(debug: DebugGame) {
   );
 
   const dispatch = (command: Command) => commands.dispatch(state, command);
+  const exportReplay = () =>
+    encodeReplay(game.world, state.tick, commands.replayLog);
   const game: GameConsole = {
     ...debug,
     dispatch,
@@ -105,6 +121,24 @@ export function installDebugTools(debug: DebugGame) {
       // The old game's commands and undo stack would act on the new one.
       commands.clear();
       resetGameState(state, world);
+      game.world = world;
+    },
+    replay: {
+      export: exportReplay,
+      download() {
+        const seed = state.map.seed;
+        downloadText(
+          `train-mind-map-replay-${seed}-${state.tick}.json`,
+          exportReplay(),
+        );
+      },
+      load(text) {
+        const replay = decodeReplay(text);
+        if (!replay.ok) return replay;
+        game.regenerate(replay.value.world);
+        commands.schedule(replay.value.log);
+        return ok();
+      },
     },
     cheats: {
       setSpeed(speed) {
@@ -158,4 +192,16 @@ export function installDebugTools(debug: DebugGame) {
     }),
     root,
   );
+}
+
+/** Hands the viewer `text` as a file named `name`. */
+function downloadText(name: string, text: string) {
+  const url = URL.createObjectURL(
+    new Blob([text], { type: "application/json" }),
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(url);
 }

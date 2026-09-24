@@ -6,7 +6,6 @@ import {
   type PlanarIndex,
   type Point,
 } from "../../sim/geometry/planar";
-import { containsCell } from "../../sim/geometry/rect";
 import type { Route } from "../../sim/geometry/route";
 import { fail, type FailReason, type Result } from "../../sim/result";
 import {
@@ -22,7 +21,6 @@ import {
 import type { Cost } from "../../data/nodes";
 import type { GameState } from "../../sim/state/gameState";
 import type { EdgeId } from "../../sim/state/ids";
-import { nodeRect } from "../../sim/state/nodes";
 import {
   cellCentre,
   connectorsOf,
@@ -31,13 +29,13 @@ import {
 } from "../../render/connectors";
 import type { Camera } from "../camera";
 import type { Tool } from "../controls";
-import { autoPanVelocity, type GesturePoint } from "../gestures";
-import { distanceToLine, touchReach, worldToCell } from "../hitTest";
+import { panAtEdge, type GesturePoint } from "../gestures";
+import { distanceToLine, nodeAt, touchReach, worldToCell } from "../hitTest";
 
-/** The edge being dragged, as the renderer draws it. */
+/** The edge being dragged, or a moving node's edges, as the renderer draws them. */
 export interface EdgePreview {
-  /** The line to draw, in world units. */
-  line: Point[];
+  /** The lines to draw, in world units. */
+  lines: Point[][];
   /** Why the edge cannot be built here, or `null` when it can. */
   reason: FailReason | null;
   /** The route's length, when one was found, and the level's limit. */
@@ -137,16 +135,7 @@ export class ConnectTool implements Tool {
   frame(dtMs: number) {
     const { drag } = this;
     if (!drag) return;
-    const { width, height } = this.deps.viewport();
-    const { vx, vy } = autoPanVelocity(
-      drag.pointer.x,
-      drag.pointer.y,
-      width,
-      height,
-    );
-    if (vx !== 0 || vy !== 0) {
-      this.deps.camera.panBy((-vx * dtMs) / 1000, (-vy * dtMs) / 1000);
-    }
+    panAtEdge(this.deps.camera, drag.pointer, this.deps.viewport(), dtMs);
     this.plan(drag);
   }
 
@@ -222,7 +211,7 @@ export class ConnectTool implements Tool {
 
   private show({ start, route, check, end, tip }: Drag) {
     this.deps.showPreview({
-      line: route ? edgeLine(start, route.path, end) : [start, tip],
+      lines: [route ? edgeLine(start, route.path, end) : [start, tip]],
       reason: check.ok ? null : check.reason,
       length: route?.length ?? null,
       max: maxLength(NEW_EDGE_LEVEL),
@@ -254,20 +243,17 @@ export class ConnectTool implements Tool {
    */
   private inputUnder(world: Point): Connector | null {
     const { state } = this.deps;
-    const { x, y } = worldToCell(world);
-    for (const node of state.nodes.values()) {
-      if (!containsCell(nodeRect(node), x, y)) continue;
-      const inputs = connectorsOf(node, "input").map((c, port) => ({
-        port,
-        taken: isConnected(state, "input", { node: node.id, port }),
-        distance: Math.hypot(c.x - world.x, c.y - world.y),
-      }));
-      inputs.sort(
-        (a, b) => Number(a.taken) - Number(b.taken) || a.distance - b.distance,
-      );
-      return inputs.length > 0 ? { node: node.id, port: inputs[0].port } : null;
-    }
-    return null;
+    const node = nodeAt(state, world);
+    if (!node) return null;
+    const inputs = connectorsOf(node, "input").map((c, port) => ({
+      port,
+      taken: isConnected(state, "input", { node: node.id, port }),
+      distance: Math.hypot(c.x - world.x, c.y - world.y),
+    }));
+    inputs.sort(
+      (a, b) => Number(a.taken) - Number(b.taken) || a.distance - b.distance,
+    );
+    return inputs.length > 0 ? { node: node.id, port: inputs[0].port } : null;
   }
 
   /** The edge nearest screen point `p`, within touch reach. */

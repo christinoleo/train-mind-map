@@ -10,7 +10,10 @@ import type { Command } from "./command";
  * when it is applied, so it undoes whatever was applied just before it,
  * including commands queued in the same tick.
  */
-type Queued = Command | "undo";
+export type Queued = Command | "undo";
+
+/** An entry of the replay log: a command or an undo, and the tick it applied at. */
+export type ReplayEntry = [tick: number, entry: Queued];
 
 /**
  * The single entry point for state changes. Commands are validated when
@@ -20,8 +23,14 @@ type Queued = Command | "undo";
 export class CommandQueue {
   private queued: Queued[] = [];
   private undoStack: Command[] = [];
-  /** Every command applied, with the tick it was applied at, in order. */
-  readonly replayLog: [tick: number, command: Command][] = [];
+  /** Replay entries waiting for their tick, in order. */
+  private scheduled: ReplayEntry[] = [];
+  /**
+   * Every command and undo applied, with the tick it was applied at, in
+   * order. An undo is logged as such, not as the inverse it applied: replayed
+   * from the start, it undoes the same command again.
+   */
+  readonly replayLog: ReplayEntry[] = [];
 
   dispatch(state: Readonly<GameState>, command: Command): Result {
     const result = command.validate(state);
@@ -30,12 +39,11 @@ export class CommandQueue {
   }
 
   /**
-   * Queues a command from a replay log. It skips dispatch-time validation,
-   * which cannot see the commands queued before it, and is revalidated when
-   * applied like any other.
+   * Queues a replay log: each entry joins the queue when the tick it was
+   * logged at comes, so a replay from the same start reproduces the game.
    */
-  replay(command: Command): void {
-    this.queued.push(command);
+  schedule(log: readonly ReplayEntry[]): void {
+    this.scheduled.push(...log);
   }
 
   /** Queues an undo of the latest applied command. */
@@ -53,9 +61,13 @@ export class CommandQueue {
     return ok();
   }
 
-  /** Drops the queue, the undo stack and the replay log, for a new game. */
+  /**
+   * Drops the queue, the scheduled replay, the undo stack and the replay
+   * log, for a new game.
+   */
   clear(): void {
     this.queued = [];
+    this.scheduled = [];
     this.undoStack = [];
     this.replayLog.length = 0;
   }
@@ -69,7 +81,12 @@ export class CommandQueue {
    * an undo that no longer validates keeps its inverse on the stack.
    */
   applyQueued(state: GameState, emit: Emit): void {
-    const queued = this.queued;
+    let queued = this.queued;
+    if (this.scheduled.length > 0) {
+      const later = this.scheduled.findIndex(([at]) => at > state.tick);
+      const due = this.scheduled.splice(0, later < 0 ? Infinity : later);
+      queued = [...due.map(([, entry]) => entry), ...queued];
+    }
     this.queued = [];
     for (const entry of queued) {
       const undo = entry === "undo";
@@ -87,7 +104,7 @@ export class CommandQueue {
         if (undo) this.undoStack.push(command);
         emit({
           type: "CommandRejected",
-          command: command.type,
+          command: undo ? "Undo" : command.type,
           reason: result.reason,
         });
         continue;
@@ -96,7 +113,7 @@ export class CommandQueue {
       // Any command may add or take out nodes and edges. Rebuilding the
       // meshes costs one union-find, at most once a tick.
       topologyChanged(state);
-      this.replayLog.push([state.tick, command]);
+      this.replayLog.push([state.tick, undo ? "undo" : command]);
       if (undo || !command.invert) continue;
       this.undoStack.push(command.invert());
       if (this.undoStack.length > UNDO_DEPTH) this.undoStack.shift();

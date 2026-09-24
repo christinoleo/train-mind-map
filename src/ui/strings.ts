@@ -15,6 +15,7 @@ export const strings = {
     extractor: "Extrator",
     furnace: "Fornalha",
     "assembler-1": "Montadora 1",
+    "assembler-2": "Montadora 2",
     generator: "Gerador",
     box: "Caixa",
     splitter: "Divisor",
@@ -54,26 +55,44 @@ export const strings = {
     close: "Fechar paleta",
     free: "grátis",
   },
-  // The edge menu, opened by tapping an edge, and the dragged edge's chip.
-  edge: {
-    title: "Aresta",
-    level: "Nível",
-    length: "células",
-    upgrade: "Melhorar para nível",
+  // What the node and edge menus share.
+  menu: {
     maxLevel: "Nível máximo",
     remove: "Remover",
     refund: "devolve",
     close: "Fechar",
     closeGlyph: "×",
     separator: " · ",
+  },
+  // The edge menu, opened by tapping an edge, and the dragged edge's chip.
+  edge: {
+    title: "Aresta",
+    level: "Nível",
+    length: "células",
+    upgrade: "Melhorar para nível",
     tooLong: "Longa demais",
     onWater: "Cruza a água",
   },
+  // The node menu, opened by tapping a node.
+  node: {
+    title: "Nó",
+    recipe: "Receita",
+    autoRecipe: "Automática",
+    recipeLoses: "Trocar a receita perde os itens dentro do nó",
+    upgrade: "Melhorar para",
+  },
+  // The undo button.
+  undo: {
+    label: "Desfazer",
+    glyph: "↶",
+  },
   // Why a command was refused, shown as a hint.
   reasons: {
+    bad_replay: "Replay inválido",
     connector_taken: "Conector já ligado",
     crosses_edge: "Cruza uma aresta",
     crosses_node: "Atravessa um nó",
+    immovable: "O Núcleo não pode ser movido",
     indestructible: "O Núcleo não pode ser removido",
     locked: "Ainda não pesquisado",
     max_level: "Já está no nível máximo",
@@ -123,6 +142,9 @@ export const strings = {
     go: "Ir",
     revealRing: "Anel revelado",
     giveItems: "+100 de cada item",
+    replay: "Replay",
+    exportReplay: "Exportar",
+    loadReplay: "Carregar",
     overlays: "Overlays",
     coreRings: "Anéis de depósito e raios de garantia",
     hashBuckets: "Baldes do hash espacial",

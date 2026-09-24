@@ -279,8 +279,8 @@ canvas {
   pointer-events: auto;
 }
 
-/* The edge menu: a card above the palette, opened by tapping an edge. */
-#ui-root > .edge-menu {
+/* The node and edge menus: a card above the palette, opened by tapping. */
+#ui-root > .menu {
   position: fixed;
   left: 50%;
   bottom: calc(80px + env(safe-area-inset-bottom, 0px));
@@ -296,7 +296,7 @@ canvas {
   color: #e4e7ee;
 }
 
-.edge-menu-head {
+.menu-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -305,7 +305,7 @@ canvas {
   font-weight: 700;
 }
 
-.edge-menu-close {
+.menu-close {
   width: 44px;
   height: 44px;
   border: 0;
@@ -314,7 +314,7 @@ canvas {
   font-size: 1.5rem;
 }
 
-.edge-menu-action {
+.menu-action {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -330,23 +330,80 @@ canvas {
   text-align: left;
 }
 
-.edge-menu-action:disabled {
+.menu-action:disabled {
   opacity: 0.55;
 }
 
-.edge-menu-remove {
+.menu-remove {
   background: rgba(248, 113, 113, 0.18);
 }
 
-.edge-menu-items,
-.edge-menu-note {
+.menu-items,
+.menu-note {
   margin: 0;
   color: #8a93a6;
   font-size: 0.75rem;
   font-weight: 400;
 }
 
-.edge-menu-refused {
+.menu-refused {
   color: #f87171;
   font-size: 0.75rem;
+}
+
+.menu-recipes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0 4px;
+  border: 0;
+}
+
+.menu-recipes legend {
+  padding: 0;
+  margin-bottom: 4px;
+  color: #8a93a6;
+  font-size: 0.75rem;
+}
+
+.menu-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.menu-chip {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: #2b303c;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+}
+
+.menu-chip[aria-pressed="true"] {
+  border-color: #f5c542;
+  color: #f5c542;
+}
+
+/* The undo button, at the bottom-left corner beside the palette. */
+#ui-root > .undo {
+  position: fixed;
+  left: 16px;
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(19, 22, 28, 0.94);
+  color: #e4e7ee;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+#ui-root > .undo:disabled {
+  opacity: 0.4;
 }

@@ -79,7 +79,7 @@ describe("command queue", () => {
     expect(commands.replayLog).toEqual([]);
   });
 
-  it("logs every applied command with its tick", () => {
+  it("logs every applied command and undo with its tick", () => {
     const { state, commands, step } = setup();
     step();
     const add = new AddNode();
@@ -87,9 +87,9 @@ describe("command queue", () => {
     step();
     commands.undo(state);
     step();
-    expect(commands.replayLog.map(([t, c]) => [t, c.type])).toEqual([
-      [1, "AddNode"],
-      [2, "RemoveNode"],
+    expect(commands.replayLog).toEqual([
+      [1, add],
+      [2, "undo"],
     ]);
   });
 });
@@ -162,7 +162,7 @@ describe("undo", () => {
     step();
 
     expect(seen).toEqual([
-      { type: "CommandRejected", command: "RemoveNode", reason: "not_found" },
+      { type: "CommandRejected", command: "Undo", reason: "not_found" },
     ]);
     expect(commands.undoDepth).toBe(1);
   });

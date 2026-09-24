@@ -14,7 +14,7 @@ export class SetRevealedRing implements Command {
   readonly type = "SetRevealedRing";
   private previous?: number;
 
-  constructor(private readonly ring: number) {}
+  constructor(readonly ring: number) {}
 
   validate() {
     return Number.isInteger(this.ring) &&
@@ -56,7 +56,7 @@ export class GiveItems implements Command {
   readonly type = "GiveItems";
   private previous?: StorageContents;
 
-  constructor(private readonly perItem: number) {}
+  constructor(readonly perItem: number) {}
 
   validate() {
     return Number.isInteger(this.perItem) && this.perItem > 0

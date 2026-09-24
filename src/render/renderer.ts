@@ -37,6 +37,8 @@ export interface Renderer {
   setEdgePreview(preview: EdgePreview | null): void;
   /** Highlights the edge whose menu is open, or none with `null`. */
   setSelectedEdge(id: EdgeId | null): void;
+  /** Fades the node being moved and its edges, or none with `null`. */
+  setMoving(id: NodeId | null): void;
   /** Flies the items a construction took from storage to its site. */
   showConstruction(paid: SimEventOf<"ConstructionPaid">): void;
   /** Pops the tapped cell and flies its item to the Core. */
@@ -61,6 +63,7 @@ export function createRenderer(
   const edgePreviewView = new EdgePreviewView(layers.overlays);
   let edgePreview: EdgePreview | null = null;
   let selectedEdge: EdgeId | null = null;
+  let moving: NodeId | null = null;
   const ghostLayer = layers.overlays.addChild(
     new Container({ label: "ghost", alpha: GHOST_ALPHA, visible: false }),
   );
@@ -152,8 +155,14 @@ export function createRenderer(
       const { map } = state;
       camera.setViewport(app.screen.width, app.screen.height);
       if (drawnMap !== map || drawnRing !== map.revealedRing) rebuildMap();
-      nodeViews.sync(state.nodes);
-      edgeViews.sync(state.edges, state.nodes, selectedEdge, isEdgeShort);
+      nodeViews.sync(state.nodes, moving);
+      edgeViews.sync(
+        state.edges,
+        state.nodes,
+        selectedEdge,
+        isEdgeShort,
+        moving,
+      );
       drawGhostLayer();
       edgePreviewView.update(edgePreview, camera, app.screen.width);
       flights.update(performance.now());
@@ -174,6 +183,9 @@ export function createRenderer(
     },
     setSelectedEdge(id) {
       selectedEdge = id;
+    },
+    setMoving(id) {
+      moving = id;
     },
     showConstruction({ site, draws }) {
       const to = rectCenter(site);

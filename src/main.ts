@@ -1,12 +1,14 @@
-import { effect, signal } from "@preact/signals";
-import { UI_PUBLISH_MS } from "./config/constants";
+import { computed, effect, signal, type Signal } from "@preact/signals";
+import { HINT_MS, UI_PUBLISH_MS } from "./config/constants";
 import { h, render } from "preact";
 import { ITEMS, type ItemCounts } from "./data/items";
 import type { NodeKind } from "./data/nodes";
 import { MVP_SCENARIO } from "./data/scenarios/mvp";
 import { Camera } from "./input/camera";
 import { Controls, type Tool } from "./input/controls";
+import { nodeAt } from "./input/hitTest";
 import { ConnectTool } from "./input/tools/connect";
+import { MoveTool } from "./input/tools/move";
 import { PlaceTool } from "./input/tools/place";
 import { TapTool } from "./input/tools/tap";
 import { createLoop, type Loop } from "./loop";
@@ -15,14 +17,18 @@ import { createApp } from "./render/app";
 import { createRenderer } from "./render/renderer";
 import { CommandQueue } from "./sim/commands/commandQueue";
 import { RemoveEdge } from "./sim/commands/removeEdge";
+import { RemoveNode } from "./sim/commands/removeNode";
+import { SetRecipe } from "./sim/commands/setRecipe";
 import { UpgradeEdge } from "./sim/commands/upgradeEdge";
+import { UpgradeNode } from "./sim/commands/upgradeNode";
 import { EventQueue } from "./sim/events";
 import type { FailReason } from "./sim/result";
-import { createGameState } from "./sim/state/gameState";
+import { createGameState, type GameState } from "./sim/state/gameState";
+import type { EdgeId, NodeId } from "./sim/state/ids";
 import { powerSummary, type PowerSummary } from "./sim/state/power";
-import type { EdgeId } from "./sim/state/ids";
 import { tick } from "./sim/tick";
 import { edgeMenuInfo, type EdgeMenuInfo } from "./ui/EdgeMenu";
+import { nodeMenuInfo, type NodeMenuInfo } from "./ui/NodeMenu";
 import { UiRoot } from "./ui/UiRoot";
 
 // Installed first so boot failures, map generation included, show the crash
@@ -49,11 +55,16 @@ const renderer = createRenderer(app, state, camera);
 const unlocked = signal<readonly NodeKind[]>([...state.unlockedNodes]);
 const selected = signal<NodeKind | null>(null);
 const hint = signal<FailReason | null>(null);
+/** A refused action's reason, shown for a moment over the tools' own hints. */
+const flash = signal<FailReason | null>(null);
 const stock = signal<ItemCounts>(state.stock);
 const stamina = signal(state.stamina.points);
 const power = signal<PowerSummary>(powerSummary(state.power));
 const selectedEdge = signal<EdgeId | null>(null);
 const edgeMenu = signal<EdgeMenuInfo | null>(null);
+const selectedNode = signal<NodeId | null>(null);
+const nodeMenu = signal<NodeMenuInfo | null>(null);
+const canUndo = signal(false);
 let published = -Infinity;
 let lastFrame = performance.now();
 events.on("ConstructionPaid", renderer.showConstruction);
@@ -79,33 +90,75 @@ const connectTool = new ConnectTool({
   showPreview: renderer.setEdgePreview,
   selectEdge: (id) => (selectedEdge.value = id),
 });
-// With nothing to place, a drag from an output connector connects, a tap on
-// an edge opens its menu, and any other tap mines by hand.
+let hintTimer: number | undefined;
+/** Shows why an action was refused for a moment. */
+function flashHint(reason: FailReason) {
+  flash.value = reason;
+  window.clearTimeout(hintTimer);
+  hintTimer = window.setTimeout(() => (flash.value = null), HINT_MS);
+}
+const moveTool = new MoveTool({
+  state,
+  camera,
+  viewport: () => app.screen,
+  dispatch: (command) => commands.dispatch(state, command),
+  showGhost: renderer.setGhost,
+  showPreview: renderer.setEdgePreview,
+  showMoving: renderer.setMoving,
+  showHint: flashHint,
+});
+// With nothing to place, a long press on a node and a drag move it, a drag
+// from an output connector connects, a tap on a node or an edge opens its
+// menu, and any other tap mines by hand.
 const buildTool: Tool = {
   tap(p) {
-    if (!connectTool.tap(p)) tapTool.tap(p);
+    const node = nodeAt(state, camera.toWorld(p.x, p.y));
+    selectedNode.value = node?.id ?? null;
+    if (node) selectedEdge.value = null;
+    else if (!connectTool.tap(p)) tapTool.tap(p);
   },
-  dragStart: (p, from, held) => connectTool.dragStart(p, from, held),
-  dragMove: (p) => connectTool.dragMove(p),
-  dragEnd: (p) => connectTool.dragEnd(p),
-  frame: (dtMs) => connectTool.frame(dtMs),
+  longPress(p) {
+    selectedNode.value = null;
+    selectedEdge.value = null;
+    moveTool.longPress(p);
+  },
+  holdEnd: () => moveTool.holdEnd(),
+  dragStart: (p, from, held) =>
+    moveTool.dragStart(p, from, held) || connectTool.dragStart(p, from, held),
+  dragMove(p) {
+    moveTool.dragMove(p);
+    connectTool.dragMove(p);
+  },
+  dragEnd(p) {
+    moveTool.dragEnd(p);
+    connectTool.dragEnd(p);
+  },
+  frame(dtMs) {
+    moveTool.frame(dtMs);
+    connectTool.frame(dtMs);
+  },
   refresh() {
     tapTool.refresh();
+    moveTool.refresh();
     connectTool.refresh();
   },
   cancel() {
     tapTool.cancel();
+    moveTool.cancel();
     connectTool.cancel();
   },
 };
 events.on("CommandRejected", ({ command, reason }) => {
   if (command === "ManualTap") tapTool.rejected(reason);
+  // Dispatch checks against the state before the commands queued ahead.
+  else if (command === "Undo" || command === "MoveNode") flashHint(reason);
 });
 effect(() => {
   const kind = selected.value;
   if (kind) {
     buildTool.cancel();
     selectedEdge.value = null;
+    selectedNode.value = null;
     placeTool.select(kind, {
       x: app.screen.width / 2,
       y: app.screen.height / 2,
@@ -118,17 +171,34 @@ effect(() => {
 });
 effect(() => {
   renderer.setSelectedEdge(selectedEdge.value);
-  publishEdgeMenu();
+  publishMenu(selectedEdge, edgeMenu, edgeMenuInfo);
+});
+effect(() => {
+  // Read to subscribe: publishMenu only peeks.
+  void selectedNode.value;
+  publishMenu(selectedNode, nodeMenu, nodeMenuInfo);
 });
 
-/** Publishes the selected edge to its menu, closing it once the edge is gone. */
-function publishEdgeMenu() {
-  const id = selectedEdge.peek();
-  const info = id === null ? null : edgeMenuInfo(state, id);
-  if (id !== null && !info) selectedEdge.value = null;
-  if (JSON.stringify(info) !== JSON.stringify(edgeMenu.peek())) {
-    edgeMenu.value = info;
-  }
+/** Publishes the selections to their menus, closing each once its target is gone. */
+function publishMenus() {
+  publishMenu(selectedEdge, edgeMenu, edgeMenuInfo);
+  publishMenu(selectedNode, nodeMenu, nodeMenuInfo);
+}
+
+function publishMenu<Id, Info>(
+  selection: Signal<Id | null>,
+  menu: Signal<Info | null>,
+  infoOf: (state: GameState, id: Id) => Info | null,
+) {
+  const id = selection.peek();
+  const info = id === null ? null : infoOf(state, id);
+  if (id !== null && !info) selection.value = null;
+  if (JSON.stringify(info) !== JSON.stringify(menu.peek())) menu.value = info;
+}
+
+function undo() {
+  const result = commands.undo(state);
+  if (!result.ok) flashHint(result.reason);
 }
 
 loop = createLoop({
@@ -140,7 +210,8 @@ loop = createLoop({
       unlocked.value = [...state.unlockedNodes];
     }
     controls.tool?.refresh?.();
-    publishEdgeMenu();
+    publishMenus();
+    canUndo.value = commands.undoDepth > 0;
     // Stamina drains per tap, so the bar follows it every tick.
     stamina.value = state.stamina.points;
   },
@@ -166,7 +237,7 @@ render(
   h(UiRoot, {
     unlocked,
     selected,
-    hint,
+    hint: computed(() => flash.value ?? hint.value),
     stock,
     stamina,
     power,
@@ -186,6 +257,24 @@ render(
       },
       onClose: () => (selectedEdge.value = null),
     },
+    nodeMenu: {
+      node: nodeMenu,
+      onRecipe(recipe) {
+        const id = selectedNode.value;
+        if (id !== null) commands.dispatch(state, new SetRecipe(id, recipe));
+      },
+      onUpgrade() {
+        const id = selectedNode.value;
+        if (id !== null) commands.dispatch(state, new UpgradeNode(id));
+      },
+      onRemove() {
+        const id = selectedNode.value;
+        if (id !== null) commands.dispatch(state, new RemoveNode(id));
+        selectedNode.value = null;
+      },
+      onClose: () => (selectedNode.value = null),
+    },
+    undo: { canUndo, onUndo: undo },
   }),
   document.getElementById("ui-root")!,
 );
@@ -202,6 +291,7 @@ if (import.meta.env.DEV || new URLSearchParams(location.search).has("debug")) {
     renderer,
     camera,
     controls,
+    world: MVP_SCENARIO,
   });
 }
 

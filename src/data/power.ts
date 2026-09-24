@@ -23,5 +23,6 @@ export const POWER_DEMAND: Readonly<Partial<Record<NodeKind, number>>> = {
   extractor: 1,
   furnace: 2,
   "assembler-1": 2,
+  "assembler-2": 3,
   lab: 2,
 };
