@@ -1,4 +1,6 @@
 import type { Application, WebGLRenderer } from "pixi.js";
+import type { Camera } from "../input/camera";
+import type { Controls } from "../input/controls";
 import { MVP_SCENARIO } from "../data/scenarios/mvp";
 import type { Scenario } from "../data/scenarios/scenario";
 import { h, render } from "preact";
@@ -23,6 +25,8 @@ export interface DebugGame {
   loop: Loop;
   app: Application;
   renderer: Renderer;
+  camera: Camera;
+  controls: Controls;
 }
 
 /** `window.game`: the live game for the DevTools console and for agents. */
