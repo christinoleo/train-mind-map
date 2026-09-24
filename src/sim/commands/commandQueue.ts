@@ -52,6 +52,13 @@ export class CommandQueue {
     return ok();
   }
 
+  /** Drops the queue, the undo stack and the replay log, for a new game. */
+  clear(): void {
+    this.queued = [];
+    this.undoStack = [];
+    this.replayLog.length = 0;
+  }
+
   get undoDepth(): number {
     return this.undoStack.length;
   }

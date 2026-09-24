@@ -1,8 +1,10 @@
 import type { Application, WebGLRenderer } from "pixi.js";
+import { MVP_SCENARIO } from "../data/scenarios/mvp";
+import type { Scenario } from "../data/scenarios/scenario";
 import type { Loop } from "../loop";
 import type { CommandQueue } from "../sim/commands/commandQueue";
 import type { EventQueue } from "../sim/events";
-import type { GameState } from "../sim/state/gameState";
+import { createGameState, type GameState } from "../sim/state/gameState";
 
 export interface DebugGame {
   state: GameState;
@@ -23,11 +25,21 @@ declare global {
     loseContext?: (restoreAfterMs?: number) => void;
     /** The live game, for the DevTools console. */
     game?: DebugGame;
+    /**
+     * Superadmin: restarts the game on a free seed's map, or on a scenario,
+     * the MVP one by default.
+     */
+    regenerate?: (world?: string | Scenario) => void;
   }
 }
 
 export function installDebugTools(game: DebugGame) {
   window.game = game;
+  window.regenerate = (world = MVP_SCENARIO) => {
+    // The old game's commands and undo stack would act on the new one.
+    game.commands.clear();
+    Object.assign(game.state, createGameState(world));
+  };
   window.crash = () => {
     setTimeout(() => {
       throw new Error("debug crash");
