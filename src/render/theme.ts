@@ -1,8 +1,8 @@
+import { CELL_PX } from "../config/constants";
 import type { RawResource } from "../data/items";
 import type { Rect } from "../sim/geometry/rect";
 
-/** World units per map cell. The camera scales the world to the screen. */
-export const CELL_PX = 16;
+export { CELL_PX };
 
 /** `r`, given in cells, in world units. */
 export function toWorld(r: Rect): Rect {

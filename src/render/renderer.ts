@@ -1,8 +1,8 @@
 import { Container, type Application } from "pixi.js";
-import type { Rect } from "../sim/geometry/rect";
 import type { GameState } from "../sim/state/gameState";
-import { fitArea } from "./camera";
+import type { Camera } from "../input/camera";
 import { createLayers, type Layers } from "./layers";
+import { applyLod } from "./lod";
 import { drawCore, drawDeposits, drawTerrain, revealedBounds } from "./mapView";
 import type { DeepReadonly } from "./readonly";
 import { CELL_PX, toWorld } from "./theme";
@@ -19,20 +19,20 @@ export interface Renderer {
  * Draws `state` into `app`'s stage. It only reads the state (architecture
  * §Padrão 3). The map is rebuilt when the revealed area grows, when the map
  * itself is replaced, and after the WebGL context comes back from a loss.
+ * `camera` places the world on screen and picks the level of detail.
  */
 export function createRenderer(
   app: Application,
   state: DeepReadonly<GameState>,
+  camera: Camera,
 ): Renderer {
   const world = app.stage.addChild(new Container({ label: "world" }));
   const layers = createLayers(world);
 
   let drawnMap: object | null = null;
+  /** The map the camera was last fitted to; a context restore keeps the view. */
+  let fittedMap: object | null = null;
   let drawnRing = -1;
-  /** The revealed area drawn last, in world units. */
-  let drawnArea: Rect | null = null;
-  let fittedWidth = 0;
-  let fittedHeight = 0;
   let contextLost = false;
 
   const rebuildMap = () => {
@@ -44,20 +44,11 @@ export function createRenderer(
     layers.terrain.addChild(drawTerrain(map, bounds));
     layers.deposits.addChild(drawDeposits(map, bounds));
     layers.nodes.addChild(drawCore(map));
+    // A new map starts fitted on screen; a grown one keeps the view.
+    camera.setBounds(toWorld(bounds), fittedMap !== map);
+    fittedMap = map;
     drawnMap = map;
     drawnRing = map.revealedRing;
-    drawnArea = toWorld(bounds);
-    fittedWidth = 0;
-  };
-
-  const fitCamera = (area: Rect) => {
-    const { width, height } = app.screen;
-    if (fittedWidth === width && fittedHeight === height) return;
-    const fit = fitArea(area, width, height);
-    world.scale.set(fit.scale);
-    world.position.set(fit.x, fit.y);
-    fittedWidth = width;
-    fittedHeight = height;
   };
 
   // Pixi resets its GPU caches on restore; the scene is rebuilt on top so no
@@ -74,18 +65,16 @@ export function createRenderer(
     frame() {
       if (contextLost) return;
       const { map } = state;
+      camera.setViewport(app.screen.width, app.screen.height);
       if (drawnMap !== map || drawnRing !== map.revealedRing) rebuildMap();
-      fitCamera(drawnArea!);
+      world.scale.set(camera.scale);
+      world.position.set(camera.x, camera.y);
+      applyLod(layers, camera.lod);
       app.render();
     },
     layers,
     centerOn(x, y) {
-      const scale = world.scale.x;
-      const { width, height } = app.screen;
-      world.position.set(
-        width / 2 - (x + 0.5) * CELL_PX * scale,
-        height / 2 - (y + 0.5) * CELL_PX * scale,
-      );
+      camera.centerOn((x + 0.5) * CELL_PX, (y + 0.5) * CELL_PX);
     },
   };
 }

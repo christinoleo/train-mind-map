@@ -1,5 +1,7 @@
 import { h, render } from "preact";
 import { MVP_SCENARIO } from "./data/scenarios/mvp";
+import { Camera } from "./input/camera";
+import { Controls } from "./input/controls";
 import { createLoop, type Loop } from "./loop";
 import { installErrorHandler } from "./platform/errors";
 import { createApp } from "./render/app";
@@ -26,7 +28,9 @@ const state = createGameState(MVP_SCENARIO);
 const commands = new CommandQueue();
 const events = new EventQueue();
 const app = await createApp(document.getElementById("pixi-container")!);
-const renderer = createRenderer(app, state);
+const camera = new Camera();
+const controls = new Controls(camera, app.canvas);
+const renderer = createRenderer(app, state, camera);
 loop = createLoop({
   step() {
     tick(state, commands, events.emit);
@@ -40,5 +44,14 @@ if (!paused) loop.start();
 
 if (import.meta.env.DEV || new URLSearchParams(location.search).has("debug")) {
   const { installDebugTools } = await import("./debug/tools");
-  installDebugTools({ state, commands, events, loop, app, renderer });
+  installDebugTools({
+    state,
+    commands,
+    events,
+    loop,
+    app,
+    renderer,
+    camera,
+    controls,
+  });
 }
