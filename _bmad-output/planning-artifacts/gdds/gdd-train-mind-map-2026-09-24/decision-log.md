@@ -84,3 +84,21 @@
 - **Map:** a small copper deposit (3×3, one Extractor, 0.5/s) sits near the base; a big copper deposit sits behind a 1-cell-wide land corridor between lakes that is at least 16 cells long. No relay Box fits, edges cannot span it, and only rail passes.
 - **MVP goal (user):** no win goal. The only goal in the full game is the rocket. When "Protótipo final" completes, an "end of prototype content" notice appears and the game stays open.
 - **Pacing (user):** keep the Ferrovia at about 30 min. The first-train target for the MVP is 25–45 min.
+
+## 2026-09-24 — v1.6 (MVP map, wayfinder issue #6)
+
+- **Construction (user):** the MVP map uses seed `mvp-1` for the base terrain, with a data-defined **Scenario** stamped on top (new glossary term in CONTEXT.md).
+- **Revealed area (user):** 96² is revealed from the start, and the MVP has no expansion research.
+- **Corridor (user):** straight, 1×20, between lakes.
+- **Layout (user approved):**
+  - Core 3×3 at (60,60);
+  - iron 5×5, stone 4×4 and coal 4×4 at about 7–8 cells; the small copper deposit 3×3 at about 10 cells;
+  - water in columns x 76–95 over the whole revealed height, except the land corridor at y=60;
+  - the big copper deposit 6×6 at x 100–105, y 57–62;
+  - the scenario clears water from the base area and from the rail route.
+- **Acceptance tests:**
+  - deposit distances and sizes;
+  - exactly one gap in the water wall, 1 cell wide and 20 cells long;
+  - no 2×2 node fits in the corridor;
+  - the corridor length of 20 exceeds the maximum edge length of 12;
+  - a rail route without water exists from the Core to the big copper deposit.

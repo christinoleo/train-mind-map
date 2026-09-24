@@ -30,6 +30,10 @@ _Avoid_: no-crossing rule
 An infinite patch of one raw resource on the map, which an Extractor or a manual tap draws from.
 _Avoid_: ore field, resource patch
 
+**Scenario**:
+A fixed set of placements (deposits, lakes, corridors) stamped over the seed-generated terrain to guarantee a designed layout, such as the MVP map.
+_Avoid_: level, preset map
+
 **Core**:
 The indestructible starting node. It acts as the first Box, receives manual taps and gives a small free power supply.
 _Avoid_: HQ, base, hub
