@@ -10,7 +10,7 @@ import { assert } from "../assert";
 import { allCells, containsCell, overlaps, type Rect } from "../geometry/rect";
 import { railCells } from "../rail/route";
 import { fail, ok, type Result } from "../result";
-import { edgeCrosses } from "./edges";
+import { edgeCrosses, pathBounds } from "./edges";
 import type { FactoryNode, GameState } from "./gameState";
 import type { NodeId } from "./ids";
 import { depositUnder, isRevealedRect, Terrain, terrainAt } from "./map";
@@ -103,6 +103,7 @@ export function isOccupied(state: Readonly<GameState>, rect: Rect): boolean {
 /** True when a rail runs through a cell of `rect` (FR81). */
 export function railCrosses(state: Readonly<GameState>, rect: Rect): boolean {
   for (const rail of state.rails.values()) {
+    if (!overlaps(pathBounds(rail.path), rect)) continue;
     for (const c of railCells(rail.path)) {
       if (containsCell(rect, c.x, c.y)) return true;
     }

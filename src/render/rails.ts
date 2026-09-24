@@ -84,15 +84,17 @@ const SLEEPER_HALF = CELL_PX * 0.3;
 const SLEEPER_WIDTH = CELL_PX * 0.09;
 const SLEEPER_COLOR = 0x7a6a58;
 
+/** The unit normal to the left of segment a–b. */
+function normal(a: Point, b: Point): Point {
+  const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+  return { x: (b.y - a.y) / len, y: -(b.x - a.x) / len };
+}
+
 /**
  * `line` shifted sideways by `d`, to its left for a positive `d`, with its
  * corners mitred so the shifted line stays parallel.
  */
-export function offsetLine(line: readonly Point[], d: number): Point[] {
-  const normal = (a: Point, b: Point) => {
-    const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
-    return { x: (b.y - a.y) / len, y: -(b.x - a.x) / len };
-  };
+function offsetLine(line: readonly Point[], d: number): Point[] {
   return line.map((p, i) => {
     const before = i > 0 ? normal(line[i - 1], p) : null;
     const after = i < line.length - 1 ? normal(p, line[i + 1]) : null;
@@ -110,7 +112,7 @@ export function offsetLine(line: readonly Point[], d: number): Point[] {
  * Draws a double-track rail along `line` into `g` (FR80): sleepers across,
  * then the two tracks, one each way. `color` tints the tracks.
  */
-export function drawTrack(
+function drawTrack(
   g: Graphics,
   line: readonly Point[],
   color = TRACK_COLOR,
@@ -119,8 +121,7 @@ export function drawTrack(
     const a = line[i - 1];
     const b = line[i];
     const len = Math.hypot(b.x - a.x, b.y - a.y);
-    const nx = (b.y - a.y) / len;
-    const ny = -(b.x - a.x) / len;
+    const { x: nx, y: ny } = normal(a, b);
     for (let t = SLEEPER_STEP / 2; t < len; t += SLEEPER_STEP) {
       const cx = a.x + ((b.x - a.x) * t) / len;
       const cy = a.y + ((b.y - a.y) * t) / len;

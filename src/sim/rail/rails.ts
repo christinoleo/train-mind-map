@@ -1,6 +1,6 @@
 import { RAIL_CELL_COST } from "../../data/rail";
 import type { Cost } from "../../data/nodes";
-import type { Point } from "../geometry/planar";
+import { joins, type Point } from "../geometry/planar";
 import { containsCell, overlaps, type Rect } from "../geometry/rect";
 import { fail, ok, type FailReason, type Result } from "../result";
 import type { FactoryNode, GameState, Rail, RailEnd } from "../state/gameState";
@@ -28,7 +28,7 @@ export function railPortOf(
   node: Placed | undefined,
   port: number,
 ): RailPort | undefined {
-  if (node?.kind !== "station" || !Number.isInteger(port)) return undefined;
+  if (node?.kind !== "station") return undefined;
   return railPorts({ kind: "station", x: node.x, y: node.y })[port];
 }
 
@@ -41,6 +41,14 @@ export function isPortTaken(
     for (const end of [rail.from, rail.to]) {
       if (end.node === node && end.port === port) return true;
     }
+  }
+  return false;
+}
+
+/** True when a rail leaves or reaches node `id`. */
+export function hasRails(state: Readonly<GameState>, id: NodeId): boolean {
+  for (const r of state.rails.values()) {
+    if (r.from.node === id || r.to.node === id) return true;
   }
   return false;
 }
@@ -93,7 +101,8 @@ export function buildRailGrid(state: Readonly<GameState>): RailGrid {
   const REASONS = [undefined, "on_water", "crosses_node", "crosses_rail"];
   return {
     bounds,
-    blocked: what.map((k) => (k === 0 ? 0 : 1)),
+    // Any occupant blocks the cell.
+    blocked: what,
     reason(p) {
       if (!containsCell(bounds, p.x, p.y)) return "out_of_bounds";
       return REASONS[what[(p.y - by) * w + (p.x - bx)]] as FailReason;
@@ -115,14 +124,15 @@ function outward(port: RailPort): number {
 }
 
 /**
- * Routes a rail from rail port `from` towards cell `to`, as the drag preview
- * does before it reaches a target: it leaves the port away from its Station
- * and may reach `to` on any heading.
+ * Routes a rail from rail port `from` towards cell `to`: it leaves the port
+ * away from its Station and reaches `to` on heading `end`, or on any heading
+ * without one, as the drag preview does before it reaches a target.
  */
 export function routeFromPort(
   grid: RailGrid,
   from: RailPort,
   to: Point,
+  end: number | null = null,
 ): Result<RailRoute> {
   const routed = routeRail(
     grid.blocked,
@@ -130,7 +140,7 @@ export function routeFromPort(
     from.cell,
     outward(from),
     to,
-    null,
+    end,
   );
   if (routed.ok) return routed;
   return fail(grid.reason(from.cell) ?? grid.reason(to) ?? routed.reason);
@@ -152,25 +162,20 @@ export function planRail(
   const ends = checkRailEnds(state, from, to);
   if (!ends.ok) return { route: null, check: fail(ends.reason) };
   const [a, b] = ends.value;
-  const routed = routeRail(
-    grid.blocked,
-    grid.bounds,
-    a.cell,
-    outward(a),
-    b.cell,
-    // It goes on into the target Station, the way it left the source.
-    (outward(b) + 4) % 8,
-  );
-  if (!routed.ok) {
-    const reason = grid.reason(a.cell) ?? grid.reason(b.cell) ?? routed.reason;
-    return { route: null, check: fail(reason) };
-  }
+  // It goes on into the target Station, the way it left the source.
+  const routed = routeFromPort(grid, a, b.cell, (outward(b) + 4) % 8);
+  if (!routed.ok) return { route: null, check: fail(routed.reason) };
   const route = routed.value;
-  const cost = railCost(route.length);
-  return {
-    route,
-    check: canAfford(state, cost) ? ok(cost) : fail("no_stock"),
-  };
+  return { route, check: priceRail(state, route.length) };
+}
+
+/** What a rail of `length` cells costs, or `no_stock` when unaffordable. */
+export function priceRail(
+  state: Readonly<GameState>,
+  length: number,
+): Result<Cost> {
+  const cost = railCost(length);
+  return canAfford(state, cost) ? ok(cost) : fail("no_stock");
 }
 
 /**
@@ -199,27 +204,18 @@ export function checkRailEnds(
 /**
  * Checks that a removed rail can come back as it was: its Stations exist
  * (`extra` counts as existing), its rail ports are free, and its route still
- * joins them over free cells without cutting a corner.
+ * joins them over free cells of `grid` without cutting a corner.
  */
 export function checkRailRestore(
   state: Readonly<GameState>,
   rail: Readonly<Rail>,
   extra?: FactoryNode,
+  grid = buildRailGrid(state),
 ): Result {
   const ends = checkRailEnds(state, rail.from, rail.to, extra);
   if (!ends.ok) return ends;
   const [a, b] = ends.value;
-  const first = rail.path[0];
-  const last = rail.path[rail.path.length - 1];
-  if (
-    first.x !== a.cell.x ||
-    first.y !== a.cell.y ||
-    last.x !== b.cell.x ||
-    last.y !== b.cell.y
-  ) {
-    return fail("no_route");
-  }
-  const grid = buildRailGrid(state);
+  if (!joins(rail.path, a.cell, b.cell)) return fail("no_route");
   const cells = railCells(rail.path);
   const free = (x: number, y: number) => grid.reason({ x, y }) === undefined;
   for (let i = 0; i < cells.length; i++) {

@@ -9,7 +9,7 @@ import { fail, ok, type Result } from "../result";
  * The eight headings, clockwise from east. A heading's index is its angle in
  * steps of 45°, and the fixed order breaks any tie left in the search.
  */
-export const HEADINGS = [
+const HEADINGS = [
   { x: 1, y: 0 },
   { x: 1, y: 1 },
   { x: 0, y: 1 },

@@ -6,7 +6,7 @@ import {
   type Point,
 } from "../geometry/planar";
 import { pathLength, type Route } from "../geometry/route";
-import { railsOf } from "../rail/rails";
+import { hasRails } from "../rail/rails";
 import { fail, ok, type FailReason, type Result } from "../result";
 import {
   checkJoins,
@@ -94,7 +94,7 @@ export function planMove(
     return { node: moved, edges: [], check: fail("immovable") };
   }
   // Rails are not re-routed: a Station moves only once its rails are gone.
-  if (railsOf(state, id).length > 0) {
+  if (hasRails(state, id)) {
     return { node: moved, edges: [], check: fail("has_rails") };
   }
   const attached = edgesOf(state, id);

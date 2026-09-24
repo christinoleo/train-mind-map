@@ -6,7 +6,7 @@ import {
   buildRailGrid,
   isPortTaken,
   planRail,
-  railCost,
+  priceRail,
   railEnds,
   railPortOf,
   routeFromPort,
@@ -14,10 +14,9 @@ import {
 } from "../../sim/rail/rails";
 import type { RailRoute } from "../../sim/rail/route";
 import { railPorts } from "../../sim/rail/station";
-import { fail, ok, type Result } from "../../sim/result";
+import { fail, type Result } from "../../sim/result";
 import type { GameState, RailEnd } from "../../sim/state/gameState";
 import type { RailId } from "../../sim/state/ids";
-import { canAfford } from "../../sim/state/stock";
 import { cellCentre, railLine } from "../../render/connectors";
 import type { Camera } from "../camera";
 import type { Tool } from "../controls";
@@ -124,10 +123,7 @@ export class RailTool implements Tool {
     if (!drag?.route || !drag.target) return;
     const was = drag.check;
     if (!was.ok && was.reason !== "no_stock") return;
-    const cost = railCost(drag.route.length);
-    const check = canAfford(this.deps.state, cost)
-      ? ok(cost)
-      : fail("no_stock");
+    const check = priceRail(this.deps.state, drag.route.length);
     if (check.ok === was.ok) return;
     drag.check = check;
     this.show(drag);
@@ -151,24 +147,23 @@ export class RailTool implements Tool {
     if (key === drag.planned) return;
     drag.planned = key;
 
-    const source = railPortOf(state.nodes.get(drag.from.node), drag.from.port)!;
     if (target) {
       const plan = planRail(state, drag.from, target, drag.grid);
       drag.route = plan.route;
       drag.check = plan.check;
-      drag.tip = this.portCentre(target)!;
     } else if (isPortTaken(state, drag.from)) {
       drag.route = null;
       drag.check = fail("connector_taken");
-      drag.tip = cellCentre(cell);
     } else {
+      const { node, port } = drag.from;
+      const source = railPortOf(state.nodes.get(node), port)!;
       const routed = routeFromPort(drag.grid, source, cell);
       drag.route = routed.ok ? routed.value : null;
       // Open ground has no rail port, so releasing here builds nothing.
       drag.check = fail(routed.ok ? "no_target" : routed.reason);
-      drag.tip = cellCentre(cell);
     }
     drag.target = target;
+    drag.tip = target ? this.portCentre(target)! : cellCentre(cell);
     this.show(drag);
   }
 

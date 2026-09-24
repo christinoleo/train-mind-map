@@ -1,7 +1,12 @@
 import type { ItemCounts } from "../../data/items";
 import type { Emit } from "../events";
 import { fail, ok, type Result } from "../result";
-import { checkRailRestore, railCost, railLength } from "../rail/rails";
+import {
+  buildRailGrid,
+  checkRailRestore,
+  railCost,
+  railLength,
+} from "../rail/rails";
 import { pathBounds } from "../state/edges";
 import type { FactoryNode, GameState, Rail } from "../state/gameState";
 import type { RailId } from "../state/ids";
@@ -39,9 +44,10 @@ export function checkPutBackRails(
   rails: readonly Rail[],
   extra?: FactoryNode,
 ): Result {
+  const grid = buildRailGrid(state);
   for (const rail of rails) {
     if (state.rails.has(rail.id)) return fail("occupied");
-    const back = checkRailRestore(state, rail, extra);
+    const back = checkRailRestore(state, rail, extra, grid);
     if (!back.ok) return back;
   }
   return ok();
