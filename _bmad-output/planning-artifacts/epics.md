@@ -70,7 +70,7 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 - **FR38** [MVP] **Mesclador:** até 3 entradas / 1 saída, instantâneo, rodízio justo entre as entradas que têm item disponível.
 - **FR39** **Filtro:** 1 entrada / 2 saídas, instantâneo; o item X configurado vai para a saída A e o resto para a B; se a saída de destino estiver bloqueada, o Filtro bloqueia.
 - **FR40** [MVP] **Laboratório:** 3 entradas / 0 saídas; consome 1 pacote de ciência a cada 5 s para a pesquisa ativa.
-- **FR41** [MVP] **Estação:** nó nas duas camadas, 3 entradas / 3 saídas (ver Trens).
+- **FR41** [MVP] **Estação:** um nó normal (ficha igual às outras) com 3 entradas e 3 saídas de fábrica e **conectores de trilho**: 1 à esquerda e 1 à direita no MVP, expansível para 2–3 por lado. O trem para no próprio nó.
 - **FR42** **Silo:** 3 entradas / 0 saídas; recebe partes de foguete; 50 partes disparam o lançamento.
 
 #### Custos de construção e receitas
@@ -126,7 +126,7 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 #### Trens: trilhos e interconexões
 
 - **FR78** [MVP] A camada de trilhos é independente. Um botão (e a tecla T) alterna a camada em foco; a camada fora de foco fica esmaecida (alpha 0,3).
-- **FR79** [MVP] No modo Trilhos, arrastar de uma Estação até outra constrói trilho com rota automática (menor caminho em 8 direções, desviando de água e nós). A ponta onde o arraste começa e a ponta mais próxima de onde ele termina definem as pontas (esquerda ou direita) de saída e chegada (issue #8).
+- **FR79** [MVP] No modo Trilhos, arrastar do conector de trilho de uma Estação até o conector de trilho de outra constrói trilho com rota automática (menor caminho em 8 direções, desviando de água e nós; issue #8).
 - **FR80** [MVP] Todo trilho é via dupla: uma faixa de ida e uma de volta. Trens em sentidos opostos nunca disputam o mesmo trecho.
 - **FR81** [MVP] Trilhos passam por cima de arestas. Trilho não atravessa nó, exceto a Estação, nem água sem Ponte.
 - **FR82** Uma rota que atravessa outro trilho cria automaticamente um cruzamento X, desenhado só como os trilhos se cruzando. Tocar na interseção alterna para interchange (os trens podem trocar de trilho), desenhado como uma pequena rotatória, e isso altera o grafo de rotas.

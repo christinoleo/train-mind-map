@@ -57,7 +57,7 @@ _Avoid_: energy (reserved for power)
 ### Rail layer
 
 **Rail**:
-A double-track, automatically routed line on the rail layer between two Station ends, with one track in each direction. It may pass over edges but not through nodes, except a Station.
+A double-track, automatically routed line on the rail layer between two Station rail ports, with one track in each direction. It may pass over edges but not through nodes, except a Station.
 _Avoid_: track, railway (for a single piece)
 
 **Crossing**:
@@ -68,12 +68,16 @@ _Avoid_: junction (reserved for Y), intersection
 A Y where one rail splits into two.
 _Avoid_: switch, fork
 
+**Rail port**:
+A circle on a Station's side where exactly one rail attaches, the rail-layer counterpart of a connector.
+_Avoid_: platform end, rail socket
+
 **Segment**:
 A stretch of track between two interconnections. It is the unit a train reserves before entering.
 _Avoid_: block
 
 **Station**:
-The only node present on both layers. It buffers items between edges and trains.
+A regular node that also has **rail ports**: circles on its sides from which rails leave. It buffers items between edges and trains, and trains stop at the node itself.
 _Avoid_: stop, depot (Depot is a distinct station kind)
 
 **Depot**:

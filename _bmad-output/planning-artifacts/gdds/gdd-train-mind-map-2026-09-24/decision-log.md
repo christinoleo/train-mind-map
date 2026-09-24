@@ -147,3 +147,8 @@
 - **Crossings:** an X is drawn as plain rails crossing, with no badge. An interchange is drawn as a small rail roundabout. Tapping toggles between them.
 - **Confirmed:** a horizontal 3-cell station platform, the X/interchange tap toggle, the Line panel (stops, departure conditions, throughput, + train) and the layer toggle with dimming.
 - ADR-0007 was extended to cover rails.
+
+## 2026-09-24 — v1.11 (Station as a regular node)
+
+- **Designer feedback on the rail prototype:** the separate horizontal-platform art for stations was confusing. **A Station is a regular node card**, like every other node, with **rail ports**: circles from which rail lines leave. The MVP has 1 rail port on the left and 1 on the right; this should grow to 2–3 per side later. Rails connect rail port to rail port with auto-routing. Trains stop at the node itself.
+- This supersedes the "choose the platform end" detail from v1.10: picking a rail port is picking the side. **Rail port** joins CONTEXT.md. FR41 and FR79 are updated, and Epic 5 tasks #49 and #50 are written this way.

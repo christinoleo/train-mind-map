@@ -4,7 +4,7 @@ game_type: "simulation + idle-incremental"
 platforms: ["navegador mobile (principal)", "navegador desktop"]
 created: 2026-09-24
 updated: 2026-09-24
-version: 1.10
+version: 1.11
 status: final
 ---
 
@@ -150,7 +150,7 @@ Todo nó tem conectores de entrada à esquerda e de saída à direita. Os nós o
 
 **Trens (camada de trilhos)**
 - A camada de trilhos é independente. Trilhos passam por cima de arestas. **Trilho não atravessa nó, exceto a Estação.** Um botão alterna a camada em foco, e a outra fica esmaecida.
-- **Trilho (issue #8):** tem **rota automática**. O jogador arrasta de uma estação a outra; a ponta de onde começa o arraste define a ponta de saída (esquerda ou direita da plataforma), e a ponta mais próxima de onde solta define a de chegada. A rota é o menor caminho em 8 direções (curvas de 45° e 90°), desviando de água e nós. Custa 1 item "trilho" por célula. **Todo trilho é via dupla:** um lado de ida e um de volta, sempre. Trens em sentidos opostos nunca disputam o mesmo trecho.
+- **Trilho (issue #8):** tem **rota automática**. O jogador arrasta de um conector de trilho (esquerdo ou direito) de uma estação até um conector de trilho de outra. A rota é o menor caminho em 8 direções (curvas de 45° e 90°), desviando de água e nós. Custa 1 item "trilho" por célula. **Todo trilho é via dupla:** um lado de ida e um de volta, sempre. Trens em sentidos opostos nunca disputam o mesmo trecho.
 - **Interconexões:**
   - *Cruzamento (X):* dois trilhos se cruzam no mesmo nível.
   - *Junção (Y):* um trilho se divide em dois; o trem escolhe o caminho pela rota.
@@ -160,6 +160,7 @@ Todo nó tem conectores de entrada à esquerda e de saída à direita. Os nós o
   - Como todo trilho é via dupla, o impasse de frente (dois trens em sentidos opostos no mesmo trecho) não existe. Um impasse residual só pode surgir em ciclos de trens esperando uns pelos outros em junções ou estações lotadas. Se acontecer, o jogo destaca os trens e o trecho envolvidos.
 - **Trem:** 1 locomotiva + de 1 a 4 vagões (2 no MVP). Trens não consomem combustível (simplificação).
  Cada vagão leva 50 itens de **um** tipo. A velocidade máxima é de 8 células/s, com aceleração de 0 a 8 em 3 s.
+- **Estação (atualizado depois da issue #8):** é um **nó normal**, uma ficha igual às outras, que além dos conectores da fábrica tem **conectores de trilho**: círculos de onde saem as linhas de trilho. No MVP há 1 conector de trilho à esquerda e 1 à direita; futuramente, até 2–3 por lado. O trilho liga um conector de trilho a outro, com rota automática. O trem para no próprio nó: entra por um conector de trilho e pode sair por qualquer um.
 - **Estação:** é nó do grafo e ponto no trilho ao mesmo tempo.
   - Arestas de entrada carregam o trem, e as de saída descarregam.
   - O buffer da estação é de 2× a capacidade do maior trem que para nela.
