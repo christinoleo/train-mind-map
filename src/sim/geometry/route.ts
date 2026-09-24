@@ -51,8 +51,10 @@ const UNREACHED = -1;
  * Among the shortest routes it takes the one with the fewest bends, counting a
  * bend where the route does not leave `from` or enter `to` heading east; any
  * tie left is broken by the fixed direction order. It fails with `no_route`
- * when no route exists, and with `out_of_range` when the shortest route is
- * longer than `maxLength`.
+ * when it proves no route exists, and with `out_of_range` when it searched
+ * `maxLength` out without reaching `from`: the shortest route, if there is
+ * one, is too long. The cap stops the search early, so a goal sealed off
+ * inside a wide area also reads as `out_of_range`.
  *
  * It works over the cells of `bounds` in three passes: a breadth-first search
  * out from `to` counts each cell's steps to it; a pass back over the cells it
