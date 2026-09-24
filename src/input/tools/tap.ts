@@ -44,6 +44,14 @@ export class TapTool implements Tool {
     else if (TOLD.includes(result.reason)) this.tell(result.reason);
   }
 
+  /**
+   * A queued tap the simulation refused when it applied it: dispatch checks
+   * against the state before the taps queued ahead of it in the same tick.
+   */
+  rejected(reason: FailReason) {
+    if (TOLD.includes(reason)) this.tell(reason);
+  }
+
   /** Clears the stamina hint once a point has come back. */
   refresh() {
     if (this.told === "no_stamina" && this.deps.state.stamina.points > 0) {

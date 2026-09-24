@@ -6,19 +6,14 @@ interface Point {
   y: number;
 }
 
-interface Flight {
-  dot: Graphics;
-  from: Point;
-  to: Point;
-  /** When the dot leaves, in `performance.now()` ms. */
+/** A graphic animated from `start` for `duration` ms, then destroyed. */
+interface Anim {
+  gfx: Graphics;
+  /** When it starts, in `performance.now()` ms. */
   start: number;
   duration: number;
-}
-
-/** A ring that bursts out and fades where a tap landed. */
-interface Pop {
-  ring: Graphics;
-  start: number;
+  /** Poses the graphic at progress `t`, from 0 to 1. */
+  draw(t: number): void;
 }
 
 const DOT = CELL_PX * 0.35;
@@ -28,12 +23,12 @@ const POP_RADIUS = CELL_PX * 0.9;
 
 /**
  * Items flying between nodes and the map: from storage to a build site
- * (FR72), and from a tapped deposit to the Core (FR74). The simulation moves
- * them instantly; this is only the picture of it, in world units.
+ * (FR72), and from a tapped deposit to the Core (FR74), plus the ring that
+ * bursts where a tap landed. The simulation moves items instantly; this is
+ * only the picture of it, in world units.
  */
 export class Flights {
-  private flights: Flight[] = [];
-  private pops: Pop[] = [];
+  private anims: Anim[] = [];
 
   constructor(private readonly layer: Container) {}
 
@@ -51,9 +46,13 @@ export class Flights {
     const dot = new Graphics()
       .roundRect(-DOT / 2, -DOT / 2, DOT, DOT, DOT * 0.25)
       .fill(color);
-    dot.visible = false;
-    this.layer.addChild(dot);
-    this.flights.push({ dot, from, to, start, duration });
+    this.add(dot, start, duration, (t) => {
+      const e = easeInOut(t);
+      dot.position.set(
+        from.x + (to.x - from.x) * e,
+        from.y + (to.y - from.y) * e,
+      );
+    });
   }
 
   /** Bursts a ring of `color` at `at`, starting at `start`. */
@@ -62,51 +61,42 @@ export class Flights {
       .circle(0, 0, POP_RADIUS)
       .stroke({ color, width: CELL_PX * 0.15 });
     ring.position.set(at.x, at.y);
-    ring.visible = false;
-    this.layer.addChild(ring);
-    this.pops.push({ ring, start });
+    this.add(ring, start, TAP_POP_MS, (t) => {
+      const e = 1 - (1 - t) ** 2;
+      ring.scale.set(0.3 + 0.7 * e);
+      ring.alpha = 1 - e;
+    });
   }
 
-  /** Moves every dot to where it is at `now`, and drops the ones that landed. */
+  /** Poses every graphic as it is at `now`, and drops the finished ones. */
   update(now: number): void {
-    if (this.pops.length > 0) this.updatePops(now);
-    if (this.flights.length === 0) return;
-    this.flights = this.flights.filter((f) => {
-      const t = (now - f.start) / f.duration;
+    if (this.anims.length === 0) return;
+    this.anims = this.anims.filter((a) => {
+      const t = (now - a.start) / a.duration;
       if (t >= 1) {
-        f.dot.destroy();
+        a.gfx.destroy();
         return false;
       }
-      f.dot.visible = t >= 0;
-      const e = easeInOut(Math.max(t, 0));
-      f.dot.position.set(
-        f.from.x + (f.to.x - f.from.x) * e,
-        f.from.y + (f.to.y - f.from.y) * e,
-      );
+      a.gfx.visible = t >= 0;
+      a.draw(Math.max(t, 0));
       return true;
     });
   }
 
   clear(): void {
-    for (const f of this.flights) f.dot.destroy();
-    for (const p of this.pops) p.ring.destroy();
-    this.flights = [];
-    this.pops = [];
+    for (const a of this.anims) a.gfx.destroy();
+    this.anims = [];
   }
 
-  private updatePops(now: number): void {
-    this.pops = this.pops.filter((p) => {
-      const t = (now - p.start) / TAP_POP_MS;
-      if (t >= 1) {
-        p.ring.destroy();
-        return false;
-      }
-      p.ring.visible = t >= 0;
-      const e = 1 - (1 - Math.max(t, 0)) ** 2;
-      p.ring.scale.set(0.3 + 0.7 * e);
-      p.ring.alpha = 1 - e;
-      return true;
-    });
+  private add(
+    gfx: Graphics,
+    start: number,
+    duration: number,
+    draw: (t: number) => void,
+  ): void {
+    gfx.visible = false;
+    this.layer.addChild(gfx);
+    this.anims.push({ gfx, start, duration, draw });
   }
 }
 

@@ -8,6 +8,7 @@ import { PlaceNode } from "../../../src/sim/commands/placeNode";
 import { EventQueue, type SimEvent } from "../../../src/sim/events";
 import { fail, ok } from "../../../src/sim/result";
 import { createGameState } from "../../../src/sim/state/gameState";
+import type { NodeId } from "../../../src/sim/state/ids";
 import { STAMINA_RECHARGE_TICKS } from "../../../src/sim/state/stamina";
 import { coreNode } from "../../../src/sim/state/stock";
 import { tick } from "../../../src/sim/tick";
@@ -82,6 +83,15 @@ describe("ManualTap", () => {
       h: 3,
     });
     expect(tap(46, 46)).toEqual(fail("not_tappable"));
+    fillCore(state);
+    state.nodes.set(9 as NodeId, {
+      id: 9 as NodeId,
+      kind: "box",
+      x: 45,
+      y: 45,
+      items: {},
+    });
+    expect(tap(46, 46)).toEqual(fail("occupied"));
     expect(state.stamina.points).toBe(STAMINA.max);
   });
 

@@ -54,13 +54,14 @@ export function StockHud({ stock, stamina }: Props) {
 
 /** Its own component so a tap re-renders only the bar, not the chips. */
 function StaminaBar({ stamina }: { stamina: ReadonlySignal<number> }) {
+  const text = strings.hud;
   const points = stamina.value;
-  const label = `${strings.hud.stamina}: ${points}/${STAMINA.max}`;
+  const label = `${text.stamina}: ${points}/${STAMINA.max}`;
   return (
     <div
       class="stamina"
       role="meter"
-      aria-label={strings.hud.stamina}
+      aria-label={text.stamina}
       aria-valuemin={0}
       aria-valuemax={STAMINA.max}
       aria-valuenow={points}

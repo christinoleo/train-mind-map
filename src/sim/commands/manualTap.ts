@@ -3,11 +3,11 @@ import { TAPPABLE } from "../../data/tap";
 import type { Emit } from "../events";
 import { fail, ok, type Result } from "../result";
 import type { GameState } from "../state/gameState";
-import { isRevealed, MAP_RECT } from "../state/map";
-import { nodeRect } from "../state/nodes";
+import { depositUnder, isRevealedRect } from "../state/map";
+import { isOccupied } from "../state/nodes";
 import { tapYield } from "../state/stamina";
 import { coreNode, storageRoom } from "../state/stock";
-import { containsRect, overlaps, type Rect } from "../geometry/rect";
+import type { Rect } from "../geometry/rect";
 import type { Command } from "./command";
 
 /**
@@ -48,15 +48,12 @@ export class ManualTap implements Command {
   private resource(state: Readonly<GameState>): Result<RawResource> {
     const { map } = state;
     const cell: Rect = { x: this.x, y: this.y, w: 1, h: 1 };
-    const deposit =
-      containsRect(MAP_RECT, cell) && isRevealed(map, this.x, this.y)
-        ? map.deposits.find((d) => containsRect(d, cell))
-        : undefined;
+    const deposit = isRevealedRect(map, cell)
+      ? depositUnder(map, cell)
+      : undefined;
     if (!deposit) return fail("needs_deposit");
+    if (isOccupied(state, cell)) return fail("occupied");
     if (!TAPPABLE.includes(deposit.resource)) return fail("not_tappable");
-    for (const node of state.nodes.values()) {
-      if (overlaps(cell, nodeRect(node))) return fail("occupied");
-    }
     return ok(deposit.resource);
   }
 }

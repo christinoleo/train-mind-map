@@ -7,11 +7,11 @@ import {
   type RecipeId,
 } from "../../data/recipes";
 import { assert } from "../assert";
-import { allCells, containsRect, overlaps, type Rect } from "../geometry/rect";
+import { allCells, overlaps, type Rect } from "../geometry/rect";
 import { fail, ok, type Result } from "../result";
 import type { FactoryNode, GameState } from "./gameState";
 import type { NodeId } from "./ids";
-import { isRevealed, MAP_RECT, Terrain, terrainAt } from "./map";
+import { depositUnder, isRevealedRect, Terrain, terrainAt } from "./map";
 import { newProduction } from "./production";
 
 /** What a node needs besides its place: an Extractor's resource, a crafter's recipe. */
@@ -67,6 +67,14 @@ export function nodeRect(node: Pick<FactoryNode, "kind" | "x" | "y">): Rect {
   return footprint(node.kind, node.x, node.y);
 }
 
+/** True when any node covers a cell of `rect`. */
+export function isOccupied(state: Readonly<GameState>, rect: Rect): boolean {
+  for (const node of state.nodes.values()) {
+    if (overlaps(rect, nodeRect(node))) return true;
+  }
+  return false;
+}
+
 /** True when research, or the start, has made `kind` buildable (FR18). */
 export function isUnlocked(
   state: Readonly<GameState>,
@@ -89,22 +97,13 @@ export function checkFootprint(
 ): Result<RawResource | undefined> {
   const { map } = state;
   const rect = footprint(kind, x, y);
-  if (
-    !containsRect(MAP_RECT, rect) ||
-    !allCells(rect, (cx, cy) => isRevealed(map, cx, cy))
-  ) {
-    return fail("out_of_bounds");
-  }
-  for (const node of state.nodes.values()) {
-    if (overlaps(rect, nodeRect(node))) {
-      return fail("occupied");
-    }
-  }
+  if (!isRevealedRect(map, rect)) return fail("out_of_bounds");
+  if (isOccupied(state, rect)) return fail("occupied");
   if (!allCells(rect, (cx, cy) => terrainAt(map, cx, cy) === Terrain.Land)) {
     return fail("on_water");
   }
   if (kind === "extractor") {
-    const deposit = map.deposits.find((d) => containsRect(d, rect));
+    const deposit = depositUnder(map, rect);
     return deposit ? ok(deposit.resource) : fail("needs_deposit");
   }
   if (map.deposits.some((d) => overlaps(rect, d))) return fail("on_deposit");

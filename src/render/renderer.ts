@@ -1,5 +1,6 @@
 import { Container, Graphics, type Application } from "pixi.js";
 import type { SimEventOf } from "../sim/events";
+import type { Rect } from "../sim/geometry/rect";
 import type { GameState } from "../sim/state/gameState";
 import type { NodeId } from "../sim/state/ids";
 import { nodeRect } from "../sim/state/nodes";
@@ -114,12 +115,17 @@ export function createRenderer(
     drawnCard = null;
   });
 
+  /** The centre of a rect of cells, in world units. */
+  const rectCenter = (cells: Rect) => {
+    const { x, y, w, h } = toWorld(cells);
+    return { x: x + w / 2, y: y + h / 2 };
+  };
+
   /** The centre of node `id`, in world units, if it still exists. */
   const centerOf = (id: NodeId) => {
     const node = state.nodes.get(id);
     if (!node) return null;
-    const { x, y, w, h } = toWorld(nodeRect(node));
-    return { x: x + w / 2, y: y + h / 2 };
+    return rectCenter(nodeRect(node));
   };
 
   return {
@@ -162,7 +168,7 @@ export function createRenderer(
     showTap({ x, y, item, core }) {
       const to = centerOf(core);
       if (!to) return;
-      const from = { x: (x + 0.5) * CELL_PX, y: (y + 0.5) * CELL_PX };
+      const from = rectCenter({ x, y, w: 1, h: 1 });
       const now = performance.now();
       const color = ITEM_COLOR[item];
       flights.pop(from, color, now);

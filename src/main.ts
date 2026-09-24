@@ -61,6 +61,9 @@ const tapTool = new TapTool({
   dispatch: (command) => commands.dispatch(state, command),
   showHint: (reason) => (hint.value = reason),
 });
+events.on("CommandRejected", ({ command, reason }) => {
+  if (command === "ManualTap") tapTool.rejected(reason);
+});
 effect(() => {
   const kind = selected.value;
   if (kind) {
@@ -84,8 +87,7 @@ loop = createLoop({
     if (unlocked.value.length !== state.unlockedNodes.length) {
       unlocked.value = [...state.unlockedNodes];
     }
-    if (controls.tool === tapTool) tapTool.refresh();
-    else placeTool.refresh();
+    controls.tool?.refresh?.();
     // Stamina drains per tap, so the bar follows it every tick.
     stamina.value = state.stamina.points;
   },

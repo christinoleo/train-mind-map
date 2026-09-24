@@ -57,4 +57,12 @@ describe("TapTool", () => {
     tool.refresh();
     expect(hint()).toBeNull();
   });
+
+  it("says why a queued tap was refused when applied", () => {
+    const { tool, hint } = setup();
+    tool.rejected("no_stamina");
+    expect(hint()).toBe("no_stamina");
+    tool.rejected("occupied");
+    expect(hint()).toBe("no_stamina");
+  });
 });
