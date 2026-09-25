@@ -192,6 +192,18 @@ describe("moving an Extractor (FR30)", () => {
     expect(node().production.output).toBe(1);
   });
 
+  it("keeps the share of the batch done, not its ticks", () => {
+    const { run, id, node } = extractor();
+    expect(run(new MoveNode(id, 64, 58))).toEqual(ok());
+    // 2 of 4 cells: 40 ticks an item. Half done, then moved back onto 4.
+    node().production.progress = 20;
+    node().production.output = 0;
+    expect(run(new MoveNode(id, 65, 58))).toEqual(ok());
+    // The move's tick worked 1 of the 20 ticks an item takes now.
+    expect(node().production.progress).toBeCloseTo(11);
+    expect(node().production.output).toBe(0);
+  });
+
   it("starts over on another resource", () => {
     const { run, id, node } = extractor();
     expect(run(new MoveNode(id, 51, 59))).toEqual(ok());

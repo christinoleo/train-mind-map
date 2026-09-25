@@ -31,7 +31,7 @@ import {
   type Reroute,
   type RerouteCost,
 } from "../state/reroute";
-import { newProduction } from "../state/production";
+import { extractorTicks, newProduction } from "../state/production";
 import { canAfford, debit, deposit } from "../state/stock";
 import type { Command } from "./command";
 
@@ -119,9 +119,14 @@ export function planMove(
   // it still draws one and the same resource, only faster or slower.
   if (moved.kind === "extractor") {
     const coverage = fits.value!;
+    const p = moved.production;
     if (!keepsMix(moved.coverage, coverage)) {
       moved.turn = 0;
       moved.production = newProduction();
+    } else if (p.progress !== null) {
+      // The batch under way keeps its share done, not its ticks, so a move
+      // to faster cells does not finish several batches at once.
+      p.progress *= extractorTicks(coverage) / extractorTicks(moved.coverage);
     }
     moved.coverage = coverage;
   }
