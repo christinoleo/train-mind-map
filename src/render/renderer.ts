@@ -4,6 +4,7 @@ import type { Rect } from "../sim/geometry/rect";
 import type { Edge, GameState } from "../sim/state/gameState";
 import type { EdgeId, NodeId, RailId } from "../sim/state/ids";
 import { nodeRect } from "../sim/state/nodes";
+import type { Deposit } from "../sim/state/map";
 import { isShort, meshOfEdge } from "../sim/state/power";
 import type { Camera } from "../input/camera";
 import type { EdgePreview } from "../input/tools/connect";
@@ -13,11 +14,19 @@ import { Flights } from "./flights";
 import { ItemViews } from "./items";
 import { applyFocus, createLayers, type Focus, type Layers } from "./layers";
 import { applyLod } from "./lod";
-import { drawDeposits, drawTerrain, revealedBounds } from "./mapView";
+import {
+  drawDepositLabels,
+  drawDeposits,
+  drawTerrain,
+  revealedBounds,
+} from "./mapView";
 import { drawGhostOutline, drawNodeCard, NodeViews } from "./nodes";
 import { drawRailPorts, RailPortViews, RailViews } from "./rails";
 import type { DeepReadonly } from "./readonly";
+import { screenText } from "./text";
 import { TrainViews } from "./trains";
+import { formatGain } from "../ui/format";
+import { strings } from "../ui/strings";
 import {
   BUILD_FLIGHT_MS,
   BUILD_FLIGHT_STAGGER_MS,
@@ -51,8 +60,13 @@ export interface Renderer {
   setMoving(id: NodeId | null): void;
   /** Flies the items a construction took from storage to its site. */
   showConstruction(paid: SimEventOf<"ConstructionPaid">): void;
-  /** Pops the tapped cell and flies its item to the Core. */
+  /** Pops the tapped cell and flies its item to the Core, both labelled. */
   showTap(tap: SimEventOf<"ManualTapped">): void;
+  /**
+   * Names the deposit under the mouse or the last tap, or none with `null`.
+   * The closest zoom names every deposit already, so it shows only farther.
+   */
+  showDepositName(deposit: DeepReadonly<Deposit> | null): void;
 }
 
 /**
@@ -87,6 +101,11 @@ export function createRenderer(
   const ghostOutline = ghostLayer.addChild(new Graphics());
   let ghost: Ghost | null = null;
   const flights = new Flights(layers.overlays);
+  let depositLabels: Container | null = null;
+  let namedDeposit: DeepReadonly<Deposit> | null = null;
+  const depositName = layers.overlays.addChild(screenText("", 14));
+  depositName.anchor.set(0.5, 1);
+  depositName.visible = false;
   /** The ghost as drawn: its card is rebuilt only when kind or resource change. */
   let drawnCard: string | null = null;
   let drawnValid: boolean | null = null;
@@ -126,6 +145,7 @@ export function createRenderer(
     }
     layers.terrain.addChild(drawTerrain(map, bounds));
     layers.deposits.addChild(drawDeposits(map, bounds));
+    depositLabels = layers.deposits.addChild(drawDepositLabels(map, bounds));
     // A new map starts fitted on screen; a grown one keeps the view.
     camera.setBounds(toWorld(bounds), fittedMap !== map);
     fittedMap = map;
@@ -177,7 +197,11 @@ export function createRenderer(
       const { width, height } = app.screen;
       camera.setViewport(width, height);
       if (drawnMap !== map || drawnRing !== map.revealedRing) rebuildMap();
-      nodeViews.sync(state.nodes, moving);
+      const { lod } = camera;
+      nodeViews.sync(state.nodes, moving, lod);
+      if (depositLabels) depositLabels.visible = lod === "icons";
+      depositName.visible = namedDeposit !== null && lod !== "icons";
+      if (depositName.visible) depositName.scale.set(1 / camera.scale);
       railPortViews.sync(state.nodes, moving);
       railViews.sync(state.rails, selectedRail);
       trainViews.update(state.trains, state.nodes, alpha);
@@ -187,21 +211,15 @@ export function createRenderer(
         selectedEdge,
         isEdgeShort,
         moving,
-        camera.lod,
+        lod,
       );
-      itemViews.update(
-        state.edges,
-        edgeViews,
-        alpha,
-        camera.lod,
-        camera.viewRect(),
-      );
+      itemViews.update(state.edges, edgeViews, alpha, lod, camera.viewRect());
       drawGhostLayer();
       edgePreviewView.update(edgePreview, camera, width);
-      flights.update(performance.now());
+      flights.update(performance.now(), camera.scale);
       world.scale.set(camera.scale);
       world.position.set(camera.x, camera.y);
-      applyLod(layers, camera.lod);
+      applyLod(layers, lod);
       app.render();
     },
     layers,
@@ -246,14 +264,23 @@ export function createRenderer(
         );
       });
     },
-    showTap({ x, y, item, core }) {
+    showTap({ x, y, item, count, core }) {
       const to = centerOf(core);
       if (!to) return;
       const from = rectCenter({ x, y, w: 1, h: 1 });
       const now = performance.now();
       const color = ITEM_COLOR[item];
+      const label = formatGain(count, item);
       flights.pop(from, color, now);
-      flights.launch(from, to, color, now, TAP_FLIGHT_MS);
+      flights.launch(from, to, color, now, TAP_FLIGHT_MS, label);
+      flights.pop(to, color, now + TAP_FLIGHT_MS, label);
+    },
+    showDepositName(deposit) {
+      namedDeposit = deposit;
+      if (!deposit) return;
+      const { x, y, w } = toWorld(deposit);
+      depositName.text = strings.items[deposit.resource];
+      depositName.position.set(x + w / 2, y);
     },
   };
 }

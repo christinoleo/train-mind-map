@@ -14,7 +14,7 @@ import { FINAL_RESEARCH, type ResearchId } from "./data/research";
 import { MVP_SCENARIO } from "./data/scenarios/mvp";
 import { Camera } from "./input/camera";
 import { Controls, type Tool } from "./input/controls";
-import { nodeAt } from "./input/hitTest";
+import { depositAt, nodeAt } from "./input/hitTest";
 import { ConnectTool } from "./input/tools/connect";
 import { MoveTool } from "./input/tools/move";
 import { PlaceTool } from "./input/tools/place";
@@ -240,10 +240,24 @@ const railTool = new RailTool({
 events.on("LineCreated", ({ line }) => (selectedLine.value = line));
 // With nothing to place, a long press on a node and a drag move it, a drag
 // from an output connector connects, a tap on a node or an edge opens its
-// menu, and any other tap mines by hand.
+// menu, and any other tap mines by hand. A deposit under the mouse or the
+// last tap shows its resource's name (FR150).
+/** Names the deposit at `world` unless a node covers it; returns the node. */
+function nameDepositAt(world: { x: number; y: number }) {
+  const node = nodeAt(state, world);
+  renderer.showDepositName(node ? null : (depositAt(state, world) ?? null));
+  return node;
+}
+// A hover name goes when the mouse leaves the map.
+app.canvas.addEventListener("pointerleave", (e) => {
+  if (e.pointerType === "mouse") renderer.showDepositName(null);
+});
 const buildTool: Tool = {
+  hover(p) {
+    nameDepositAt(camera.toWorld(p.x, p.y));
+  },
   tap(p) {
-    const node = nodeAt(state, camera.toWorld(p.x, p.y));
+    const node = nameDepositAt(camera.toWorld(p.x, p.y));
     selectedNode.value = node?.id ?? null;
     if (node) selectedEdge.value = null;
     else if (!connectTool.tap(p)) tapTool.tap(p);
@@ -274,6 +288,7 @@ const buildTool: Tool = {
     connectTool.refresh();
   },
   cancel() {
+    renderer.showDepositName(null);
     tapTool.cancel();
     moveTool.cancel();
     connectTool.cancel();

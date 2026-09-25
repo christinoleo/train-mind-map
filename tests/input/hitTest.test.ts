@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { MIN_TOUCH_PX } from "../../src/config/constants";
-import { hitsRect } from "../../src/input/hitTest";
+import { CELL_PX, MIN_TOUCH_PX } from "../../src/config/constants";
+import { depositAt, hitsRect } from "../../src/input/hitTest";
+import { createGameState } from "../../src/sim/state/gameState";
+import { isRevealed } from "../../src/sim/state/map";
 
 describe("hitsRect", () => {
   const rect = { x: 100, y: 100, w: 32, h: 32 };
@@ -20,5 +22,28 @@ describe("hitsRect", () => {
 
   it("keeps a rect already large enough at its own size", () => {
     expect(hitsRect(rect, 133, 116, 4)).toBe(false);
+  });
+});
+
+describe("depositAt", () => {
+  const state = createGameState("hit-test");
+  const cellCenter = (x: number, y: number) => ({
+    x: (x + 0.5) * CELL_PX,
+    y: (y + 0.5) * CELL_PX,
+  });
+
+  it("finds the revealed deposit under a point", () => {
+    const deposit = state.map.deposits.find((d) =>
+      isRevealed(state.map, d.x, d.y),
+    )!;
+    expect(depositAt(state, cellCenter(deposit.x, deposit.y))).toBe(deposit);
+  });
+
+  it("finds nothing off a deposit or outside the revealed area", () => {
+    const hidden = state.map.deposits.find(
+      (d) => !isRevealed(state.map, d.x, d.y),
+    )!;
+    expect(depositAt(state, cellCenter(hidden.x, hidden.y))).toBeUndefined();
+    expect(depositAt(state, { x: -CELL_PX, y: -CELL_PX })).toBeUndefined();
   });
 });

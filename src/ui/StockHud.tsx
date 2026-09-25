@@ -1,5 +1,6 @@
 import type { ReadonlySignal } from "@preact/signals";
-import { ITEMS, type ItemCounts } from "../data/items";
+import { useState } from "preact/hooks";
+import { ITEMS, type ItemCounts, type ItemId } from "../data/items";
 import { STAMINA } from "../data/tap";
 import type { PowerSummary } from "../sim/state/power";
 import { cssColor, ITEM_COLOR } from "../render/theme";
@@ -16,10 +17,8 @@ interface Props {
 
 /**
  * The HUD capsule at the top of the screen (GDD §HUD): one chip per item in
- * the global stock, a colour swatch and the count in K/M notation (FR68),
- * over the ⚡ meter (FR131) and the stamina bar (FR75), and a warning while
- * all storage is full and the factory has stopped (FR73). The item's name and
- * exact count are in the chip's label.
+ * the global stock, over the ⚡ meter (FR131) and the stamina bar (FR75), and
+ * a warning while all storage is full and the factory has stopped (FR73).
  */
 export function StockHud({ stock, stamina, power, storageFull }: Props) {
   const text = strings.hud;
@@ -31,24 +30,9 @@ export function StockHud({ stock, stamina, power, storageFull }: Props) {
           {held.length === 0 ? (
             <li class="stock-empty">{text.emptyStock}</li>
           ) : (
-            held.map((item) => {
-              const count = stock.value[item]!;
-              const label = `${strings.items[item]}: ${count}`;
-              return (
-                <li
-                  key={item}
-                  class="stock-chip"
-                  title={label}
-                  aria-label={label}
-                >
-                  <span
-                    class="stock-swatch"
-                    style={{ background: cssColor(ITEM_COLOR[item]) }}
-                  />
-                  {formatCount(count)}
-                </li>
-              );
-            })
+            held.map((item) => (
+              <StockChip key={item} item={item} count={stock.value[item]!} />
+            ))
           )}
         </ul>
         <PowerMeter power={power} />
@@ -60,6 +44,39 @@ export function StockHud({ stock, stamina, power, storageFull }: Props) {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * An item's chip: a colour swatch, the item's name and its count in K/M
+ * notation (FR68, FR150). On a narrow screen the name shrinks to an
+ * abbreviation, and a tap on the chip shows it in full until the next tap.
+ * The exact count is in the chip's label.
+ */
+function StockChip({ item, count }: { item: ItemId; count: number }) {
+  const [open, setOpen] = useState(false);
+  const label = `${strings.items[item]}: ${count}`;
+  return (
+    <li>
+      <button
+        type="button"
+        class="stock-chip"
+        title={label}
+        aria-label={label}
+        data-open={open}
+        onClick={() => setOpen(!open)}
+      >
+        <span
+          class="stock-swatch"
+          style={{ background: cssColor(ITEM_COLOR[item]) }}
+        />
+        <span class="stock-name">{strings.items[item]}</span>
+        <span class="stock-abbr">
+          {strings.itemsShort[item] ?? strings.items[item]}
+        </span>
+        {formatCount(count)}
+      </button>
+    </li>
   );
 }
 

@@ -1,3 +1,4 @@
+import type { ItemId } from "../data/items";
 import type { FailReason } from "../sim/result";
 import { strings } from "./strings";
 
@@ -20,6 +21,11 @@ export function formatCount(n: number): string {
     return `${String(shown).replace(".", ",")}${suffix}`;
   }
   return String(n);
+}
+
+/** Items gained, for the labels that fly from a tap to the Core: "+1 pedra". */
+export function formatGain(count: number, item: ItemId): string {
+  return `+${count} ${strings.items[item]}`;
 }
 
 /** A duration for the offline report, rounded down: 8 h, 2 h 15 min, 45 min, 30 s. */
