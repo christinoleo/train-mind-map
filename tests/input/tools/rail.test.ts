@@ -7,12 +7,15 @@ import type { EdgePreview } from "../../../src/input/tools/connect";
 import { RailTool } from "../../../src/input/tools/rail";
 import { cellCentre } from "../../../src/render/connectors";
 import { CommandQueue } from "../../../src/sim/commands/commandQueue";
-import type { PlaceRail } from "../../../src/sim/commands/placeRail";
+import { PlaceRail } from "../../../src/sim/commands/placeRail";
+import type { CreateLine } from "../../../src/sim/commands/createLine";
+import type { FailReason } from "../../../src/sim/result";
 import { EventQueue } from "../../../src/sim/events";
 import { railPorts } from "../../../src/sim/rail/station";
 import { createGameState } from "../../../src/sim/state/gameState";
 import {
   allocateId,
+  type LineId,
   type NodeId,
   type RailId,
 } from "../../../src/sim/state/ids";
@@ -27,18 +30,26 @@ function setup() {
   const commands = new CommandQueue();
   const events = new EventQueue();
   const dispatched: PlaceRail[] = [];
+  const lines: CreateLine[] = [];
   let preview: EdgePreview | null = null;
   let selected: RailId | null = null;
+  let line: LineId | null = null;
+  let pick: NodeId | null = null;
+  let hint: FailReason | null = null;
   const tool = new RailTool({
     state,
     camera: new Camera(),
     viewport: () => ({ width: 4000, height: 4000 }),
     dispatch: (command) => {
-      dispatched.push(command);
+      if (command instanceof PlaceRail) dispatched.push(command);
+      else lines.push(command);
       return commands.dispatch(state, command);
     },
     showPreview: (p) => (preview = p),
     selectRail: (id) => (selected = id),
+    selectLine: (id) => (line = id),
+    showPick: (id) => (pick = id),
+    showHint: (reason) => (hint = reason),
   });
   const put = (kind: NodeKind, x: number, y: number) => {
     const id = allocateId(state.nextIds, "node");
@@ -52,8 +63,12 @@ function setup() {
     put,
     step,
     dispatched,
+    lines,
     preview: () => preview,
     selected: () => selected,
+    line: () => line,
+    pick: () => pick,
+    hint: () => hint,
   };
 }
 
@@ -139,5 +154,44 @@ describe("the rail tool (FR79)", () => {
     expect(s.selected()).toBe([...s.state.rails.keys()][0]);
     s.tool.tap({ x: 0, y: 0 });
     expect(s.selected()).toBeNull();
+  });
+
+  it("creates a Line from taps on two Stations in turn (FR95)", () => {
+    const s = setup();
+    s.state.unlockedNodes.push("station");
+    const a = s.put("station", 50, 50);
+    const b = s.put("station", 60, 50);
+    drag(s.tool, port(s, a, 1), port(s, b, 0));
+    s.step();
+    s.tool.tap(cellCentre({ x: 50, y: 50 }));
+    expect(s.pick()).toBe(a);
+    s.tool.tap(cellCentre({ x: 61, y: 51 }));
+    expect(s.pick()).toBeNull();
+    expect(s.lines.map((c) => c.stops)).toEqual([[a, b]]);
+    s.step();
+    expect(s.state.lines.size).toBe(1);
+    // The train stands at a: a tap on it opens its Line.
+    const train = [...s.state.trains.values()][0];
+    expect(train.station).toBe(a);
+    s.tool.tap(cellCentre({ x: 50, y: 50 }));
+    expect(s.line()).toBe(train.line);
+    expect(s.pick()).toBeNull();
+  });
+
+  it("lets a picked Station go on a second tap, and says why a Line fails", () => {
+    const s = setup();
+    const a = s.put("station", 50, 50);
+    const b = s.put("station", 60, 50);
+    s.tool.tap(cellCentre({ x: 50, y: 50 }));
+    // A pinch cancels the gesture, not the pick.
+    s.tool.cancel();
+    expect(s.pick()).toBe(a);
+    s.tool.tap(cellCentre({ x: 50, y: 50 }));
+    expect(s.pick()).toBeNull();
+    // No rail joins them.
+    s.tool.tap(cellCentre({ x: 50, y: 50 }));
+    s.tool.tap(cellCentre({ x: 60, y: 50 }));
+    expect(s.hint()).toBe("no_route");
+    expect(s.lines.map((c) => c.stops)).toEqual([[a, b]]);
   });
 });

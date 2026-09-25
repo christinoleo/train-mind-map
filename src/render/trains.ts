@@ -46,10 +46,33 @@ function trackOf(
     const front = train.prevPos + (train.pos - train.prevPos) * alpha;
     return { line: train.trip.line, front };
   }
-  const node = nodes.get(train.stops[train.stop]);
+  const node = train.station === null ? undefined : nodes.get(train.station);
   if (node?.kind !== "station") return null;
   const stop = platformPoint(node, railPorts(node)[0]);
   return { line: [{ x: stop.x - 1, y: stop.y }, stop], front: 1 };
+}
+
+/**
+ * Where each of a train's vehicles sits, the locomotive first, in world
+ * units, and the way it heads, or `null` while the train has no track.
+ */
+export function vehiclePoses(
+  train: TrainView,
+  nodes: ReadonlyMap<NodeId, NodeView>,
+  alpha: number,
+): { x: number; y: number; angle: number }[] | null {
+  const track = trackOf(train, nodes, alpha);
+  if (!track) return null;
+  return Array.from({ length: 1 + train.wagons.length }, (_, i) => {
+    const s = track.front - VEHICLE_CELLS * (i + 0.5);
+    const { x, y, angle } = pointAlong(track.line, s);
+    // Right of the way it runs, so trains each way keep to their track.
+    return {
+      x: (x - Math.sin(angle) * TRACK_SIDE) * CELL_PX,
+      y: (y + Math.cos(angle) * TRACK_SIDE) * CELL_PX,
+      angle,
+    };
+  });
 }
 
 /**
@@ -70,7 +93,7 @@ export class TrainViews {
     alpha: number,
   ) {
     for (const [id, view] of this.views) {
-      if (trains.get(id)?.wagons !== view.wagons) {
+      if (trains.get(id)?.wagons.length !== view.wagons) {
         view.vehicles.destroy({ children: true });
         this.views.delete(id);
       }
@@ -79,24 +102,19 @@ export class TrainViews {
       let view = this.views.get(id);
       if (!view) {
         const vehicles = new Container({ label: `train:${id}` });
-        for (let i = 0; i <= train.wagons; i++) {
+        for (let i = 0; i <= train.wagons.length; i++) {
           vehicles.addChild(drawVehicle(new Graphics(), i === 0));
         }
         this.layer.addChild(vehicles);
-        view = { wagons: train.wagons, vehicles };
+        view = { wagons: train.wagons.length, vehicles };
         this.views.set(id, view);
       }
-      const track = trackOf(train, nodes, alpha);
-      view.vehicles.visible = track !== null;
-      if (!track) continue;
+      const poses = vehiclePoses(train, nodes, alpha);
+      view.vehicles.visible = poses !== null;
+      if (!poses) continue;
       view.vehicles.children.forEach((vehicle, i) => {
-        const s = track.front - VEHICLE_CELLS * (i + 0.5);
-        const { x, y, angle } = pointAlong(track.line, s);
-        // Right of the way it runs, so trains each way keep to their track.
-        vehicle.position.set(
-          (x - Math.sin(angle) * TRACK_SIDE) * CELL_PX,
-          (y + Math.cos(angle) * TRACK_SIDE) * CELL_PX,
-        );
+        const { x, y, angle } = poses[i];
+        vehicle.position.set(x, y);
         vehicle.rotation = angle;
       });
     }

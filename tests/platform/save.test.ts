@@ -165,6 +165,57 @@ describe("migrations", () => {
     expect(state.trains.size).toBe(0);
     expect(state.reservations.size).toBe(0);
     expect(state.nextIds.train).toBe(1);
+    // Schema 5 brought Lines, none in an older save.
+    expect(state.lines.size).toBe(0);
+    expect(state.nextIds.line).toBe(1);
+  });
+
+  it("gives each schema 4 train a Line of its own", () => {
+    const v4: RawSave = {
+      schemaVersion: 4,
+      state: {
+        nextIds: { train: 2 },
+        trains: [
+          [1, { id: 1, stops: [3, 4], stop: 1, wagons: 2, dwell: 7, pos: 5 }],
+        ],
+      },
+    };
+    const migrated = migrate(v4);
+    if (!migrated.ok) throw new Error(migrated.reason);
+    expect(migrated.value.state).toEqual({
+      nextIds: { train: 2, line: 2 },
+      lines: [
+        [
+          1,
+          {
+            id: 1,
+            stops: [
+              { station: 3, condition: { kind: "inactive", seconds: 5 } },
+              { station: 4, condition: { kind: "inactive", seconds: 5 } },
+            ],
+          },
+        ],
+      ],
+      trains: [
+        [
+          1,
+          {
+            id: 1,
+            line: 1,
+            stop: 1,
+            pos: 5,
+            wagons: [
+              { item: null, count: 0 },
+              { item: null, count: 0 },
+            ],
+            waited: 0,
+            idle: 0,
+            lapStart: null,
+            lap: null,
+          },
+        ],
+      ],
+    });
   });
 
   it("gives a schema 1 Station an empty buffer", () => {

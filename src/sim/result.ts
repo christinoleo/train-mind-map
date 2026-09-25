@@ -13,6 +13,7 @@ export type FailReason =
   | "has_rails"
   | "has_trains"
   | "indestructible"
+  | "line_full"
   | "locked"
   | "max_level"
   | "needs_deposit"

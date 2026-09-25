@@ -8,7 +8,7 @@ import type { Loop } from "../loop";
 import type { Renderer } from "../render/renderer";
 import type { Command } from "../sim/commands/command";
 import type { CommandQueue } from "../sim/commands/commandQueue";
-import { PlaceTrain } from "../sim/commands/placeTrain";
+import { CreateLine } from "../sim/commands/createLine";
 import type { EventQueue } from "../sim/events";
 import { ok, type Result } from "../sim/result";
 import { resetGameState, type GameState } from "../sim/state/gameState";
@@ -73,11 +73,8 @@ export interface GameConsole extends DebugGame {
     giveItems(perItem?: number): Result;
     /** Simulates `hours` of absence through the offline path (FR155). */
     offline(hours: number): void;
-    /**
-     * Queues a train that runs over the Stations `stops`, round and round,
-     * until Lines place them (#52).
-     */
-    placeTrain(...stops: number[]): Result;
+    /** Queues a Line over the Stations `stops`, with its first train. */
+    createLine(...stops: number[]): Result;
   };
   overlays: OverlayManager;
 }
@@ -166,7 +163,7 @@ export function installDebugTools(debug: DebugGame) {
       revealRing: (ring) => dispatch(new SetRevealedRing(ring)),
       giveItems: (perItem = 100) => dispatch(new GiveItems(perItem)),
       offline: (hours) => debug.goOffline(hours * 3_600_000),
-      placeTrain: (...stops) => dispatch(new PlaceTrain(stops as NodeId[])),
+      createLine: (...stops) => dispatch(new CreateLine(stops as NodeId[])),
     },
     overlays,
   };

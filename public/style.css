@@ -389,6 +389,84 @@ canvas {
   color: #f5c542;
 }
 
+/* The Line panel (FR140): its stops with their departure conditions, the
+   effective throughput and the trains. */
+.line-stops {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 40vh;
+  margin: 0;
+  padding: 0 4px;
+  overflow-y: auto;
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+.line-stop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.line-condition {
+  display: flex;
+  gap: 4px;
+}
+
+.line-condition select {
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: #2b303c;
+  color: inherit;
+  font: inherit;
+}
+
+.line-throughput {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 4px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.line-trains {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 4px;
+  font-size: 0.85rem;
+}
+
+.line-add {
+  flex: 1;
+}
+
+/* The prompt while a new Line's first Station is picked. */
+#ui-root > .line-pick {
+  position: fixed;
+  left: 50%;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  margin: 0;
+  padding: 4px 4px 4px 12px;
+  border-radius: 999px;
+  background: rgba(19, 22, 28, 0.94);
+  color: #e4e7ee;
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+}
+
 /* The round dark buttons: undo, research, settings and the rail layer. */
 #ui-root > :is(.undo, .research-toggle, .settings-toggle, .rail-toggle) {
   border: 0;

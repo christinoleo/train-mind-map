@@ -75,15 +75,17 @@ export function UpgradeAction({
 
 /** Removal, with what it gives back. */
 export function RemoveAction({
+  label = strings.menu.remove,
   refund,
   onClick,
 }: {
+  label?: ComponentChildren;
   refund: Cost;
   onClick(): void;
 }) {
   return (
     <button type="button" class="menu-action menu-remove" onClick={onClick}>
-      <span>{strings.menu.remove}</span>
+      <span>{label}</span>
       <span class="menu-items">
         {strings.menu.refund} <Items cost={refund} />
       </span>

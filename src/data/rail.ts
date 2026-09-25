@@ -54,8 +54,44 @@ export const TRAIN_MOTION = {
   brake: 8,
 } as const;
 
+/** Items each wagon loads or unloads per second at a stop (FR93, placeholder). */
+export const WAGON_TRANSFER_PER_S = 50;
+
 /**
- * How long a train stays at a stop before it tries to leave. A placeholder
- * until Lines bring departure conditions (#52).
+ * When a train leaves a stop (FR96): full, empty, after `seconds` at the
+ * stop, full or after `seconds`, or once nothing loaded or unloaded for
+ * `seconds`. Kinds without a time ignore `seconds`.
  */
-export const TRAIN_DWELL_MS = 2000;
+export const DEPARTURE_KINDS = [
+  "full",
+  "empty",
+  "wait",
+  "full_or_wait",
+  "inactive",
+] as const;
+
+export type DepartureKind = (typeof DEPARTURE_KINDS)[number];
+
+/** The departure kinds that wait a time. */
+export const TIMED_DEPARTURES: readonly DepartureKind[] = [
+  "wait",
+  "full_or_wait",
+  "inactive",
+];
+
+export interface DepartureCondition {
+  kind: DepartureKind;
+  seconds: number;
+}
+
+/**
+ * The condition a new Line's stops start with: it suits a loading stop and
+ * an unloading stop alike, since either ends once nothing moves.
+ */
+export const DEFAULT_DEPARTURE: DepartureCondition = {
+  kind: "inactive",
+  seconds: 5,
+};
+
+/** The times the Line panel offers for a timed condition, in seconds. */
+export const DEPARTURE_SECONDS = [5, 10, 30, 60] as const;

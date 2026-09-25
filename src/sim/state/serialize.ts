@@ -21,6 +21,7 @@ export function toPairs(state: GameState): SerializedState {
     edges: [...state.edges],
     rails: [...state.rails],
     trains: [...state.trains],
+    lines: [...state.lines],
   };
 }
 
@@ -38,6 +39,7 @@ export function deserializeState(data: SerializedState): GameState {
     edges: new Map(copy.edges),
     rails: new Map(copy.rails),
     trains,
+    lines: new Map(copy.lines),
     reservations: reservationsOf(trains),
     stock: sumStock(nodes),
     power: newPower(),

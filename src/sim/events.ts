@@ -3,7 +3,7 @@ import type { ResearchId } from "../data/research";
 import type { Rect } from "./geometry/rect";
 import type { FailReason } from "./result";
 import type { NodeStatus, TrainState } from "./state/gameState";
-import type { NodeId, TrainId } from "./state/ids";
+import type { LineId, NodeId, TrainId } from "./state/ids";
 import type { Draw } from "./state/stock";
 
 /** Everything the simulation reports. Names are in the past tense. */
@@ -39,6 +39,7 @@ export type SimEvent =
       type: "ResearchDone";
       research: ResearchId;
     }
+  | { type: "LineCreated"; line: LineId }
   | { type: "TrainStateChanged"; train: TrainId; state: TrainState }
   | {
       /** A train stopped at `station`, a stop of its own. */

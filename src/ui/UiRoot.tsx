@@ -5,6 +5,7 @@ import type { PowerSummary } from "../sim/state/power";
 import { EdgeMenu } from "./EdgeMenu";
 import { ExportNotice } from "./ExportNotice";
 import { Hint, type HintView } from "./Hint";
+import { LinePanel, LinePick } from "./LinePanel";
 import { NodeMenu } from "./NodeMenu";
 import { OfflineReport } from "./OfflineReport";
 import { Palette } from "./Palette";
@@ -22,6 +23,10 @@ type Props = ComponentProps<typeof Palette> & {
   nodeMenu: ComponentProps<typeof NodeMenu>;
   /** The rail menu, open while a rail is selected. */
   railMenu: ComponentProps<typeof RailMenu>;
+  /** The Line panel, open while a Line is selected. */
+  linePanel: ComponentProps<typeof LinePanel>;
+  /** The prompt while a new Line's first Station is picked. */
+  linePick: ComponentProps<typeof LinePick>;
   railToggle: ComponentProps<typeof RailToggle>;
   undo: ComponentProps<typeof UndoButton>;
   research: ComponentProps<typeof ResearchPanel>;
@@ -43,8 +48,9 @@ type Props = ComponentProps<typeof Palette> & {
 };
 
 // The DOM overlay layer above the canvas: the HUD capsule, the menus, the
-// undo, research, settings and rail layer buttons, the palette, the
-// onboarding hint, the research and export notices and the offline report.
+// Line panel and its pick prompt, the undo, research, settings and rail layer
+// buttons, the palette, the onboarding hint, the research and export notices
+// and the offline report.
 export function UiRoot({
   stock,
   stamina,
@@ -53,6 +59,8 @@ export function UiRoot({
   edgeMenu,
   nodeMenu,
   railMenu,
+  linePanel,
+  linePick,
   railToggle,
   undo,
   research,
@@ -74,6 +82,8 @@ export function UiRoot({
       <EdgeMenu {...edgeMenu} />
       <NodeMenu {...nodeMenu} />
       <RailMenu {...railMenu} />
+      <LinePanel {...linePanel} />
+      <LinePick {...linePick} />
       <UndoButton {...undo} />
       <ResearchPanel {...research} />
       <SettingsMenu {...settings} />

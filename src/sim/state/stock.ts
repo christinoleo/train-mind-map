@@ -224,7 +224,7 @@ export function deposit(state: GameState, items: Cost, site: Rect): ItemCounts {
  * and returns how many it took.
  */
 export function withdraw(
-  storage: StorageNode,
+  storage: ItemHolder,
   item: ItemId,
   count: number,
 ): number {
