@@ -127,7 +127,7 @@ export function planMove(
     const given = undo?.paths.get(edge.id);
     const routed = given
       ? keptRoute(index, given, start, end)
-      : findRoute(state, index, start, end);
+      : findRoute(state, index, start, end, moved);
     const path = routed.ok ? routed.value.path : null;
     const length = routed.ok ? routed.value.length : null;
     edges.push({ id: edge.id, path, length, max: maxLength(edge.level) });
