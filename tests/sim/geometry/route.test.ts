@@ -56,6 +56,20 @@ describe("routeEdge", () => {
     expect(index.checkPath(path).ok).toBe(true);
   });
 
+  it("stays off reserved cells, but may start or end on one", () => {
+    const index = new PlanarIndex(landMap());
+    const result = routeEdge(index, p(2, 4), p(8, 4), {
+      reserved: [p(2, 4), p(5, 4), p(8, 4)],
+    });
+    expect(result.ok && result.value.path).toEqual([
+      p(2, 4),
+      p(4, 4),
+      p(4, 5),
+      p(8, 5),
+      p(8, 4),
+    ]);
+  });
+
   it("goes around an existing edge and never crosses it", () => {
     const index = new PlanarIndex(landMap());
     index.addEdge(1 as EdgeId, [p(5, 0), p(5, 8)]);

@@ -14,6 +14,7 @@ import {
   connectorCell,
   connectorRows,
   edgeCost,
+  reservedCells,
   upgradeCost,
 } from "../../../src/sim/state/edges";
 import {
@@ -29,6 +30,7 @@ import { createNode } from "../../../src/sim/state/nodes";
 import { updateStock } from "../../../src/sim/systems/stock";
 import { isStorage, store } from "../../../src/sim/state/stock";
 import { tick } from "../../../src/sim/tick";
+import { railCells } from "../../../src/sim/rail/route";
 import { fillCore } from "../support/stock";
 
 // The MVP map: the Core at (59, 59), open land around (50, 50), the water
@@ -242,12 +244,14 @@ describe("ConnectEdge", () => {
   });
 
   it("bends around a node in the way", () => {
-    const { state, run, a, b, put } = twoBoxes();
-    put("box", 53, 51);
+    const { state, run, put } = setup();
+    const a = put("box", 50, 50);
+    const b = put("box", 60, 50);
+    put("box", 54, 50);
     run(new ConnectEdge(out(a, 1), into(b, 1)));
     const { path } = onlyEdge(state);
     expect(path[0]).toEqual({ x: 52, y: 51 });
-    expect(path.at(-1)).toEqual({ x: 55, y: 51 });
+    expect(path.at(-1)).toEqual({ x: 59, y: 51 });
     expect(path.length).toBeGreaterThan(2);
   });
 
@@ -258,6 +262,53 @@ describe("ConnectEdge", () => {
     step();
     expect(state.edges.size).toBe(0);
     expect(state.stock["iron-ore"]).toBe(100);
+  });
+});
+
+describe("reserved connector cells (FR52)", () => {
+  // Box A below-left of Box B: the shortest route from A's first output to
+  // B's first input would run up past B's second input.
+  function belowLeft() {
+    const s = setup();
+    const a = s.put("box", 50, 53);
+    const b = s.put("box", 56, 50);
+    return { ...s, a, b };
+  }
+
+  it("keeps a route off the cell in front of another free input", () => {
+    const { state, run, a, b, put } = belowLeft();
+    expect(run(new ConnectEdge(out(a), into(b)))).toEqual(ok());
+    const { path } = onlyEdge(state);
+    expect(railCells(path)).not.toContainEqual({ x: 55, y: 51 });
+    // The second input is still reachable.
+    const c = put("box", 50, 57);
+    expect(run(new ConnectEdge(out(c), into(b, 1)))).toEqual(ok());
+    expect(state.edges.size).toBe(2);
+  });
+
+  it("releases a connector's cell once an edge uses it", () => {
+    const { state, run, a, b } = belowLeft();
+    const cell = connectorCell(state.nodes.get(b)!, "input", 1);
+    expect(reservedCells(state)).toContainEqual(cell);
+    run(new ConnectEdge(out(a, 1), into(b, 1)));
+    expect(reservedCells(state)).not.toContainEqual(cell);
+  });
+
+  it("joins nodes packed side by side, connector to facing connector", () => {
+    const { state, run, put } = setup();
+    const a = put("box", 50, 50);
+    const b = put("box", 53, 50);
+    expect(run(new ConnectEdge(out(a, 0), into(b, 0)))).toEqual(ok());
+    expect(run(new ConnectEdge(out(a, 1), into(b, 1)))).toEqual(ok());
+    const paths = [...state.edges.values()].map((e) => e.path);
+    expect(paths).toEqual([[{ x: 52, y: 50 }], [{ x: 52, y: 51 }]]);
+  });
+
+  it("plans the same route every time", () => {
+    const { state, a, b } = belowLeft();
+    const first = planEdge(state, out(a), into(b));
+    expect(first.check.ok).toBe(true);
+    expect(planEdge(state, out(a), into(b))).toEqual(first);
   });
 });
 

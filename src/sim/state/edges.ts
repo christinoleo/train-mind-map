@@ -135,6 +135,34 @@ export function isConnected(
   return false;
 }
 
+/**
+ * The cells in front of every free connector (FR52), which other edges' routes
+ * leave open so no route runs flush against a connector an edge may still
+ * use. A connector that has an edge releases its cell. `moved` stands in for
+ * the node of the same id, at the place it is moving to.
+ */
+export function reservedCells(
+  state: Readonly<GameState>,
+  moved?: FactoryNode,
+): Point[] {
+  const taken = new Set<string>();
+  for (const e of state.edges.values()) {
+    taken.add(`output:${e.from}:${e.fromPort}`);
+    taken.add(`input:${e.to}:${e.toPort}`);
+  }
+  const cells: Point[] = [];
+  for (const stored of state.nodes.values()) {
+    const node = stored.id === moved?.id ? moved : stored;
+    for (const side of ["output", "input"] as const) {
+      for (let port = 0; port < connectorCount(node.kind, side); port++) {
+        if (taken.has(`${side}:${node.id}:${port}`)) continue;
+        cells.push(connectorCell(node, side, port));
+      }
+    }
+  }
+  return cells;
+}
+
 /** An edge route checked against a level: what it costs, or why it fails. */
 export interface EdgePlan {
   /** The automatic route, when one exists, even too long or unaffordable. */
@@ -185,17 +213,20 @@ export function planRoute(
 
 /**
  * The automatic route from cell `from` to cell `to` inside the revealed
- * area, whatever its length. A route blocked at either end reports what
- * blocks it.
+ * area, whatever its length, clear of the `reserved` cells (by default
+ * those in front of free connectors; see `reservedCells`). A route blocked at
+ * either end reports what blocks it.
  */
 export function findRoute(
   state: Readonly<GameState>,
   index: PlanarIndex,
   from: Point,
   to: Point,
+  reserved: readonly Point[] = reservedCells(state),
 ): Result<Route> {
   const routed = routeEdge(index, from, to, {
     bounds: ringRect(state.map.revealedRing),
+    reserved,
   });
   if (routed.ok) return routed;
   return fail(

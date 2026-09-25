@@ -21,6 +21,7 @@ import { createNode } from "../../../src/sim/state/nodes";
 import { hashState } from "../../../src/sim/state/serialize";
 import { updateStock } from "../../../src/sim/systems/stock";
 import { tick } from "../../../src/sim/tick";
+import { railCells } from "../../../src/sim/rail/route";
 import { fillCore } from "../support/stock";
 
 // The MVP map: the Core at (59, 59) and open land around (50, 50).
@@ -144,6 +145,16 @@ describe("MoveNode (FR20)", () => {
     put("box", 74, 60);
     expect(planMove(state, b, 97, 50).check).toEqual(fail("no_route"));
     expect(run(new MoveNode(b, 97, 50))).toEqual(fail("no_route"));
+  });
+
+  it("re-routes clear of the moved node's own free connectors (FR52)", () => {
+    const { state, run, b, edge } = joined();
+    // From below, the fewest-bends route into B's first input would run up
+    // column 55, past its second input at (55, 46).
+    expect(run(new MoveNode(b, 56, 45))).toEqual(ok());
+    const { path } = state.edges.get(edge.id)!;
+    expect(path.at(-1)).toEqual({ x: 55, y: 45 });
+    expect(railCells(path)).not.toContainEqual({ x: 55, y: 46 });
   });
 
   it("refuses to move the Core", () => {

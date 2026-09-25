@@ -33,6 +33,11 @@ export interface RouteLimits {
    * The search stops there, so a cap keeps a hopeless drag cheap.
    */
   maxLength?: number;
+  /**
+   * Cells the route may not use unless it starts or ends there: the cells in
+   * front of free connectors (FR52).
+   */
+  reserved?: readonly Point[];
 }
 
 /**
@@ -52,7 +57,8 @@ const UNREACHED = -1;
 
 /**
  * The shortest 4-direction route from cell `from` to cell `to` that stays
- * inside `bounds` and off every cell the index blocks (nodes, water, edges).
+ * inside `bounds` and off every cell the index blocks (nodes, water, edges)
+ * and every `reserved` cell but its own two.
  * Among the shortest routes it takes the one with the fewest bends, counting a
  * bend where the route does not leave `from` or enter `to` heading east; any
  * tie left is broken by the fixed direction order. It fails with `no_route`
@@ -70,7 +76,7 @@ export function routeEdge(
   index: PlanarIndex,
   from: Point,
   to: Point,
-  { bounds = MAP_RECT, maxLength = Infinity }: RouteLimits = {},
+  { bounds = MAP_RECT, maxLength = Infinity, reserved = [] }: RouteLimits = {},
 ): Result<Route> {
   const { w, h } = bounds;
   if (
@@ -84,6 +90,13 @@ export function routeEdge(
   const toCell = (to.y - bounds.y) * w + (to.x - bounds.x);
   const blocked = index.blockedIn(bounds);
   if (blocked[fromCell] || blocked[toCell]) return fail("no_route");
+  for (const { x, y } of reserved) {
+    if (containsCell(bounds, x, y)) {
+      blocked[(y - bounds.y) * w + (x - bounds.x)] = 1;
+    }
+  }
+  blocked[fromCell] = 0;
+  blocked[toCell] = 0;
   // Route.length counts one more than the steps taken.
   const field = stepsTo(toCell, fromCell, maxLength - 1, blocked, w, h);
   if (!field) return fail("out_of_range");
