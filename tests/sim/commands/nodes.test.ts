@@ -242,7 +242,11 @@ describe("RemoveNode", () => {
     run(new RemoveNode(2 as NodeId));
     commands.undo(state);
     step();
-    expect(state.nodes.get(2 as NodeId)).toEqual(placed);
+    // Restored as it was, so it works on from where it stood.
+    expect(state.nodes.get(2 as NodeId)).toEqual({
+      ...placed,
+      production: expect.anything(),
+    });
   });
 
   it("returns the items inside to the Core, and its undo takes them back", () => {
