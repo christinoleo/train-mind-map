@@ -3,55 +3,25 @@ import {
   AUTO_PAN_EDGE_PX,
   AUTO_PAN_SPEED_PX_S,
   DRAG_THRESHOLD_PX,
-  LONG_PRESS_MS,
 } from "../../src/config/constants";
 import {
   autoPanVelocity,
   GestureTracker,
   type GestureHandlers,
-  type Timers,
 } from "../../src/input/gestures";
-
-/** Timers driven by hand: `advance` runs what is due. */
-function fakeTimers() {
-  let now = 0;
-  let next = 1;
-  const pending = new Map<number, { at: number; callback: () => void }>();
-  const timers: Timers = {
-    set(callback, ms) {
-      pending.set(next, { at: now + ms, callback });
-      return next++;
-    },
-    clear(handle) {
-      pending.delete(handle);
-    },
-  };
-  const advance = (ms: number) => {
-    now += ms;
-    for (const [handle, { at, callback }] of [...pending]) {
-      if (at > now) continue;
-      pending.delete(handle);
-      callback();
-    }
-  };
-  return { timers, advance };
-}
 
 function setup() {
   const calls: string[] = [];
   const handlers: GestureHandlers = {
     tap: vi.fn(() => calls.push("tap")),
-    longPress: vi.fn(() => calls.push("longPress")),
-    holdEnd: vi.fn(() => calls.push("holdEnd")),
     dragStart: vi.fn(() => calls.push("dragStart")),
     dragMove: vi.fn(() => calls.push("dragMove")),
     dragEnd: vi.fn(() => calls.push("dragEnd")),
     cancel: vi.fn(() => calls.push("cancel")),
     pinch: vi.fn(() => calls.push("pinch")),
   };
-  const clock = fakeTimers();
-  const tracker = new GestureTracker(handlers, clock.timers);
-  return { tracker, handlers, calls, advance: clock.advance };
+  const tracker = new GestureTracker(handlers);
+  return { tracker, handlers, calls };
 }
 
 describe("GestureTracker", () => {
@@ -63,7 +33,6 @@ describe("GestureTracker", () => {
   it("reports a tap when the pointer moves no more than the threshold", () => {
     t.tracker.down(1, 100, 100);
     t.tracker.move(1, 100 + DRAG_THRESHOLD_PX, 100);
-    t.advance(LONG_PRESS_MS - 1);
     t.tracker.up(1);
     expect(t.calls).toEqual(["tap"]);
     expect(t.handlers.tap).toHaveBeenCalledWith({ x: 108, y: 100 });
@@ -78,7 +47,6 @@ describe("GestureTracker", () => {
     expect(t.handlers.dragStart).toHaveBeenCalledWith(
       { x: 100, y: 109 },
       { x: 100, y: 100 },
-      false,
     );
     // The first move carries the whole distance from where the pointer went down.
     expect(t.handlers.dragMove).toHaveBeenNthCalledWith(
@@ -95,42 +63,11 @@ describe("GestureTracker", () => {
     );
   });
 
-  it("fires a long press after 500 ms without movement, and no tap", () => {
-    t.tracker.down(1, 50, 60);
-    t.advance(LONG_PRESS_MS - 1);
-    expect(t.calls).toEqual([]);
-    t.advance(1);
-    expect(t.handlers.longPress).toHaveBeenCalledWith({ x: 50, y: 60 });
-    t.tracker.up(1);
-    expect(t.calls).toEqual(["longPress", "holdEnd"]);
-  });
-
-  it("does not fire a long press once the pointer drags", () => {
-    t.tracker.down(1, 0, 0);
-    t.tracker.move(1, 20, 0);
-    t.advance(LONG_PRESS_MS * 2);
-    expect(t.handlers.longPress).not.toHaveBeenCalled();
-  });
-
-  it("marks a drag that follows a long press as held", () => {
-    t.tracker.down(1, 0, 0);
-    t.advance(LONG_PRESS_MS);
-    t.tracker.move(1, 20, 0);
-    t.tracker.up(1);
-    expect(t.calls).toEqual(["longPress", "dragStart", "dragMove", "dragEnd"]);
-    expect(t.handlers.dragStart).toHaveBeenCalledWith(
-      { x: 20, y: 0 },
-      { x: 0, y: 0 },
-      true,
-    );
-  });
-
   it("cancels on a second finger and pinches around the midpoint", () => {
     t.tracker.down(1, 100, 100);
     t.tracker.move(1, 120, 100);
     t.tracker.down(2, 200, 100);
     t.tracker.move(2, 220, 100);
-    t.advance(LONG_PRESS_MS);
     t.tracker.up(1);
     t.tracker.up(2);
     expect(t.calls).toEqual(["dragStart", "dragMove", "cancel", "pinch"]);
@@ -143,7 +80,6 @@ describe("GestureTracker", () => {
     t.tracker.down(2, 200, 100);
     t.tracker.up(2);
     t.tracker.up(1);
-    t.advance(LONG_PRESS_MS);
     expect(t.calls).toEqual(["cancel"]);
   });
 

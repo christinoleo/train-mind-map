@@ -58,9 +58,6 @@ export const CELL_PX = 16;
 /** Screen pixels a pointer may move before a touch counts as a drag, not a tap. */
 export const DRAG_THRESHOLD_PX = 8;
 
-/** Time a pointer must stay within `DRAG_THRESHOLD_PX` to count as a long press. */
-export const LONG_PRESS_MS = 500;
-
 /** Most screen pixels per map cell the camera zooms in to. */
 export const MAX_ZOOM_CELL_PX = 96;
 

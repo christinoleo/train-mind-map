@@ -2,7 +2,6 @@ import {
   AUTO_PAN_EDGE_PX,
   AUTO_PAN_SPEED_PX_S,
   DRAG_THRESHOLD_PX,
-  LONG_PRESS_MS,
 } from "../config/constants";
 
 /** A pointer position in screen pixels. */
@@ -14,15 +13,8 @@ export interface GesturePoint {
 export interface GestureHandlers {
   /** One pointer went down and up without moving past the drag threshold. */
   tap(p: GesturePoint): void;
-  /** One pointer stayed still for `LONG_PRESS_MS`; no tap follows. */
-  longPress(p: GesturePoint): void;
-  /** The long-pressed pointer lifted without dragging. */
-  holdEnd(p: GesturePoint): void;
-  /**
-   * One pointer moved past the drag threshold. `from` is where it went down;
-   * `held` tells whether a long press fired first.
-   */
-  dragStart(p: GesturePoint, from: GesturePoint, held: boolean): void;
+  /** One pointer moved past the drag threshold. `from` is where it went down. */
+  dragStart(p: GesturePoint, from: GesturePoint): void;
   dragMove(p: GesturePoint, dx: number, dy: number): void;
   dragEnd(p: GesturePoint): void;
   /**
@@ -38,49 +30,30 @@ export interface GestureHandlers {
   pinch(x: number, y: number, dx: number, dy: number, factor: number): void;
 }
 
-export interface Timers {
-  set(callback: () => void, ms: number): number;
-  clear(handle: number): void;
-}
-
-const browserTimers: Timers = {
-  set: (callback, ms) => window.setTimeout(callback, ms),
-  clear: (handle) => window.clearTimeout(handle),
-};
-
 type Phase =
   | "idle"
   /** One pointer is down and has not moved past the threshold yet. */
   | "pressed"
-  /** The long press fired; the pointer has not moved past the threshold. */
-  | "held"
   | "dragging"
   /** Two pointers went down; the camera follows until all lift. */
   | "pinching";
 
 /**
- * Classifies raw pointer input into taps, long presses, drags and pinches
+ * Classifies raw pointer input into taps, drags and pinches
  * (architecture §Regras de gesto). Coordinates are in screen pixels.
  */
 export class GestureTracker {
   private readonly pointers = new Map<number, GesturePoint>();
   private phase: Phase = "idle";
   private origin: GesturePoint = { x: 0, y: 0 };
-  private timer: number | undefined;
-
-  constructor(
-    private readonly handlers: GestureHandlers,
-    private readonly timers: Timers = browserTimers,
-  ) {}
+  constructor(private readonly handlers: GestureHandlers) {}
 
   down(id: number, x: number, y: number) {
     this.pointers.set(id, { x, y });
     if (this.pointers.size === 1 && this.phase === "idle") {
       this.phase = "pressed";
       this.origin = { x, y };
-      this.timer = this.timers.set(() => this.onLongPress(), LONG_PRESS_MS);
     } else if (this.pointers.size === 2) {
-      this.clearTimer();
       if (this.phase !== "pinching") this.handlers.cancel();
       this.phase = "pinching";
     }
@@ -91,14 +64,11 @@ export class GestureTracker {
     if (!prev) return;
     const next = { x, y };
     switch (this.phase) {
-      case "pressed":
-      case "held": {
+      case "pressed": {
         const moved = Math.hypot(x - this.origin.x, y - this.origin.y);
         if (moved > DRAG_THRESHOLD_PX) {
-          const held = this.phase === "held";
-          this.clearTimer();
           this.phase = "dragging";
-          this.handlers.dragStart(next, this.origin, held);
+          this.handlers.dragStart(next, this.origin);
           this.handlers.dragMove(next, x - this.origin.x, y - this.origin.y);
         }
         break;
@@ -128,9 +98,8 @@ export class GestureTracker {
     this.pointers.delete(id);
     if (this.pointers.size > 0) return;
     if (canTap && this.phase === "pressed") this.handlers.tap(p);
-    if (this.phase === "held") this.handlers.holdEnd(p);
     if (this.phase === "dragging") this.handlers.dragEnd(p);
-    this.reset();
+    this.phase = "idle";
   }
 
   private pinchMove(id: number, prev: GesturePoint, next: GesturePoint) {
@@ -156,24 +125,6 @@ export class GestureTracker {
     if (id === a) return b === undefined ? undefined : this.pointers.get(b);
     if (id === b) return this.pointers.get(a);
     return undefined;
-  }
-
-  private onLongPress() {
-    this.timer = undefined;
-    if (this.phase !== "pressed") return;
-    this.phase = "held";
-    this.handlers.longPress(this.origin);
-  }
-
-  private clearTimer() {
-    if (this.timer === undefined) return;
-    this.timers.clear(this.timer);
-    this.timer = undefined;
-  }
-
-  private reset() {
-    this.clearTimer();
-    this.phase = "idle";
   }
 }
 

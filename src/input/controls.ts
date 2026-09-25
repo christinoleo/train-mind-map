@@ -9,11 +9,8 @@ export interface Tool {
   /** A mouse moved with no button down. */
   hover?(p: GesturePoint): void;
   tap?(p: GesturePoint): void;
-  longPress?(p: GesturePoint): void;
-  /** The long press lifted without dragging. */
-  holdEnd?(p: GesturePoint): void;
   /** Returns true to take the drag; otherwise the camera pans. */
-  dragStart?(p: GesturePoint, from: GesturePoint, held: boolean): boolean;
+  dragStart?(p: GesturePoint, from: GesturePoint): boolean;
   dragMove?(p: GesturePoint, dx: number, dy: number): void;
   dragEnd?(p: GesturePoint): void;
   /** Re-checks the tool's feedback against the state after each tick. */
@@ -56,15 +53,9 @@ export class Controls {
       tap: (p) => {
         if (!this.forcePan) this.tool?.tap?.(p);
       },
-      longPress: (p) => {
-        if (!this.forcePan) this.tool?.longPress?.(p);
-      },
-      holdEnd: (p) => {
-        if (!this.forcePan) this.tool?.holdEnd?.(p);
-      },
-      dragStart: (p, from, held) => {
+      dragStart: (p, from) => {
         const toTool =
-          !this.forcePan && this.tool?.dragStart?.(p, from, held) === true;
+          !this.forcePan && this.tool?.dragStart?.(p, from) === true;
         this.dragOwner = toTool ? "tool" : "camera";
       },
       dragMove: (p, dx, dy) => {

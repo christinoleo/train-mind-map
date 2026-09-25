@@ -562,8 +562,7 @@ onPointerUp() { if (this.result.ok) dispatch(new ConnectEdge(this.preview)); }
 ### Regras de gesto (toque)
 
 - **Toque vs. arraste:** o movimento precisa passar de 8 px para contar como arraste. Um toque simples no vazio só seleciona ou desseleciona.
-- **Pressão longa:** 500 ms sem mover mais de 8 px. Sobre um nó, ativa Mover nó; o arraste depois disso não move a câmera.
-- **Arrastar a partir de um conector** cria uma aresta, com prévia ao vivo da rota automática; a partir do vazio, move a câmera. Não há gesto de dobra.
+- **Arrastar a partir de um conector** cria uma aresta, com prévia ao vivo da rota automática. Arrastar a partir do corpo de um nó o move na hora (sem pressão longa; decisão do playtest de 2026-09-25). A partir do vazio, move a câmera. Sobre o corpo, só um conector a até meia célula conta, para que o resto do corpo mova o nó em qualquer zoom. Não há gesto de dobra.
 - **Dois dedos** sempre cancelam a ferramenta em curso e fazem pinça e pan.
 - **MoveNode:** recalcula a rota de todas as arestas ligadas. Se alguma ficar sem rota ou passar do comprimento máximo, o movimento é recusado com `Result`.
 - **Desktop:** roda do mouse = zoom; arrastar no vazio, botão do meio ou espaço + arrastar = pan; teclas 1–9 = paleta; T = alternar camada; Ctrl+Z = desfazer; Esc = cancelar a ferramenta.

@@ -238,8 +238,8 @@ const railTool = new RailTool({
 });
 // A Line just created opens its panel.
 events.on("LineCreated", ({ line }) => (selectedLine.value = line));
-// With nothing to place, a long press on a node and a drag move it, a drag
-// from an output connector connects, a tap on a node or an edge opens its
+// With nothing to place, a drag from an output connector connects, a drag
+// from a node's body moves it, any other drag pans, a tap on a node or an edge opens its
 // menu, and any other tap mines by hand. A deposit under the mouse or the
 // last tap shows its resource's name (FR150).
 /** Names the deposit at `world` unless a node covers it; returns the node. */
@@ -262,14 +262,14 @@ const buildTool: Tool = {
     if (node) selectedEdge.value = null;
     else if (!connectTool.tap(p)) tapTool.tap(p);
   },
-  longPress(p) {
+  dragStart(p, from) {
+    // The connector comes first: it sits on the edge of the node's body.
+    if (connectTool.dragStart(p, from)) return true;
+    if (!moveTool.dragStart(p, from)) return false;
     selectedNode.value = null;
     selectedEdge.value = null;
-    moveTool.longPress(p);
+    return true;
   },
-  holdEnd: () => moveTool.holdEnd(),
-  dragStart: (p, from, held) =>
-    moveTool.dragStart(p, from, held) || connectTool.dragStart(p, from, held),
   dragMove(p) {
     moveTool.dragMove(p);
     connectTool.dragMove(p);
