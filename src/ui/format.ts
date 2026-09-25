@@ -1,4 +1,4 @@
-import type { ItemId } from "../data/items";
+import { itemEntries, type ItemCounts, type ItemId } from "../data/items";
 import type { FailReason } from "../sim/result";
 import { strings } from "./strings";
 
@@ -38,6 +38,28 @@ export function formatDuration(ms: number): string {
     return rest > 0 ? `${hours} ${h} ${rest} ${min}` : `${hours} ${h}`;
   if (minutes > 0) return `${minutes} ${min}`;
   return `${Math.floor(ms / 1000)} ${s}`;
+}
+
+/**
+ * What a dragged edge comes to, for its chip: its length, its cost and the
+ * items/s it carries ("42 células · 132 min. ferro · 0,25/s").
+ */
+export function edgeStatsText(
+  length: number,
+  cost: Readonly<ItemCounts>,
+  throughput: number,
+): string {
+  const price = itemEntries(cost)
+    .map(([item, n]) => `${formatCount(n)} ${strings.itemsShort[item]}`)
+    .join(", ");
+  const rate = throughput.toLocaleString("pt-BR", {
+    maximumSignificantDigits: 2,
+  });
+  return [
+    `${length} ${strings.edge.length}`,
+    price,
+    `${rate}${strings.edge.perSecond}`,
+  ].join(strings.menu.separator);
 }
 
 /**

@@ -122,7 +122,7 @@ describe("ConnectTool", () => {
     expect(dispatched[0]?.to).toEqual({ node: b, port: 1 });
   });
 
-  it("shows a red preview with the length when the edge is too long", () => {
+  it("shows the length, cost and throughput of a long edge (FR54)", () => {
     const { state, tool, put, dispatched, preview } = setup();
     const a = put("box", 50, 50);
     const far = put("box", 66, 50);
@@ -131,12 +131,12 @@ describe("ConnectTool", () => {
     tool.dragMove(to);
     tool.frame(16);
     expect(preview()).toMatchObject({
-      reason: "out_of_range",
+      reason: null,
       length: 14,
-      max: 12,
+      stats: { cost: { "iron-ore": 16 }, throughput: 1 },
     });
     tool.dragEnd(to);
-    expect(dispatched).toHaveLength(0);
+    expect(dispatched).toHaveLength(1);
     expect(preview()).toBeNull();
   });
 

@@ -120,6 +120,7 @@ export const strings = {
     title: "Aresta",
     level: "Nível",
     length: "células",
+    perSecond: "/s",
     upgrade: "Melhorar para nível",
     tooLong: "Longa demais",
     onWater: "Cruza a água",

@@ -1,6 +1,7 @@
 import { FLOW_UNITS_PER_CELL } from "../../config/constants";
 import {
   EDGE_CELL_COST,
+  EDGE_DISTANCE_STEP,
   EDGE_MAX_LENGTH,
   EDGE_THROUGHPUT,
   ITEM_SPEED,
@@ -75,17 +76,42 @@ export function connectorCell(
   };
 }
 
-/** Longest edge at `level`, in cells. */
-export function maxLength(level: EdgeLevel): number {
-  return EDGE_MAX_LENGTH[level - 1];
+/**
+ * How many cells' worth of base cost `length` cells of edge come to: cell i,
+ * counted from 1, weighs 2^⌊(i−1)/12⌋, so cells 1–12 weigh 1, 13–24 weigh 2,
+ * 25–36 weigh 4 (FR54).
+ */
+export function costWeight(length: number): number {
+  const steps = Math.floor(length / EDGE_DISTANCE_STEP);
+  const rest = length - steps * EDGE_DISTANCE_STEP;
+  return EDGE_DISTANCE_STEP * (2 ** steps - 1) + rest * 2 ** steps;
 }
 
-/** What `length` cells of edge at `level` cost (FR44). */
+/** What `length` cells of edge at `level` cost (FR44, FR54). */
 export function edgeCost(length: number, level: EdgeLevel): Cost {
-  return scale(EDGE_CELL_COST[level - 1], length);
+  return scale(EDGE_CELL_COST[level - 1], costWeight(length));
 }
 
-/** What raising `length` cells of edge from level `from` to `to` costs (FR58). */
+/**
+ * What an edge at `level` pays for growing from `from` cells to `to`, or
+ * gets back for shrinking: the cells it gains or loses, each at its own
+ * weight (FR54).
+ */
+export function lengthChangeCost(
+  from: number,
+  to: number,
+  level: EdgeLevel,
+): Cost {
+  return scale(
+    EDGE_CELL_COST[level - 1],
+    Math.abs(costWeight(to) - costWeight(from)),
+  );
+}
+
+/**
+ * What raising `length` cells of edge from level `from` to `to` costs (FR58):
+ * the difference, cell by cell.
+ */
 export function upgradeCost(
   length: number,
   from: EdgeLevel,
@@ -93,8 +119,21 @@ export function upgradeCost(
 ): Cost {
   return scale(
     countsAbove(EDGE_CELL_COST[from - 1], EDGE_CELL_COST[to - 1]),
-    length,
+    costWeight(length),
   );
+}
+
+/**
+ * Items per second an edge `length` cells long at `level` carries: the
+ * level's throughput, halved every 12 cells (FR54, FR55).
+ */
+export function edgeThroughput(length: number, level: EdgeLevel): number {
+  return EDGE_THROUGHPUT[level - 1] / distanceFactor(length);
+}
+
+/** 2^⌊length/12⌋: how many times over distance divides an edge's throughput. */
+function distanceFactor(length: number): number {
+  return 2 ** Math.floor(length / EDGE_DISTANCE_STEP);
 }
 
 function scale(cost: Cost, factor: number): Cost {
@@ -176,9 +215,9 @@ export interface EdgePlan {
   check: Result<Cost>;
 }
 
-/** Checks `length` cells of edge at `level` against its length limit (FR44). */
-export function checkLength(length: number, level: EdgeLevel): Result {
-  return length > maxLength(level) ? fail("out_of_range") : ok();
+/** Checks `length` cells of edge against the length limit (FR54). */
+export function checkLength(length: number): Result {
+  return length > EDGE_MAX_LENGTH ? fail("out_of_range") : ok();
 }
 
 /**
@@ -192,7 +231,7 @@ export function priceRoute(
   level: EdgeLevel,
   extra: Readonly<ItemCounts> = {},
 ): Result<Cost> {
-  const fits = checkLength(length, level);
+  const fits = checkLength(length);
   if (!fits.ok) return fits;
   const cost = addCounts(edgeCost(length, level), extra);
   return canAfford(state, cost) ? ok(cost) : fail("no_stock");
@@ -323,11 +362,17 @@ export function checkJoins(
 }
 
 /**
- * Least flow units between two items on an edge at `level`: speed ÷
- * throughput, which caps the edge at its throughput (FR55).
+ * Least flow units between two items on `edge`: speed ÷ effective
+ * throughput, which caps the edge at that throughput (FR54, FR55).
  */
-export function spacingUnits(level: EdgeLevel): number {
-  return (ITEM_SPEED * FLOW_UNITS_PER_CELL) / EDGE_THROUGHPUT[level - 1];
+export function spacingUnits(edge: {
+  readonly path: readonly Point[];
+  readonly level: EdgeLevel;
+}): number {
+  return (
+    ((ITEM_SPEED * FLOW_UNITS_PER_CELL) / EDGE_THROUGHPUT[edge.level - 1]) *
+    distanceFactor(pathLength(edge.path))
+  );
 }
 
 /** An edge's length in flow units: from its output connector to its input. */
@@ -342,5 +387,5 @@ export function edgeUnits(edge: { readonly path: readonly Point[] }): number {
 export function isEdgeFull(edge: Readonly<Edge>): boolean {
   const front = edge.items[0];
   const back = edge.items[edge.items.length - 1];
-  return front?.pos === edgeUnits(edge) && back.pos < spacingUnits(edge.level);
+  return front?.pos === edgeUnits(edge) && back.pos < spacingUnits(edge);
 }

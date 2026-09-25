@@ -6,7 +6,8 @@ import { addCounts, type ItemCounts } from "../../data/items";
 import { pathsTouch, type PlanarIndex, type Point } from "../geometry/planar";
 import { pathLength, type Route } from "../geometry/route";
 import { fail, ok, type Result } from "../result";
-import { edgeCost, edgeUnits, findRoute, maxLength } from "./edges";
+import { EDGE_MAX_LENGTH } from "../../data/edges";
+import { edgeUnits, findRoute, lengthChangeCost } from "./edges";
 import type { Edge, GameState } from "./gameState";
 import type { EdgeId } from "./ids";
 
@@ -28,7 +29,7 @@ interface Room {
  * the edges of `index` in its way. It finds the route the edge would take
  * if no edge but the `pinned` ones were there, lifts the edges that route
  * touches, routes the edge, then routes each lifted edge again, by id
- * ascending, within its level's length limit. On success the index holds the
+ * ascending, within the length limit. On success the index holds the
  * moved edges on their new routes, but not edge `id`; `restoreRoom` puts it
  * back. On failure the index is left as it was and the reason is `no_route`.
  * At most `REROUTE_MAX_EDGES` edges move.
@@ -87,8 +88,7 @@ export function makeRoom(
       path[path.length - 1],
       keepOut,
     );
-    const level = state.edges.get(e)!.level;
-    if (!again.ok || again.value.length > maxLength(level)) {
+    if (!again.ok || again.value.length > EDGE_MAX_LENGTH) {
       undo();
       return fail("no_route");
     }
@@ -130,10 +130,10 @@ export function rerouteCost(
   const cost: RerouteCost = { pay: {}, refund: {} };
   for (const { id, length } of moved) {
     const edge = state.edges.get(id)!;
-    const change = length - pathLength(edge.path);
+    const old = pathLength(edge.path);
     addCounts(
-      change > 0 ? cost.pay : cost.refund,
-      edgeCost(Math.abs(change), edge.level),
+      length > old ? cost.pay : cost.refund,
+      lengthChangeCost(old, length, edge.level),
     );
   }
   return cost;

@@ -5,7 +5,8 @@ import type { EdgeId, NodeId } from "../sim/state/ids";
 import { ITEMS, type ItemId } from "../data/items";
 import type { Camera, Lod } from "../input/camera";
 import type { EdgePreview } from "../input/tools/connect";
-import { edgeReasonText } from "../ui/format";
+import { edgeReasonText, edgeStatsText } from "../ui/format";
+import { strings } from "../ui/strings";
 import { edgeLineOf } from "./connectors";
 import { itemMix, measure, slice, type Polyline } from "./polyline";
 import type { DeepReadonly } from "./readonly";
@@ -211,7 +212,8 @@ export class EdgeViews {
  * The edge being dragged, or a moving node's edges: their routes, green where
  * releasing builds them and red where it does not, the other edges they
  * would move out of the way in amber on their new routes, and a chip with the
- * reason. The chip keeps its screen size at any zoom.
+ * reason and, for a dragged edge, its length, cost and throughput. The chip
+ * keeps its screen size at any zoom.
  */
 export class EdgePreviewView {
   private readonly line = new Graphics({ label: "edge-preview" });
@@ -257,7 +259,7 @@ export class EdgePreviewView {
 
   private redraw(preview: EdgePreview | null) {
     this.line.visible = preview !== null;
-    this.chip.visible = preview?.reason != null;
+    this.chip.visible = preview?.reason != null || preview?.stats != null;
     if (!preview) return;
     const color =
       preview.reason === null ? GHOST_COLOR.valid : GHOST_COLOR.invalid;
@@ -266,17 +268,22 @@ export class EdgePreviewView {
       strokeLine(this.line, line, REROUTE_COLOR, 0.8);
     }
     for (const line of preview.lines) strokeLine(this.line, line, color, 0.8);
-    if (!preview.reason) return;
-    this.chipText.text = edgeReasonText(
-      preview.reason,
-      preview.length,
-      preview.max,
-    );
+    if (!this.chip.visible) return;
+    const { reason, length, stats } = preview;
+    const parts: string[] = [];
+    if (reason) parts.push(edgeReasonText(reason, length, preview.max));
+    if (stats && length !== null) {
+      parts.push(edgeStatsText(length, stats.cost, stats.throughput));
+    }
+    this.chipText.text = parts.join(strings.menu.separator);
     const w = this.chipText.width + 20;
     const h = this.chipText.height + 8;
     this.chipBg
       .clear()
       .roundRect(-w / 2, -h / 2, w, h, h / 2)
-      .fill({ color: GHOST_COLOR.invalid, alpha: 0.92 });
+      .fill({
+        color: reason ? GHOST_COLOR.invalid : GHOST_COLOR.valid,
+        alpha: 0.92,
+      });
   }
 }

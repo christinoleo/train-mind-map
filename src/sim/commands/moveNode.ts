@@ -1,3 +1,4 @@
+import { EDGE_MAX_LENGTH } from "../../data/edges";
 import type { ItemCounts } from "../../data/items";
 import type { Emit } from "../events";
 import {
@@ -16,7 +17,6 @@ import {
   edgesOf,
   edgeUnits,
   findRoute,
-  maxLength,
   reservedCells,
 } from "../state/edges";
 import type { Edge, FactoryNode, GameState } from "../state/gameState";
@@ -144,17 +144,14 @@ export function planMove(
     let routed = given
       ? keptRoute(index, given, start, end)
       : findRoute(state, index, start, end, reserved);
-    if (
-      !given &&
-      !(routed.ok && routed.value.length <= maxLength(edge.level))
-    ) {
+    if (!given && !(routed.ok && routed.value.length <= EDGE_MAX_LENGTH)) {
       const room = makeRoom(
         state,
         index,
         edge.id,
         start,
         end,
-        maxLength(edge.level),
+        EDGE_MAX_LENGTH,
         keepOut,
         pinned,
       );
@@ -165,10 +162,8 @@ export function planMove(
     }
     const path = routed.ok ? routed.value.path : null;
     const length = routed.ok ? routed.value.length : null;
-    edges.push({ id: edge.id, path, length, max: maxLength(edge.level) });
-    const fits = routed.ok
-      ? checkLength(routed.value.length, edge.level)
-      : routed;
+    edges.push({ id: edge.id, path, length, max: EDGE_MAX_LENGTH });
+    const fits = routed.ok ? checkLength(routed.value.length) : routed;
     const refused = fits.ok ? null : fits.reason;
     reason ??= refused;
     // Later edges route around the ones already placed.

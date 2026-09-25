@@ -36,7 +36,7 @@ export function stepEdge(
 ): void {
   const { items } = edge;
   const end = edgeUnits(edge);
-  const spacing = spacingUnits(edge.level);
+  const spacing = spacingUnits(edge);
   for (const it of items) it.prevPos = it.pos;
   let delivered: number | undefined;
   while (items.length > 0 && items[0].pos + STEP_UNITS >= end) {
@@ -90,7 +90,7 @@ function waiting(edge: Edge | undefined): ItemId | undefined {
 function isOpen(edge: Edge | undefined): boolean {
   if (!edge) return false;
   const back = edge.items.at(-1);
-  return !back || back.pos >= spacingUnits(edge.level);
+  return !back || back.pos >= spacingUnits(edge);
 }
 
 /**

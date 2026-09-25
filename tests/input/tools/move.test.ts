@@ -85,14 +85,14 @@ describe("MoveTool (FR20)", () => {
 
   it("leaves the node where it was when the move is refused, and tells why", () => {
     const t = setup();
-    t.tool.dragStart(cell(70, 50), cell(56, 50));
+    t.tool.dragStart(cell(51, 51), cell(56, 50));
     t.tool.frame(16);
     expect(t.ghost()?.valid).toBe(false);
-    expect(t.preview()).toMatchObject({ reason: "out_of_range", length: 18 });
-    t.tool.dragEnd(cell(70, 50));
+    expect(t.preview()).toMatchObject({ reason: "occupied" });
+    t.tool.dragEnd(cell(51, 51));
     t.step();
     expect(t.state.nodes.get(t.b)).toMatchObject({ x: 56, y: 50 });
-    expect(t.hints).toEqual(["out_of_range"]);
+    expect(t.hints).toEqual(["occupied"]);
   });
 
   it("takes no drag from open ground, and never the Core", () => {

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { MAP_SIZE } from "../../../src/config/constants";
-import { EDGE_MAX_LENGTH } from "../../../src/data/edges";
 import { NODE_SIZE } from "../../../src/data/nodes";
 import {
   MVP_BASE_AREA,
@@ -22,6 +21,11 @@ import {
   type GameMap,
 } from "../../../src/sim/state/map";
 import { hashState } from "../../../src/sim/state/serialize";
+import { planEdge } from "../../../src/sim/commands/connectEdge";
+import { fail } from "../../../src/sim/result";
+import { edgeThroughput } from "../../../src/sim/state/edges";
+import { allocateId, type NodeId } from "../../../src/sim/state/ids";
+import { createNode } from "../../../src/sim/state/nodes";
 
 const map = createGameState(MVP_SCENARIO).map;
 
@@ -155,8 +159,54 @@ describe("MVP scenario", () => {
     }
   });
 
-  it("makes the corridor longer than the longest level-1 edge", () => {
-    expect(MVP_CORRIDOR.w).toBeGreaterThan(EDGE_MAX_LENGTH[0]);
+  describe("an edge from the big copper to the Core, through the corridor", () => {
+    // Two Extractors on the big copper, each sending to an input of the Core.
+    const state = createGameState(MVP_SCENARIO);
+    const put = (x: number, y: number): NodeId => {
+      const id = allocateId(state.nextIds, "node");
+      const node = createNode(id, "extractor", x, y, {
+        resource: "copper-ore",
+      });
+      state.nodes.set(id, node);
+      return id;
+    };
+    const first = put(100, 57);
+    const second = put(100, 60);
+    const core = 1 as NodeId;
+    const plan = planEdge(
+      state,
+      { node: first, port: 0 },
+      { node: core, port: 0 },
+    );
+
+    it.each([1, 2] as const)(
+      "carries less than Protótipo final needs at level %i",
+      (level) => {
+        expect(plan.route).not.toBeNull();
+        expect(edgeThroughput(plan.route!.length, level)).toBeLessThan(0.85);
+      },
+    );
+
+    it("leaves no room in the corridor for a second edge", () => {
+      const id = allocateId(state.nextIds, "edge");
+      state.edges.set(id, {
+        id,
+        from: first,
+        fromPort: 0,
+        to: core,
+        toPort: 0,
+        level: 1,
+        path: plan.route!.path,
+        items: [],
+      });
+      const again = planEdge(
+        state,
+        { node: second, port: 0 },
+        { node: core, port: 1 },
+      );
+      expect(again.route).toBeNull();
+      expect(again.check).toEqual(fail("no_route"));
+    });
   });
 
   it("joins the Core to the big copper by land, for the rail", () => {

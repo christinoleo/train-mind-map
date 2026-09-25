@@ -1,5 +1,5 @@
 import { CELL_PX } from "../../config/constants";
-import { NEW_EDGE_LEVEL } from "../../data/edges";
+import { EDGE_MAX_LENGTH, NEW_EDGE_LEVEL } from "../../data/edges";
 import {
   ConnectEdge,
   planEdge,
@@ -14,8 +14,9 @@ import type { Route } from "../../sim/geometry/route";
 import { fail, type FailReason, type Result } from "../../sim/result";
 import {
   connectorCell,
+  edgeCost,
+  edgeThroughput,
   isConnected,
-  maxLength,
   planRoute,
   type Connector,
   type ConnectorSide,
@@ -38,6 +39,12 @@ import { panAtEdge, type GesturePoint } from "../gestures";
 import { distanceToLine, nodeAt, touchReach, worldToCell } from "../hitTest";
 
 /** The edge being dragged, or a moving node's edges, as the renderer draws them. */
+/** A dragged edge's price and effective throughput, in items/s. */
+export interface EdgeStats {
+  cost: Cost;
+  throughput: number;
+}
+
 export interface EdgePreview {
   /** The lines to draw, in world units. */
   lines: Point[][];
@@ -45,9 +52,11 @@ export interface EdgePreview {
   moved?: Point[][];
   /** Why the edge cannot be built here, or `null` when it can. */
   reason: FailReason | null;
-  /** The route's length, when one was found, and the level's limit. */
+  /** The route's length, when one was found, and the length limit. */
   length: number | null;
   max: number;
+  /** What the dragged edge costs and carries, for its chip (FR54). */
+  stats?: EdgeStats;
   /** Where the reason chip sits, in world units. */
   tip: Point;
 }
@@ -227,7 +236,15 @@ export class ConnectTool implements Tool {
       moved: reroutedLines(moved, state.edges, state.nodes),
       reason: check.ok ? null : check.reason,
       length: route?.length ?? null,
-      max: maxLength(NEW_EDGE_LEVEL),
+      max: EDGE_MAX_LENGTH,
+      stats: route
+        ? {
+            cost: check.ok
+              ? check.value
+              : edgeCost(route.length, NEW_EDGE_LEVEL),
+            throughput: edgeThroughput(route.length, NEW_EDGE_LEVEL),
+          }
+        : undefined,
       tip,
     });
   }
