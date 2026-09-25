@@ -18,7 +18,7 @@ export interface Reroute {
 }
 
 /** A route found by pushing other edges aside, and where they went. */
-export interface Room {
+interface Room {
   route: Route;
   moved: Reroute[];
 }
@@ -43,6 +43,10 @@ export function makeRoom(
   reserved: readonly Point[],
   pinned: ReadonlySet<EdgeId> = new Set(),
 ): Result<Room> {
+  // No route is shorter than the straight run, edges or not: skip the search.
+  if (Math.abs(to.x - from.x) + Math.abs(to.y - from.y) + 1 > max) {
+    return fail("no_route");
+  }
   const movable = index.edgeIds().filter((e) => !pinned.has(e));
   const paths = new Map(movable.map((e) => [e, index.edgePath(e)]));
   // An edge's ends stay where they are, so no route may take them.

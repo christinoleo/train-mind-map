@@ -1,4 +1,4 @@
-import { addCounts, type ItemCounts } from "../../data/items";
+import type { ItemCounts } from "../../data/items";
 import type { Emit } from "../events";
 import {
   buildPlanarIndex,
@@ -13,7 +13,6 @@ import {
   checkJoins,
   checkLength,
   connectorCell,
-  edgeCost,
   edgesOf,
   edgeUnits,
   findRoute,
@@ -28,6 +27,7 @@ import {
   rerouteCost,
   rerouted,
   restoreRoom,
+  type Reroute,
   type RerouteCost,
 } from "../state/reroute";
 import { newProduction } from "../state/production";
@@ -44,9 +44,6 @@ export interface MovedEdge {
   max: number;
 }
 
-/** What the edges' new lengths cost, and what their lost cells give back. */
-export type MoveCost = RerouteCost;
-
 /** What the undo of a move puts back: the old routes and the refund taken. */
 export interface MoveUndo {
   paths: ReadonlyMap<EdgeId, readonly Point[]>;
@@ -59,9 +56,9 @@ export interface MovePlan {
   node: FactoryNode | null;
   edges: MovedEdge[];
   /** Other edges moved out of the way (FR52), by id ascending. */
-  moved: MovedEdge[];
+  moved: Reroute[];
   /** Ok when the move can be made; otherwise why not. */
-  check: Result<MoveCost>;
+  check: Result<RerouteCost>;
 }
 
 /**
@@ -97,19 +94,18 @@ export function planMove(
   undo?: MoveUndo,
 ): MovePlan {
   const node = state.nodes.get(id);
-  if (!node)
-    return { node: null, edges: [], moved: [], check: fail("not_found") };
-  const moved: FactoryNode = { ...structuredClone(node), x, y };
-  if (node.kind === "core") {
-    return { node: moved, edges: [], moved: [], check: fail("immovable") };
-  }
+  const moved = node ? { ...structuredClone(node), x, y } : null;
+  const refuse = (reason: FailReason): MovePlan => ({
+    node: moved,
+    edges: [],
+    moved: [],
+    check: fail(reason),
+  });
+  if (!node || !moved) return refuse("not_found");
+  if (node.kind === "core") return refuse("immovable");
   // Rails are not re-routed: a Station moves only once its rails are gone.
-  if (hasRails(state, id)) {
-    return { node: moved, edges: [], moved: [], check: fail("has_rails") };
-  }
-  if (isStationInUse(state, id)) {
-    return { node: moved, edges: [], moved: [], check: fail("has_trains") };
-  }
+  if (hasRails(state, id)) return refuse("has_rails");
+  if (isStationInUse(state, id)) return refuse("has_trains");
   const attached = edgesOf(state, id);
   const fits = checkFootprint(
     withoutNode(state, id, attached),
@@ -117,8 +113,7 @@ export function planMove(
     x,
     y,
   );
-  if (!fits.ok)
-    return { node: moved, edges: [], moved: [], check: fail(fits.reason) };
+  if (!fits.ok) return refuse(fits.reason);
   // An Extractor moved onto another resource starts over on it.
   if (moved.kind === "extractor" && moved.resource !== fits.value) {
     moved.resource = fits.value!;
@@ -131,15 +126,20 @@ export function planMove(
   const edges: MovedEdge[] = [];
   const added: EdgeId[] = [];
   // Other edges moved out of the way (FR52), or, on an undo, moved back.
-  const pushed = new Map<EdgeId, MovedEdge>();
+  const pushed = new Map<EdgeId, Reroute>();
   const pinned = new Set(attached.map((e) => e.id));
   const back = [...(undo?.paths ?? [])].filter(([e]) => !pinned.has(e));
   for (const [e] of back) index.removeEdge(e);
   const reserved = reservedCells(state, moved);
+  const ends = attached.map((edge) => ({
+    start: connectorCell(nodeOf(edge.from), "output", edge.fromPort),
+    end: connectorCell(nodeOf(edge.to), "input", edge.toPort),
+  }));
+  // Edges pushed aside keep off the ends of the edges not yet placed.
+  const keepOut = [...reserved, ...ends.flatMap((e) => [e.start, e.end])];
   index.addNode(id, nodeRect(moved));
-  for (const edge of attached) {
-    const start = connectorCell(nodeOf(edge.from), "output", edge.fromPort);
-    const end = connectorCell(nodeOf(edge.to), "input", edge.toPort);
+  for (const [i, edge] of attached.entries()) {
+    const { start, end } = ends[i];
     const given = undo?.paths.get(edge.id);
     let routed = given
       ? keptRoute(index, given, start, end)
@@ -155,17 +155,12 @@ export function planMove(
         start,
         end,
         maxLength(edge.level),
-        reserved,
+        keepOut,
         pinned,
       );
       if (room.ok) {
         routed = ok(room.value.route);
-        for (const m of room.value.moved) {
-          pushed.set(m.id, {
-            ...m,
-            max: maxLength(state.edges.get(m.id)!.level),
-          });
-        }
+        for (const m of room.value.moved) pushed.set(m.id, m);
       }
     }
     const path = routed.ok ? routed.value.path : null;
@@ -183,8 +178,7 @@ export function planMove(
     }
   }
   for (const [e, path] of back) {
-    const edge = state.edges.get(e);
-    const kept = edge
+    const kept = state.edges.has(e)
       ? keptRoute(index, path, path[0], path[path.length - 1])
       : fail("not_found");
     if (!kept.ok) {
@@ -192,7 +186,7 @@ export function planMove(
       continue;
     }
     index.addEdge(e, kept.value.path);
-    pushed.set(e, { id: e, ...kept.value, max: maxLength(edge!.level) });
+    pushed.set(e, { id: e, ...kept.value });
   }
   for (const edgeId of added) index.removeEdge(edgeId);
   restoreRoom(state, index, pushed.values());
@@ -207,15 +201,8 @@ export function planMove(
     return { node: moved, edges, moved: others, check: fail(reason) };
   }
 
-  const cost: MoveCost = rerouteCost(
-    state,
-    others.map((m) => ({ id: m.id, path: m.path!, length: m.length! })),
-  );
-  attached.forEach((edge, i) => {
-    const change = edges[i].length! - pathLength(edge.path);
-    const into = change > 0 ? cost.pay : cost.refund;
-    addCounts(into, edgeCost(Math.abs(change), edge.level));
-  });
+  // Every edge is routed here: a missing route would have set `reason`.
+  const cost = rerouteCost(state, [...(edges as Reroute[]), ...others]);
   if (undo) cost.pay = { ...undo.charge };
   if (!canAfford(state, cost.pay)) {
     return { node: moved, edges, moved: others, check: fail("no_stock") };
@@ -292,7 +279,7 @@ export class MoveNode implements Command {
     for (const { id, path } of moved) {
       const edge = state.edges.get(id)!;
       paths.set(id, edge.path);
-      state.edges.set(id, rerouted(edge, path!));
+      state.edges.set(id, rerouted(edge, path));
     }
     const site = nodeRect(node);
     const charge = deposit(state, check.value.refund, site);

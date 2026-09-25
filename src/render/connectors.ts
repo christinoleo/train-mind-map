@@ -5,7 +5,7 @@ import { NODES, type NodeKind } from "../data/nodes";
 import type { Point } from "../sim/geometry/planar";
 import { connectorRows, type ConnectorSide } from "../sim/state/edges";
 import type { Edge, FactoryNode } from "../sim/state/gameState";
-import type { NodeId } from "../sim/state/ids";
+import type { EdgeId, NodeId } from "../sim/state/ids";
 import { CELL_PX } from "./theme";
 
 type Placed = Pick<FactoryNode, "kind" | "x" | "y">;
@@ -95,6 +95,21 @@ export function edgeLineOf(
     edge.path,
     connectorsOf(into, "input")[edge.toPort],
   );
+}
+
+/**
+ * The lines edges of `edges` are drawn along on the new routes of `moved`,
+ * from their nodes in `nodes` (FR52).
+ */
+export function reroutedLines(
+  moved: readonly { id: EdgeId; path: readonly Point[] }[],
+  edges: ReadonlyMap<EdgeId, Edge>,
+  nodes: ReadonlyMap<NodeId, Placed>,
+): Point[][] {
+  return moved.flatMap(({ id, path }) => {
+    const line = edgeLineOf({ ...edges.get(id)!, path }, nodes);
+    return line ? [line] : [];
+  });
 }
 
 /** The line a rail is drawn along: the centres of its route's cells. */

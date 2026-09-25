@@ -30,6 +30,7 @@ import {
   connectorsOf,
   edgeLine,
   edgeLineOf,
+  reroutedLines,
 } from "../../render/connectors";
 import type { Camera } from "../camera";
 import type { Tool } from "../controls";
@@ -223,10 +224,7 @@ export class ConnectTool implements Tool {
     const { state } = this.deps;
     this.deps.showPreview({
       lines: [route ? edgeLine(start, route.path, end) : [start, tip]],
-      moved: moved.flatMap(({ id, path }) => {
-        const line = edgeLineOf({ ...state.edges.get(id)!, path }, state.nodes);
-        return line ? [line] : [];
-      }),
+      moved: reroutedLines(moved, state.edges, state.nodes),
       reason: check.ok ? null : check.reason,
       length: route?.length ?? null,
       max: maxLength(NEW_EDGE_LEVEL),

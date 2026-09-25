@@ -1,5 +1,5 @@
 import { NEW_EDGE_LEVEL } from "../../data/edges";
-import { addCounts, type ItemCounts } from "../../data/items";
+import type { ItemCounts } from "../../data/items";
 import type { Cost } from "../../data/nodes";
 import type { Emit } from "../events";
 import { buildPlanarIndex, type Point } from "../geometry/planar";
@@ -7,11 +7,10 @@ import { pathLength } from "../geometry/route";
 import { fail, ok, type Result } from "../result";
 import {
   checkConnectors,
-  checkLength,
-  edgeCost,
   maxLength,
   pathBounds,
   planRoute,
+  priceRoute,
   reservedCells,
   type Connector,
   type EdgePlan,
@@ -26,9 +25,8 @@ import {
   type Reroute,
 } from "../state/reroute";
 import { canAfford, debit, deposit } from "../state/stock";
-import { takeOutEdge } from "./removeEdge";
 import type { Command } from "./command";
-import { RemoveEdge } from "./removeEdge";
+import { RemoveEdge, takeOutEdge } from "./removeEdge";
 
 /** A new edge's plan, with the existing edges it pushes aside (FR52). */
 export interface ConnectPlan extends EdgePlan {
@@ -86,11 +84,8 @@ export function priceEdge(
   length: number,
   moved: readonly Reroute[],
 ): { check: Result<Cost>; refund: ItemCounts } {
-  const fits = checkLength(length, NEW_EDGE_LEVEL);
-  if (!fits.ok) return { check: fits, refund: {} };
   const { pay, refund } = rerouteCost(state, moved);
-  addCounts(pay, edgeCost(length, NEW_EDGE_LEVEL));
-  return { check: canAfford(state, pay) ? ok(pay) : fail("no_stock"), refund };
+  return { check: priceRoute(state, length, NEW_EDGE_LEVEL, pay), refund };
 }
 
 /** What undoing a new edge needs: the moved edges' old routes and the refund taken. */
