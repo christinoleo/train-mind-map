@@ -198,8 +198,10 @@ canvas {
 }
 
 /* A menu, a panel or the Line pick prompt takes the palette's place at the
-   bottom of the screen, so the palette hides while one is open. */
-#ui-root:has(> :is(.menu, .line-pick)) > .palette {
+   bottom of the screen, so the palette hides while one is open, and so does
+   an onboarding hint that points at it. */
+#ui-root:has(> :is(.menu, .line-pick))
+  > :is(.palette, .hint[data-at="palette"]) {
   display: none;
 }
 
@@ -286,8 +288,8 @@ canvas {
 }
 
 /* The menus and panels: a card over the bottom of the screen, above the
-   round buttons, opened by tapping. It stacks above the palette and never
-   grows past the top of the screen: a long one scrolls. */
+   round buttons, opened by tapping. It stacks above the palette and stays
+   clear of the HUD at the top: a long one scrolls. */
 #ui-root > .menu {
   position: fixed;
   z-index: 2;
@@ -298,9 +300,9 @@ canvas {
   flex-direction: column;
   gap: 6px;
   width: min(320px, calc(100vw - 32px));
-  /* 80px below, 8px above and the 16px of padding. */
+  /* 80px below, 96px above for the HUD and the 16px of padding. */
   max-height: calc(
-    100dvh - 104px - env(safe-area-inset-top, 0px) -
+    100dvh - 192px - env(safe-area-inset-top, 0px) -
       env(safe-area-inset-bottom, 0px)
   );
   overflow-y: auto;
@@ -309,6 +311,11 @@ canvas {
   background: rgba(19, 22, 28, 0.94);
   font-family: system-ui, sans-serif;
   color: #e4e7ee;
+}
+
+/* A long menu scrolls as a whole rather than squeezing its parts. */
+#ui-root > .menu > * {
+  flex-shrink: 0;
 }
 
 .menu-head {

@@ -4,10 +4,13 @@ import css from "../../public/style.css?raw";
 // The bottom of the screen is shared by the palette, the menus and the Line
 // pick prompt (#76): these checks keep the palette from covering them.
 
+/** The stylesheet with its whitespace collapsed, as Prettier may wrap it. */
+const flat = css.replace(/\s+/g, " ");
+
 /** The declarations of the first rule whose selector is exactly `selector`. */
 function rule(selector: string): string {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = new RegExp(`(?:^|\\n)${escaped}\\s*\\{([^}]*)\\}`).exec(css);
+  const match = new RegExp(`(?:^|[}/]) ?${escaped} \\{([^}]*)\\}`).exec(flat);
   expect(match, selector).not.toBeNull();
   return match![1];
 }
@@ -24,10 +27,12 @@ describe("the bottom of the screen", () => {
     );
   });
 
-  it("hides the palette while a menu or the Line pick prompt is open", () => {
-    expect(rule("#ui-root:has(> :is(.menu, .line-pick)) > .palette")).toMatch(
-      /display:\s*none/,
-    );
+  it("hides the palette and its hint while a menu or the Line pick prompt is open", () => {
+    expect(
+      rule(
+        '#ui-root:has(> :is(.menu, .line-pick)) > :is(.palette, .hint[data-at="palette"])',
+      ),
+    ).toMatch(/display:\s*none/);
   });
 
   it("keeps a menu within the screen, scrolling when it is long", () => {
