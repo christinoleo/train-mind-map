@@ -112,6 +112,7 @@ export function createRenderer(
   depositName.anchor.set(0.5, 1);
   depositName.visible = false;
   /** The ghost as drawn: its card is rebuilt only when kind or name change. */
+  let drawnGhost: Ghost | null = null;
   let drawnCard: string | null = null;
   let drawnValid: boolean | null = null;
 
@@ -125,18 +126,21 @@ export function createRenderer(
     ghostLayer.visible = ghost !== null;
     if (!ghost) return;
     const { kind, coverage, valid } = ghost;
-    // An Extractor's ghost previews what it would make, and how fast (FR30).
-    const name = coverage
-      ? `${coverageText(coverage)}${strings.menu.separator}${extractorRateText(coverage)}`
-      : undefined;
-    const look = `${kind}|${name ?? ""}`;
-    if (look !== drawnCard) {
-      ghostCard?.destroy({ children: true });
-      const item = coverage && mainResource(coverage);
-      ghostCard = ghostLayer.addChildAt(drawNodeCard(kind, item, name), 0);
-      drawRailPorts(ghostCard.addChild(new Graphics()), kind);
-      drawnCard = look;
-      drawnValid = null;
+    if (ghost !== drawnGhost) {
+      drawnGhost = ghost;
+      // An Extractor's ghost previews what it would make, and how fast (FR30).
+      const name = coverage
+        ? `${coverageText(coverage)}${strings.menu.separator}${extractorRateText(coverage)}`
+        : undefined;
+      const look = `${kind}|${name ?? ""}`;
+      if (look !== drawnCard) {
+        ghostCard?.destroy({ children: true });
+        const item = coverage && mainResource(coverage);
+        ghostCard = ghostLayer.addChildAt(drawNodeCard(kind, item, name), 0);
+        drawRailPorts(ghostCard.addChild(new Graphics()), kind);
+        drawnCard = look;
+        drawnValid = null;
+      }
     }
     if (valid !== drawnValid) {
       drawGhostOutline(ghostOutline, kind, valid);
@@ -180,6 +184,7 @@ export function createRenderer(
     edgeViews.clear();
     itemViews.clear();
     flights.clear();
+    drawnGhost = null;
     drawnCard = null;
   });
 

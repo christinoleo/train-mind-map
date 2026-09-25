@@ -102,7 +102,7 @@ describe("coverageText", () => {
         { resource: "iron-ore", cells: 2 },
         { resource: "coal", cells: 1 },
       ]),
-    ).toBe("minério de ferro ½ · carvão ¼");
+    ).toBe("min. ferro ½ · carvão ¼");
     expect(coverageText([{ resource: "stone", cells: 3 }])).toBe("pedra ¾");
   });
 });

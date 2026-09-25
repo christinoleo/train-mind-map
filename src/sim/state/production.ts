@@ -5,7 +5,7 @@ import {
   type ItemId,
   type RawResource,
 } from "../../data/items";
-import { NODES } from "../../data/nodes";
+import { EXTRACTOR_CELLS } from "../../data/nodes";
 import {
   CRAFTERS,
   EXTRACTOR_SECONDS,
@@ -67,15 +67,14 @@ function batchOf(node: ProducerNode): Batch | undefined {
   return { inputs, output, count, ticks };
 }
 
-/** The fraction of an Extractor's cells on deposits of `resource` (FR30). */
-export function coverageShare(
-  coverage: readonly Coverage[],
-  resource?: RawResource,
-): number {
-  const cells = coverage
-    .filter((part) => resource === undefined || part.resource === resource)
-    .reduce((sum, part) => sum + part.cells, 0);
-  return cells / NODES.extractor.size ** 2;
+/** How many of an Extractor's cells lie on deposits. */
+function coverageCells(coverage: readonly Coverage[]): number {
+  return coverage.reduce((sum, part) => sum + part.cells, 0);
+}
+
+/** The fraction of an Extractor's cells on deposits (FR30). */
+function coverageShare(coverage: readonly Coverage[]): number {
+  return coverageCells(coverage) / EXTRACTOR_CELLS;
 }
 
 /**
@@ -93,7 +92,7 @@ export function extractorTicks(coverage: readonly Coverage[]): number {
  * robin. Over 2 iron cells and 1 coal cell it makes iron, coal, iron.
  */
 export function extractorCycle(coverage: readonly Coverage[]): RawResource[] {
-  const total = coverage.reduce((sum, part) => sum + part.cells, 0);
+  const total = coverageCells(coverage);
   const credit = coverage.map(() => 0);
   const cycle: RawResource[] = [];
   for (let n = 0; n < total; n++) {
@@ -243,10 +242,15 @@ export function bufferedItems(node: FactoryNode): ItemCounts {
 /** Takes one finished item out of `node`'s output buffer, if there is one. */
 export function takeOutput(node: FactoryNode): ItemId | undefined {
   if (!isProducer(node) || node.production.output === 0) return undefined;
+  if (node.kind === "extractor") {
+    const item = extractorItem(node);
+    node.production.output--;
+    // Its next item is the next resource in its cycle.
+    node.turn++;
+    return item;
+  }
   const item = batchOf(node)?.output;
   if (item !== undefined) node.production.output--;
-  // An Extractor's next item is the next resource in its cycle.
-  if (node.kind === "extractor") node.turn++;
   return item;
 }
 

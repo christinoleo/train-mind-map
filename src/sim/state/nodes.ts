@@ -1,5 +1,5 @@
 import type { RawResource } from "../../data/items";
-import { NODES, type NodeKind } from "../../data/nodes";
+import { EXTRACTOR_CELLS, NODES, type NodeKind } from "../../data/nodes";
 import {
   CRAFTERS,
   isCrafterKind,
@@ -42,8 +42,7 @@ export function createNode(
 ): FactoryNode {
   switch (kind) {
     case "extractor": {
-      const cells = NODES.extractor.size ** 2;
-      coverage ??= resource ? [{ resource, cells }] : [];
+      coverage ??= resource ? [{ resource, cells: EXTRACTOR_CELLS }] : [];
       assert(coverage.length > 0, "An Extractor needs a deposit");
       return { id, kind, x, y, coverage, turn: 0, production: newProduction() };
     }

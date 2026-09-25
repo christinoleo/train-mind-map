@@ -1,9 +1,9 @@
 import { itemEntries, type ItemCounts, type ItemId } from "../data/items";
-import { NODES } from "../data/nodes";
-import { EXTRACTOR_SECONDS } from "../data/recipes";
+import { TICK_MS } from "../config/constants";
+import { EXTRACTOR_CELLS } from "../data/nodes";
 import type { FailReason } from "../sim/result";
 import type { Coverage } from "../sim/state/map";
-import { coverageShare } from "../sim/state/production";
+import { extractorTicks } from "../sim/state/production";
 import type { SlowedEdge } from "../sim/state/reroute";
 import { strings } from "./strings";
 
@@ -125,25 +125,24 @@ function formatFraction(part: number, whole: number): string {
 }
 
 /**
- * What an Extractor draws, for its card: each resource with the share of
- * its cells over it, "minério de ferro ½ · carvão ¼", or the bare name when
- * one resource covers it all (FR30).
+ * What an Extractor draws, for its card: each resource's short name with
+ * the share of its cells over it, "min. ferro ½ · carvão ¼", so it fits a
+ * 2×2 card, or the full name alone when one resource covers it all (FR30).
  */
 export function coverageText(coverage: readonly Coverage[]): string {
-  const whole = NODES.extractor.size ** 2;
   const [only] = coverage;
-  if (coverage.length === 1 && only.cells === whole) {
+  if (coverage.length === 1 && only.cells === EXTRACTOR_CELLS) {
     return strings.items[only.resource];
   }
   return coverage
     .map(
       ({ resource, cells }) =>
-        `${strings.items[resource]} ${formatFraction(cells, whole)}`,
+        `${strings.itemsShort[resource] ?? strings.items[resource]} ${formatFraction(cells, EXTRACTOR_CELLS)}`,
     )
     .join(strings.menu.separator);
 }
 
 /** An Extractor's items/s, over all its resources: "0,38/s" (FR30). */
 export function extractorRateText(coverage: readonly Coverage[]): string {
-  return formatPerSecond(coverageShare(coverage) / EXTRACTOR_SECONDS);
+  return formatPerSecond(1000 / TICK_MS / extractorTicks(coverage));
 }

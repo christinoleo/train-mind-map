@@ -173,6 +173,9 @@ export const NODES: Readonly<Record<NodeKind, NodeDef>> = {
   },
 };
 
+/** Cells in an Extractor's footprint, the whole of its deposit coverage (FR30). */
+export const EXTRACTOR_CELLS = NODES.extractor.size ** 2;
+
 /** The kinds buildable from the start, before any research. */
 export const STARTING_NODES: readonly NodeKind[] = NODE_KINDS.filter(
   (kind) => NODES[kind].unlock === "start",
