@@ -48,7 +48,7 @@ export function StartOver({
         disabled={busy}
         onClick={() => run(loadBackup)}
       >
-        {text.loadBackup}
+        {strings.backup.load}
       </button>
       {confirming ? (
         <>

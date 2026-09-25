@@ -4,10 +4,10 @@ import type { Emit } from "../events";
 import { fail, ok, type Result } from "../result";
 import type { GameState } from "../state/gameState";
 import { depositUnder, isRevealedRect } from "../state/map";
-import { overlaps, type Rect } from "../geometry/rect";
-import { nodeRect } from "../state/nodes";
+import { isOccupied } from "../state/nodes";
 import { tapYield } from "../state/stamina";
 import { coreNode, store } from "../state/stock";
+import type { Rect } from "../geometry/rect";
 import type { Command } from "./command";
 
 /**
@@ -51,10 +51,8 @@ export class ManualTap implements Command {
       ? depositUnder(map, cell)
       : undefined;
     if (!deposit) return fail("needs_deposit");
-    for (const node of state.nodes.values()) {
-      if (node.kind !== "extractor" && overlaps(cell, nodeRect(node))) {
-        return fail("occupied");
-      }
+    if (isOccupied(state, cell, (node) => node.kind === "extractor")) {
+      return fail("occupied");
     }
     if (!TAPPABLE.includes(deposit.resource)) return fail("not_tappable");
     return ok(deposit.resource);

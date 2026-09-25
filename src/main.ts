@@ -100,12 +100,7 @@ installErrorHandler({
   },
   exportSave: () => game && exportGame(game, log.entries()),
   // The crash screen reloads after either, so the live game is left alone.
-  newGame: () =>
-    slots
-      .save(createGameState(MVP_SCENARIO))
-      .catch((error: unknown) =>
-        log.error("save", "new game not saved", String(error)),
-      ),
+  newGame: () => saveNewGame(createGameState(MVP_SCENARIO)),
   loadBackup: restoreBackup,
 });
 
@@ -483,8 +478,13 @@ async function importSave(text: string): Promise<Result> {
 /** Starts over from the settings menu; the settings, hints seen included, stay. */
 async function newGame(): Promise<void> {
   replaceGame(createGameState(MVP_SCENARIO));
-  await slots
-    .save(state)
+  await saveNewGame(state);
+}
+
+/** Writes a new game as the latest save, or logs why it could not. */
+function saveNewGame(next: GameState): Promise<void> {
+  return slots
+    .save(next)
     .catch((error: unknown) =>
       log.error("save", "new game not saved", String(error)),
     );
