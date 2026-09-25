@@ -182,3 +182,7 @@
 
 - **Playtest softlock:** a coal Extractor feeding a Generator sat in its own edge-mesh, unpowered. It could never start, the Generator has no output to join the Core's mesh, and the same held for an Extractor feeding a Box.
 - **Decision (user):** a **global power grid**. Every Generator and the Core's 3 ⚡ feed every node, with no meshes, and satisfaction is global. This reverses "any edge conducts power" (v1.1) and "rails conduct power" (v1.2). CONTEXT.md: Mesh → Power grid. FR60, FR61, FR62 and FR64 are updated.
+
+## 2026-09-25 — v1.16 (Partial Extractor coverage)
+
+- **Decision (user):** an Extractor does not need to sit fully on a deposit. Its speed scales with the fraction of its cells over deposit cells: 1 of 4 gives ¼ speed. Over two or more deposits, it produces each resource at its own fraction, through the same output, with items interleaved. FR30 is updated.

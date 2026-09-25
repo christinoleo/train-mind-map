@@ -4,7 +4,7 @@ game_type: "simulation + idle-incremental"
 platforms: ["navegador mobile (principal)", "navegador desktop"]
 created: 2026-09-24
 updated: 2026-09-24
-version: 1.15
+version: 1.16
 status: final
 ---
 
@@ -98,7 +98,7 @@ Todo nó tem conectores de entrada à esquerda e de saída à direita. Os nós o
 |---|---|---|---|
 | Núcleo | caixa inicial especial: destino do clique, indestrutível | 4 entradas / 2 saídas | começa colocado; **capacidade infinita** |
 | Caixa | buffer e armazém; conta no estoque global | 2 entradas / 2 saídas | 500 itens de tipos misturados |
-| Extrator | produz o recurso da jazida sob ele | 0 / 1 (2 e 3 via pesquisa) | 1 item a cada 2 s |
+| Extrator | produz o recurso das células de jazida sob ele; velocidade proporcional à cobertura (1 de 4 células = ¼); várias jazidas = cada uma na sua fração | 0 / 1 (2 e 3 via pesquisa) | 1 item a cada 2 s |
 | Fornalha | fundição | 2 / 1 | receitas de 2 a 5 s |
 | Gerador | queima carvão (depois combustível sólido) e gera energia | 1 / 0 | 1 carvão a cada 4 s → 10 ⚡ |
 | Painel solar | energia sem combustível (era azul) | 0 / 0 | 3 ⚡ |

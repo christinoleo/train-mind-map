@@ -59,7 +59,7 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 
 - **FR28** [MVP] **Núcleo:** caixa inicial especial, destino do clique, indestrutível, 4 entradas / 2 saídas, **capacidade infinita** (playtest 2026-09-25). Os números usam notação K/M/B/T/aa… sem perder precisão.
 - **FR29** [MVP] **Caixa:** buffer ou armazém de 500 itens de tipos misturados, 2 entradas / 2 saídas; conta no estoque global. Uma Caixa com saída entrega em ordem de chegada (FIFO); cheia, bloqueia as arestas de entrada.
-- **FR30** [MVP] **Extrator:** produz o recurso da jazida sob ele, 1 item a cada 2 s (0,5 item/s); 0 entradas / 1 saída (2 e 3 saídas via pesquisa de conectores extras).
+- **FR30** [MVP] **Extrator:** produz o recurso das células da jazida sob ele. A velocidade base é 1 item a cada 2 s (0,5 item/s) com a ficha inteira sobre a jazida; com cobertura parcial, a velocidade é proporcional às células sobre a jazida (2×2 com 1 célula = ¼). Sobre duas ou mais jazidas, produz cada recurso na sua fração, na mesma saída (playtest 2026-09-25). 0 entradas / 1 saída.
 - **FR31** [MVP] **Fornalha:** fundição, 2 entradas / 1 saída, receitas de 2 a 5 s.
 - **FR32** [MVP] **Gerador:** 1 entrada / 0 saídas; queima 1 carvão a cada 4 s e gera 10 ⚡ (depois também combustível sólido).
 - **FR33** **Painel solar:** 0 / 0 conectores, gera 3 ⚡ sem combustível (era azul).
