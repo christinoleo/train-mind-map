@@ -1,88 +1,31 @@
 import { CORE_POWER, GENERATOR, POWER_DEMAND } from "../../data/power";
-import type { Edge, FactoryNode, GameState, GeneratorNode } from "./gameState";
-import type { NodeId } from "./ids";
+import type { FactoryNode, GameState, GeneratorNode } from "./gameState";
 import { secondsToTicks } from "./production";
 
 /**
- * A connected group of nodes joined by edges, or by rails between Stations,
- * which shares one power supply (FR61, FR62).
+ * The power grid (FR61, FR64): one map-wide pool that every Generator and
+ * the Core feed and every node draws from. Recomputed each tick and never
+ * saved.
  */
-export interface Mesh {
-  nodes: NodeId[];
-  /** The ⚡ its Core and Generators give this tick. */
+export interface Power {
+  /** The ⚡ the Core and the Generators give this tick. */
   supply: number;
-  /** The ⚡ its operating nodes drew in the previous tick. */
+  /** The ⚡ the operating nodes drew in the previous tick. */
   demand: number;
-  /** How fast its nodes work this tick, from 0 to 1 (FR64). */
+  /** How fast every node works this tick, from 0 to 1 (FR64). */
   satisfaction: number;
 }
 
-/**
- * The power meshes: a derived cache, rebuilt by the power system after any
- * change to the nodes or edges, and never saved.
- */
-export interface Power {
-  meshes: Mesh[];
-  meshOf: Map<NodeId, Mesh>;
-  /** True when the nodes or edges changed since the meshes were built. */
-  dirty: boolean;
-}
-
 export function newPower(): Power {
-  return { meshes: [], meshOf: new Map(), dirty: true };
-}
-
-/** Marks the meshes stale; the command queue calls it after every command. */
-export function topologyChanged(state: GameState): void {
-  state.power.dirty = true;
+  return { supply: 0, demand: 0, satisfaction: 1 };
 }
 
 /** Ticks one fuel item burns for. */
 export const BURN_TICKS = secondsToTicks(GENERATOR.seconds);
 
-/**
- * Groups the nodes into meshes with a union-find over the edges and the
- * rails (FR61, FR62): a Station joins its mesh to the Stations its rails
- * reach, so an outpost shares the base's power. The meshes come in the
- * order of their first node, and their supply and demand start at zero.
- */
-export function buildMeshes(state: Readonly<GameState>): Power {
-  const parent = new Map<NodeId, NodeId>();
-  for (const id of state.nodes.keys()) parent.set(id, id);
-  const root = (id: NodeId): NodeId => {
-    let r = id;
-    while (parent.get(r) !== r) r = parent.get(r)!;
-    // Path compression: every node on the way points at the root.
-    while (id !== r) {
-      const next = parent.get(id)!;
-      parent.set(id, r);
-      id = next;
-    }
-    return r;
-  };
-  for (const { from, to } of state.edges.values()) {
-    parent.set(root(from), root(to));
-  }
-  for (const { from, to } of state.rails.values()) {
-    if (parent.has(from.node) && parent.has(to.node)) {
-      parent.set(root(from.node), root(to.node));
-    }
-  }
-  const meshes: Mesh[] = [];
-  const byRoot = new Map<NodeId, Mesh>();
-  const meshOf = new Map<NodeId, Mesh>();
-  for (const id of state.nodes.keys()) {
-    const r = root(id);
-    let mesh = byRoot.get(r);
-    if (!mesh) {
-      mesh = { nodes: [], supply: 0, demand: 0, satisfaction: 0 };
-      byRoot.set(r, mesh);
-      meshes.push(mesh);
-    }
-    mesh.nodes.push(id);
-    meshOf.set(id, mesh);
-  }
-  return { meshes, meshOf, dirty: false };
+/** True when `node` draws power from the grid while it works (FR63). */
+export function drawsPower(node: Readonly<Pick<FactoryNode, "kind">>): boolean {
+  return (POWER_DEMAND[node.kind] ?? 0) > 0;
 }
 
 /**
@@ -90,10 +33,11 @@ export function buildMeshes(state: Readonly<GameState>): Power {
  * neither starved nor blocked (FR63, FR64), and nothing otherwise.
  */
 function demandOf(node: FactoryNode): number {
-  const rate = POWER_DEMAND[node.kind] ?? 0;
-  if (rate === 0 || !("production" in node)) return 0;
+  if (!drawsPower(node) || !("production" in node)) return 0;
   const { status } = node.production;
-  return status === "starved" || status === "blocked" ? 0 : rate;
+  return status === "starved" || status === "blocked"
+    ? 0
+    : POWER_DEMAND[node.kind]!;
 }
 
 /**
@@ -111,16 +55,16 @@ function burn(node: GeneratorNode): boolean {
 }
 
 /**
- * Sets `mesh`'s demand, supply and satisfaction for this tick. Generators
- * burn fuel only while the mesh draws power. With no supply the mesh stands
- * still; with no demand it would run at full speed (FR64, FR67).
+ * Sets the grid's demand, supply and satisfaction for this tick. Generators
+ * burn fuel only while something draws power. With no supply every node
+ * stands still, which cannot happen while the Core stands; with no demand
+ * they would run at full speed (FR64, FR67).
  */
-export function powerMesh(state: GameState, mesh: Mesh): void {
+export function powerGrid(state: GameState): void {
   let demand = 0;
-  for (const id of mesh.nodes) demand += demandOf(state.nodes.get(id)!);
+  for (const node of state.nodes.values()) demand += demandOf(node);
   let supply = 0;
-  for (const id of mesh.nodes) {
-    const node = state.nodes.get(id)!;
+  for (const node of state.nodes.values()) {
     if (node.kind === "core") supply += CORE_POWER;
     else if (node.kind === "generator") {
       // With nothing drawing, it runs only while it has fuel to burn.
@@ -128,46 +72,28 @@ export function powerMesh(state: GameState, mesh: Mesh): void {
       if (runs) supply += GENERATOR.power;
     }
   }
-  mesh.demand = demand;
-  mesh.supply = supply;
-  mesh.satisfaction =
+  const { power } = state;
+  power.demand = demand;
+  power.supply = supply;
+  power.satisfaction =
     supply === 0 ? 0 : demand === 0 ? 1 : Math.min(1, supply / demand);
 }
 
-/** How fast node `id` works this tick: its mesh's satisfaction. */
-export function satisfactionOf(state: Readonly<GameState>, id: NodeId): number {
-  return state.power.meshOf.get(id)?.satisfaction ?? 0;
-}
-
-/** True when `mesh` draws more than it gets (FR65). */
+/** True when the grid draws more than it gets (FR65). */
 export function isShort(
-  mesh: Readonly<Pick<Mesh, "supply" | "demand">>,
+  power: Readonly<Pick<Power, "supply" | "demand">>,
 ): boolean {
-  return mesh.demand > mesh.supply;
+  return power.demand > power.supply;
 }
 
-/** The mesh `edge` conducts power in: the one its nodes share. */
-export function meshOfEdge<M>(
-  power: { readonly meshOf: ReadonlyMap<NodeId, M> },
-  edge: Readonly<Pick<Edge, "from">>,
-): M | undefined {
-  return power.meshOf.get(edge.from);
-}
-
-/** What the HUD's ⚡ meter shows: every mesh added up (FR131). */
+/** What the HUD's ⚡ meter shows (FR131). */
 export interface PowerSummary {
   supply: number;
   demand: number;
-  /** True when any mesh draws more than it gets. */
   short: boolean;
 }
 
 export function powerSummary(power: Readonly<Power>): PowerSummary {
-  const summary: PowerSummary = { supply: 0, demand: 0, short: false };
-  for (const mesh of power.meshes) {
-    summary.supply += mesh.supply;
-    summary.demand += mesh.demand;
-    summary.short ||= isShort(mesh);
-  }
-  return summary;
+  const { supply, demand } = power;
+  return { supply, demand, short: isShort(power) };
 }

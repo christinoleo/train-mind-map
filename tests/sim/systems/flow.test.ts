@@ -13,12 +13,7 @@ import {
   type Edge,
   type ProducerNode,
 } from "../../../src/sim/state/gameState";
-import {
-  allocateId,
-  type EdgeId,
-  type NodeId,
-} from "../../../src/sim/state/ids";
-import { link } from "../support/power";
+import { allocateId, type EdgeId } from "../../../src/sim/state/ids";
 import { fillCore } from "../support/stock";
 import { createNode } from "../../../src/sim/state/nodes";
 import {
@@ -211,8 +206,6 @@ function chain() {
   );
   run(1);
   const edge = [...state.edges.values()][0];
-  // Powered by the Core: an edge out of it carries nothing, as it makes nothing.
-  link(state, 1 as NodeId, extractor.id);
   return { state, commands, run, extractor, furnace, edge };
 }
 

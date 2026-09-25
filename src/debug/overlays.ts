@@ -6,8 +6,6 @@ import { CELL_PX, ITEM_STYLE, toWorld } from "../render/theme";
 import { buildPlanarIndex } from "../sim/geometry/planar";
 import type { GameState } from "../sim/state/gameState";
 import { nodeRect } from "../sim/state/nodes";
-import { isShort, meshOfEdge } from "../sim/state/power";
-import { edgeLineOf } from "../render/connectors";
 import { strokeLine } from "../render/edges";
 import { offsetLine } from "../render/rails";
 import {
@@ -20,7 +18,7 @@ type StateView = DeepReadonly<GameState>;
 
 /**
  * A debug drawing over the map. Later tasks register theirs (hash buckets,
- * power meshes, rail reservations) through `OverlayManager.register`.
+ * rail reservations) through `OverlayManager.register`.
  */
 export interface Overlay {
   id: string;
@@ -152,46 +150,11 @@ export function drawHashBuckets(state: StateView): Container {
   return g;
 }
 
-/** Distinct hues for neighbouring meshes; they repeat past the eighth. */
-const MESH_COLORS = [
+/** Distinct hues for the trains' reservations; they repeat past the eighth. */
+const TRAIN_COLORS = [
   0xff6b6b, 0x4fc3f7, 0xffd54f, 0x81c784, 0xba68c8, 0xff8a65, 0x4db6ac,
   0xf06292,
 ];
-
-/**
- * The power meshes (FR157): each mesh's nodes and edges in one colour, a
- * short mesh's nodes crossed out.
- */
-export function drawPowerMeshes(state: StateView): Container {
-  const g = new Graphics({ label: "overlay:power-meshes" });
-  const { meshes } = state.power;
-  const colorOf = new Map(
-    meshes.map((mesh, i) => [mesh, MESH_COLORS[i % MESH_COLORS.length]]),
-  );
-  for (const [mesh, color] of colorOf) {
-    const short = isShort(mesh);
-    for (const id of mesh.nodes) {
-      const node = state.nodes.get(id);
-      if (!node) continue;
-      const r = toWorld(nodeRect(node));
-      g.rect(r.x, r.y, r.w, r.h)
-        .fill({ color, alpha: 0.25 })
-        .stroke({ color, width: 2 });
-      if (short) {
-        g.moveTo(r.x, r.y)
-          .lineTo(r.x + r.w, r.y + r.h)
-          .stroke({ color, width: 2 });
-      }
-    }
-  }
-  for (const edge of state.edges.values()) {
-    const mesh = meshOfEdge(state.power, edge);
-    const line = edgeLineOf(edge, state.nodes);
-    if (!mesh || !line) continue;
-    strokeLine(g, line, colorOf.get(mesh)!, 0.9, CELL_PX * 0.2);
-  }
-  return g;
-}
 
 /**
  * The reservation table (FR157): each reserved Segment drawn over its track,
@@ -201,7 +164,7 @@ export function drawPowerMeshes(state: StateView): Container {
 export function drawReservations(state: StateView): Container {
   const g = new Graphics({ label: "overlay:reservations" });
   for (const [key, train] of state.reservations) {
-    const color = MESH_COLORS[(train - 1) % MESH_COLORS.length];
+    const color = TRAIN_COLORS[(train - 1) % TRAIN_COLORS.length];
     const segment = parseSegmentKey(key);
     const rail = segment && state.rails.get(segment.rail);
     if (segment && rail) {

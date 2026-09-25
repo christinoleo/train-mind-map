@@ -1,7 +1,6 @@
 import { LAB, RESEARCH, type ResearchId } from "../../data/research";
 import type { Emit } from "../events";
 import type { GameState, LabNode, NodeStatus } from "../state/gameState";
-import { satisfactionOf } from "../state/power";
 import { secondsToTicks, setStatus, work } from "../state/production";
 import { creditPack, packsLeft } from "../state/research";
 import type { System } from "../tick";
@@ -58,9 +57,9 @@ function advance(
  * (FR40, FR109), and complete it once it has all it costs (FR116).
  */
 export const research: System = (state, { emit }) => {
+  const sat = state.power.satisfaction;
   for (const node of state.nodes.values()) {
     if (node.kind !== "lab") continue;
-    const sat = satisfactionOf(state, node.id);
     setStatus(node, advance(state, node, sat, emit), emit);
   }
 };

@@ -33,7 +33,7 @@ function scene() {
   const views = new EdgeViews(layer);
   const edges = new Map([[ID, edge]]);
   const sync = (lod: "overview" | "graph", selected: EdgeId | null = null) =>
-    views.sync(edges, nodes, selected, () => false, null, lod);
+    views.sync(edges, nodes, selected, false, null, lod);
   return { edge, layer, views, sync };
 }
 

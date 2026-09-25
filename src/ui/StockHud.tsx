@@ -114,7 +114,7 @@ function StaminaBar({ stamina }: { stamina: ReadonlySignal<number> }) {
 
 /**
  * The ⚡ meter: the power drawn over the power supplied, as a bar and as
- * numbers, red while any mesh is short (FR65).
+ * numbers, red while the grid is short (FR65).
  */
 function PowerMeter({ power }: { power: ReadonlySignal<PowerSummary> }) {
   const text = strings.hud;

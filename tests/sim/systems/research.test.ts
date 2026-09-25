@@ -24,22 +24,24 @@ import { storageCapacity } from "../../../src/sim/state/stock";
 import { flow } from "../../../src/sim/systems/flow";
 import { LAB_TICKS } from "../../../src/sim/systems/research";
 import { SYSTEMS, tick } from "../../../src/sim/tick";
-import { link } from "../support/power";
 
 /** The systems without edge flow: the tests feed the Labs themselves. */
 const NO_FLOW = SYSTEMS.filter((system) => system !== flow);
 
-/** A game with Labs placed directly, powered by the Core, and a tick driver. */
+/**
+ * A game with Labs placed directly and a tick driver. Unpowered, the game
+ * has no Core, so the grid has no supply.
+ */
 function setup(labs = 1, powered = true) {
   const state = createGameState("research");
   const commands = new CommandQueue();
   const events: SimEvent[] = [];
   const nodes: LabNode[] = [];
+  if (!powered) state.nodes.delete(1 as NodeId);
   for (let i = 0; i < labs; i++) {
     const id = allocateId(state.nextIds, "node");
     const lab = createNode(id, "lab", 3 * i, 0) as LabNode;
     state.nodes.set(id, lab);
-    if (powered) link(state, id, 1 as NodeId);
     nodes.push(lab);
   }
   /** Runs `n` ticks, topping each Lab up with red science first. */
@@ -90,7 +92,7 @@ describe("Lab", () => {
     expect(state.research.progress).toEqual({});
   });
 
-  it("works only while its mesh has power", () => {
+  it("works only while the grid has power", () => {
     const { state, labs, run, choose } = setup(1, false);
     choose("edge-2");
     run(200);

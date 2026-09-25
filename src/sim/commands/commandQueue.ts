@@ -2,7 +2,6 @@ import { UNDO_DEPTH } from "../../config/constants";
 import type { Emit } from "../events";
 import { fail, ok, type Result } from "../result";
 import type { GameState } from "../state/gameState";
-import { topologyChanged } from "../state/power";
 import type { Command } from "./command";
 
 /**
@@ -110,9 +109,6 @@ export class CommandQueue {
         continue;
       }
       command.apply(state, emit);
-      // Any command may add or take out nodes and edges. Rebuilding the
-      // meshes costs one union-find, at most once a tick.
-      topologyChanged(state);
       this.replayLog.push([state.tick, undo ? "undo" : command]);
       if (undo || !command.invert) continue;
       this.undoStack.push(command.invert());

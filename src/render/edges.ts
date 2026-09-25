@@ -29,7 +29,7 @@ const CHIP_MARGIN_PX = 8;
 type EdgeView = DeepReadonly<Edge>;
 type NodeView = DeepReadonly<FactoryNode>;
 
-/** An unselected edge's opacity, dimmer while its mesh is short (FR65). */
+/** An unselected edge's opacity, dimmer while the grid is short (FR65). */
 function edgeAlpha(short: boolean): number {
   return short ? PALETTE.edgeShortAlpha : PALETTE.edgeAlpha;
 }
@@ -94,7 +94,7 @@ interface EdgeDrawing {
  * Keeps one translucent stroke per edge in `layer` (GDD §Arte), diffing the
  * state's edges against the drawn ones each frame. An edge is redrawn when
  * it, either of its nodes or the selection changes. Its stroke takes the
- * colour of the item it carries most (FR149), and its mesh's shortage dims
+ * colour of the item it carries most (FR149), and a shortage of power dims
  * it. In the overview it turns into dashes of its item mix.
  */
 export class EdgeViews {
@@ -106,8 +106,8 @@ export class EdgeViews {
     edges: ReadonlyMap<EdgeId, EdgeView>,
     nodes: ReadonlyMap<NodeId, NodeView>,
     selected: EdgeId | null,
-    /** True when the edge's mesh is short of power. */
-    isShort: (edge: EdgeView) => boolean,
+    /** True when the power grid is short. */
+    short: boolean,
     faded: NodeId | null = null,
     lod: Lod = "graph",
   ) {
@@ -167,7 +167,7 @@ export class EdgeViews {
           : PALETTE.edge;
       // The edges of a node being moved fade with it.
       const alpha =
-        (view.selected ? 0.9 : edgeAlpha(isShort(edge))) *
+        (view.selected ? 0.9 : edgeAlpha(short)) *
         (edge.from === faded || edge.to === faded ? MOVING_ALPHA : 1);
       g.alpha = alpha;
       if (view.dashes) view.dashes.alpha = alpha;
