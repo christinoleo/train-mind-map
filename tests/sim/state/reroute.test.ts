@@ -10,7 +10,7 @@ import { EventQueue } from "../../../src/sim/events";
 import { buildPlanarIndex, type Point } from "../../../src/sim/geometry/planar";
 import { pathLength } from "../../../src/sim/geometry/route";
 import type { Result } from "../../../src/sim/result";
-import { MAP_RECT } from "../../../src/sim/state/map";
+import { cellIndex, MAP_RECT, Terrain } from "../../../src/sim/state/map";
 import { edgeUnits } from "../../../src/sim/state/edges";
 import {
   createGameState,
@@ -78,10 +78,17 @@ function setup() {
 /**
  * The playtest case: two Extractors into one Box, the first edge on a long
  * detour that walls the second Extractor off from the Box's free input.
- * The Box's inputs sit at (55, 50) and (55, 51).
+ * The Box's inputs sit at (55, 50) and (55, 51). Water on rows 46 and 59,
+ * from the map's revealed edge to the detour, closes the pocket the second
+ * Extractor sits in, so no route goes round the detour however long.
  */
 function twoExtractors() {
   const s = setup();
+  for (let x = 0; x <= 53; x++) {
+    for (const y of [46, 59]) {
+      s.state.map.terrain[cellIndex(x, y)] = Terrain.Water;
+    }
+  }
   const box = s.put("box", 56, 50);
   const first = s.put("extractor", 50, 47);
   const second = s.put("extractor", 50, 52);
@@ -204,24 +211,29 @@ describe("rip-up and re-route (FR52)", () => {
   });
 
   it("refuses when no planar solution exists, and changes nothing", () => {
-    // The first Extractor sits below the second but feeds the upper input:
-    // the two edges would have to cross, and no detour fits in 12 cells.
+    // Two Extractors past the water wall feed the Core: the land corridor
+    // is one cell wide, so only one edge fits through it.
     const s = setup();
-    const box = s.put("box", 56, 50);
-    const low = s.put("extractor", 50, 54);
-    const high = s.put("extractor", 50, 50);
-    s.run(new ConnectEdge({ node: low, port: 0 }, { node: box, port: 0 }));
+    const core = 1 as NodeId;
+    const high = s.put("extractor", 100, 57);
+    const low = s.put("extractor", 100, 60);
+    const through = planEdge(
+      s.state,
+      { node: high, port: 0 },
+      { node: core, port: 0 },
+    );
+    s.wire(high, core, 0, through.route!.path);
     const edges = structuredClone([...s.state.edges.values()]);
     const stock = coreStock(s.state);
     const plan = planEdge(
       s.state,
-      { node: high, port: 0 },
-      { node: box, port: 1 },
+      { node: low, port: 0 },
+      { node: core, port: 1 },
     );
-    expect(plan.check.ok).toBe(false);
+    expect(plan.check).toEqual({ ok: false, reason: "no_route" });
     expect(plan.moved).toEqual([]);
     const result = s.run(
-      new ConnectEdge({ node: high, port: 0 }, { node: box, port: 1 }),
+      new ConnectEdge({ node: low, port: 0 }, { node: core, port: 1 }),
     );
     expect(result.ok).toBe(false);
     expect([...s.state.edges.values()]).toEqual(edges);

@@ -94,16 +94,34 @@ describe("edge throughput", () => {
   );
 
   it.each(
-    EDGE_LEVELS.flatMap((level) => [1, 2, 30].map((cells) => [level, cells])),
+    EDGE_LEVELS.flatMap((level) => [1, 2, 11].map((cells) => [level, cells])),
   )("carries the same at level %i on a %i-cell edge", (level, cells) => {
     const edge = bareEdge(level as EdgeLevel, cells);
     drive(edge, 200);
     expect(drive(edge, 600).delivered).toHaveLength([2, 4, 8][level - 1] * 60);
   });
 
-  it.each(EDGE_LEVELS)("counts whole flow units at level %i", (level) => {
+  it.each([
+    [1, 12, 1],
+    [1, 30, 0.5],
+    [2, 42, 0.5],
+    [3, 24, 2],
+  ] as const)(
+    "halves every 12 cells: level %i over %i cells carries %d items/s",
+    (level, cells, perSecond) => {
+      const edge = bareEdge(level, cells);
+      drive(edge, 200);
+      expect(drive(edge, 600).delivered).toHaveLength(perSecond * 60);
+    },
+  );
+
+  it.each(
+    EDGE_LEVELS.flatMap((level) => [1, 12, 200].map((cells) => [level, cells])),
+  )("counts whole flow units at level %i over %i cells", (level, cells) => {
     expect(Number.isInteger(STEP_UNITS)).toBe(true);
-    expect(Number.isInteger(spacingUnits(level))).toBe(true);
+    expect(
+      Number.isInteger(spacingUnits(bareEdge(level as EdgeLevel, cells))),
+    ).toBe(true);
   });
 
   it("moves items at 3 cells/s", () => {
@@ -132,7 +150,7 @@ describe("back-pressure", () => {
     expect(delivered).toEqual([]);
     expect(isEdgeFull(edge)).toBe(true);
     // Packed at the spacing from the input connector back.
-    const spacing = spacingUnits(1);
+    const spacing = spacingUnits(edge);
     const end = edgeUnits(edge);
     expect(edge.items.map((it) => it.pos)).toEqual(
       edge.items.map((_, i) => end - i * spacing),

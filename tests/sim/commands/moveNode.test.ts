@@ -18,7 +18,6 @@ import {
 } from "../../../src/sim/state/gameState";
 import { allocateId, type NodeId } from "../../../src/sim/state/ids";
 import { createNode } from "../../../src/sim/state/nodes";
-import { hashState } from "../../../src/sim/state/serialize";
 import { updateStock } from "../../../src/sim/systems/stock";
 import { tick } from "../../../src/sim/tick";
 import { railCells } from "../../../src/sim/rail/route";
@@ -113,19 +112,12 @@ describe("MoveNode (FR20)", () => {
     expect(run(new MoveNode(a, 51, 50))).toEqual(ok());
   });
 
-  it("refuses a move that makes an edge too long, and changes nothing", () => {
-    const { state, run, b, edge, rejected } = joined();
-    const hash = hashState(state);
+  it("charges the cells a move adds at their distance weight (FR54)", () => {
+    const { state, b } = joined();
     const plan = planMove(state, b, 70, 50);
-    expect(plan.check).toEqual(fail("out_of_range"));
     expect(plan.edges[0].length).toBe(18);
-    expect(run(new MoveNode(b, 70, 50))).toEqual(fail("out_of_range"));
-    expect(rejected).toEqual([]);
-    expect(state.nodes.get(b)).toMatchObject({ x: 56, y: 50 });
-    expect(onlyEdge(state).path).toEqual(edge.path);
-    // Only the tick moved on.
-    state.tick--;
-    expect(hashState(state)).toBe(hash);
+    // Cells 5–12 cost 1 each and cells 13–18 cost 2 each.
+    expect(plan.check).toEqual(ok({ pay: { "iron-ore": 20 }, refund: {} }));
   });
 
   it("refuses cells another node or edge holds", () => {

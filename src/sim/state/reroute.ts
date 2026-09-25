@@ -2,11 +2,12 @@
 // edges in its way step aside onto routes of their own.
 
 import { REROUTE_MAX_EDGES } from "../../config/constants";
+import { EDGE_MAX_LENGTH } from "../../data/edges";
 import { addCounts, type ItemCounts } from "../../data/items";
 import { pathsTouch, type PlanarIndex, type Point } from "../geometry/planar";
 import { pathLength, type Route } from "../geometry/route";
 import { fail, ok, type Result } from "../result";
-import { edgeCost, edgeUnits, findRoute, maxLength } from "./edges";
+import { edgeUnits, findRoute, lengthChangeCost } from "./edges";
 import type { Edge, GameState } from "./gameState";
 import type { EdgeId } from "./ids";
 
@@ -24,11 +25,11 @@ interface Room {
 }
 
 /**
- * Routes edge `id` from cell `from` to cell `to` within `max` cells by moving
+ * Routes edge `id` from cell `from` to cell `to` within the length limit by moving
  * the edges of `index` in its way. It finds the route the edge would take
  * if no edge but the `pinned` ones were there, lifts the edges that route
  * touches, routes the edge, then routes each lifted edge again, by id
- * ascending, within its level's length limit. On success the index holds the
+ * ascending, within the length limit. On success the index holds the
  * moved edges on their new routes, but not edge `id`; `restoreRoom` puts it
  * back. On failure the index is left as it was and the reason is `no_route`.
  * At most `REROUTE_MAX_EDGES` edges move.
@@ -39,12 +40,11 @@ export function makeRoom(
   id: EdgeId,
   from: Point,
   to: Point,
-  max: number,
   reserved: readonly Point[],
   pinned: ReadonlySet<EdgeId> = new Set(),
 ): Result<Room> {
   // No route is shorter than the straight run, edges or not: skip the search.
-  if (Math.abs(to.x - from.x) + Math.abs(to.y - from.y) + 1 > max) {
+  if (Math.abs(to.x - from.x) + Math.abs(to.y - from.y) + 1 > EDGE_MAX_LENGTH) {
     return fail("no_route");
   }
   const movable = index.edgeIds().filter((e) => !pinned.has(e));
@@ -56,7 +56,8 @@ export function makeRoom(
   for (const e of movable) index.removeEdge(e);
   const clear = findRoute(state, index, from, to, keepOut);
   for (const e of movable) index.addEdge(e, paths.get(e)!);
-  if (!clear.ok || clear.value.length > max) return fail("no_route");
+  if (!clear.ok || clear.value.length > EDGE_MAX_LENGTH)
+    return fail("no_route");
   const lifted = movable.filter((e) =>
     pathsTouch(clear.value.path, paths.get(e)!),
   );
@@ -71,7 +72,7 @@ export function makeRoom(
     for (const e of lifted) index.addEdge(e, paths.get(e)!);
   };
   const route = findRoute(state, index, from, to, keepOut);
-  if (!route.ok || route.value.length > max) {
+  if (!route.ok || route.value.length > EDGE_MAX_LENGTH) {
     undo();
     return fail("no_route");
   }
@@ -87,8 +88,7 @@ export function makeRoom(
       path[path.length - 1],
       keepOut,
     );
-    const level = state.edges.get(e)!.level;
-    if (!again.ok || again.value.length > maxLength(level)) {
+    if (!again.ok || again.value.length > EDGE_MAX_LENGTH) {
       undo();
       return fail("no_route");
     }
@@ -130,10 +130,10 @@ export function rerouteCost(
   const cost: RerouteCost = { pay: {}, refund: {} };
   for (const { id, length } of moved) {
     const edge = state.edges.get(id)!;
-    const change = length - pathLength(edge.path);
+    const old = pathLength(edge.path);
     addCounts(
-      change > 0 ? cost.pay : cost.refund,
-      edgeCost(Math.abs(change), edge.level),
+      length > old ? cost.pay : cost.refund,
+      lengthChangeCost(old, length, edge.level),
     );
   }
   return cost;

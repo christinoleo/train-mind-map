@@ -10,10 +10,14 @@ import { RemoveNode } from "../../../src/sim/commands/removeNode";
 import { UpgradeEdge } from "../../../src/sim/commands/upgradeEdge";
 import { EventQueue } from "../../../src/sim/events";
 import { fail, ok, type Result } from "../../../src/sim/result";
+import { EDGE_MAX_LENGTH } from "../../../src/data/edges";
 import {
+  checkLength,
   connectorCell,
   connectorRows,
   edgeCost,
+  edgeThroughput,
+  lengthChangeCost,
   reservedCells,
   upgradeCost,
 } from "../../../src/sim/state/edges";
@@ -106,6 +110,35 @@ describe("edge costs (FR44, FR58)", () => {
     expect(upgradeCost(4, 1, 2)).toEqual({ gear: 4 });
     expect(upgradeCost(4, 1, 3)).toEqual({ gear: 4, circuit: 4 });
   });
+
+  it("doubles the cost per cell every 12 cells (FR54)", () => {
+    expect(edgeCost(12, 1)).toEqual({ "iron-ore": 12 });
+    expect(edgeCost(13, 1)).toEqual({ "iron-ore": 14 });
+    expect(edgeCost(24, 1)).toEqual({ "iron-ore": 36 });
+    expect(edgeCost(30, 1)).toEqual({ "iron-ore": 12 + 24 + 6 * 4 });
+    expect(upgradeCost(13, 1, 2)).toEqual({ gear: 14 });
+  });
+
+  it("charges a change of length the cells gained or lost, at their weight", () => {
+    expect(lengthChangeCost(12, 14, 1)).toEqual({ "iron-ore": 4 });
+    expect(lengthChangeCost(14, 12, 1)).toEqual({ "iron-ore": 4 });
+    expect(lengthChangeCost(2, 4, 1)).toEqual({ "iron-ore": 2 });
+  });
+});
+
+describe("edge length (FR54)", () => {
+  it("allows 200 cells at every level and refuses more", () => {
+    expect(checkLength(EDGE_MAX_LENGTH)).toEqual(ok());
+    expect(checkLength(EDGE_MAX_LENGTH + 1)).toEqual(fail("out_of_range"));
+  });
+
+  it("halves the throughput every 12 cells", () => {
+    expect(edgeThroughput(11, 1)).toBe(2);
+    expect(edgeThroughput(12, 1)).toBe(1);
+    expect(edgeThroughput(42, 1)).toBe(0.25);
+    expect(edgeThroughput(42, 2)).toBe(0.5);
+    expect(edgeThroughput(23, 3)).toBe(4);
+  });
 });
 
 describe("ConnectEdge validation", () => {
@@ -155,9 +188,9 @@ describe("ConnectEdge validation", () => {
       fail("out_of_bounds"),
     ],
     [
-      "an input 14 cells away, over the level-1 limit of 12",
+      "an input 14 cells away",
       ({ a, put }) => new ConnectEdge(out(a), into(put("box", 66, 50))),
-      fail("out_of_range"),
+      ok(),
     ],
     [
       "an input sealed off by nodes",
@@ -199,7 +232,7 @@ describe("ConnectEdge validation", () => {
 
   it("refuses an end on another edge's cells", () => {
     const { state, a, b } = twoBoxes();
-    // An edge down column 55, through B's input cells.
+    // An edge down column 55, ending on B's input cell.
     const id = allocateId(state.nextIds, "edge");
     state.edges.set(id, {
       id,
@@ -210,7 +243,7 @@ describe("ConnectEdge validation", () => {
       level: 1,
       path: [
         { x: 55, y: 45 },
-        { x: 55, y: 55 },
+        { x: 55, y: 50 },
       ],
       items: [],
     });
@@ -219,13 +252,13 @@ describe("ConnectEdge validation", () => {
     );
   });
 
-  it("measures a route that is too long, for the preview", () => {
+  it("prices a long route with its far cells doubled", () => {
     const { state, put } = setup();
     const a = put("box", 50, 50);
     const far = put("box", 66, 50);
     const plan = planEdge(state, out(a), into(far));
     expect(plan.route?.length).toBe(14);
-    expect(plan.check).toEqual(fail("out_of_range"));
+    expect(plan.check).toEqual(ok({ "iron-ore": 16 }));
   });
 });
 

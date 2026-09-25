@@ -5,8 +5,14 @@ export const EDGE_LEVELS = [1, 2, 3] as const;
 
 export type EdgeLevel = (typeof EDGE_LEVELS)[number];
 
-/** Longest edge at each edge level, 1 to 3, in cells (GDD §Arestas, FR54). */
-export const EDGE_MAX_LENGTH = [12, 20, 32] as const;
+/** Longest edge at every level, in cells (GDD §Arestas, FR54). */
+export const EDGE_MAX_LENGTH = 200;
+
+/**
+ * Every this many cells of length, an edge's cost per cell doubles and its
+ * throughput halves (GDD §Arestas, FR54).
+ */
+export const EDGE_DISTANCE_STEP = 12;
 
 /**
  * What one cell of edge costs at each level, 1 to 3 (GDD §Custos, FR44):
