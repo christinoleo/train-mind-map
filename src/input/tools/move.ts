@@ -11,7 +11,7 @@ import type { FailReason, Result } from "../../sim/result";
 import type { GameState } from "../../sim/state/gameState";
 import type { NodeId } from "../../sim/state/ids";
 import { canAfford } from "../../sim/state/stock";
-import { edgeLineOf } from "../../render/connectors";
+import { edgeLineOf, reroutedLines } from "../../render/connectors";
 import type { Camera } from "../camera";
 import type { Tool } from "../controls";
 import { panAtEdge, type GesturePoint } from "../gestures";
@@ -149,7 +149,7 @@ export class MoveTool implements Tool {
     this.show(plan);
   }
 
-  private show({ node, edges, check }: MovePlan) {
+  private show({ node, edges, moved, check }: MovePlan) {
     if (!node) return;
     const { state } = this.deps;
     this.deps.showGhost({
@@ -170,6 +170,7 @@ export class MoveTool implements Tool {
     const tooLong = edges.find((e) => e.length !== null && e.length > e.max);
     this.deps.showPreview({
       lines,
+      moved: reroutedLines(moved, state.edges, nodes),
       reason: check.ok ? null : check.reason,
       length: tooLong?.length ?? null,
       max: tooLong?.max ?? 0,

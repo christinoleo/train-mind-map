@@ -1,4 +1,4 @@
-import { addCounts, type ItemCounts } from "../../data/items";
+import type { ItemCounts } from "../../data/items";
 import type { Emit } from "../events";
 import {
   buildPlanarIndex,
@@ -13,7 +13,6 @@ import {
   checkJoins,
   checkLength,
   connectorCell,
-  edgeCost,
   edgesOf,
   edgeUnits,
   findRoute,
@@ -23,6 +22,14 @@ import {
 import type { Edge, FactoryNode, GameState } from "../state/gameState";
 import type { EdgeId, NodeId } from "../state/ids";
 import { checkFootprint, nodeRect } from "../state/nodes";
+import {
+  makeRoom,
+  rerouteCost,
+  rerouted,
+  restoreRoom,
+  type Reroute,
+  type RerouteCost,
+} from "../state/reroute";
 import { newProduction } from "../state/production";
 import { canAfford, debit, deposit } from "../state/stock";
 import type { Command } from "./command";
@@ -37,12 +44,6 @@ export interface MovedEdge {
   max: number;
 }
 
-/** What the edges' new lengths cost, and what their lost cells give back. */
-export interface MoveCost {
-  pay: ItemCounts;
-  refund: ItemCounts;
-}
-
 /** What the undo of a move puts back: the old routes and the refund taken. */
 export interface MoveUndo {
   paths: ReadonlyMap<EdgeId, readonly Point[]>;
@@ -54,8 +55,10 @@ export interface MovePlan {
   /** The node at its new place, or `null` when there is no such node. */
   node: FactoryNode | null;
   edges: MovedEdge[];
+  /** Other edges moved out of the way (FR52), by id ascending. */
+  moved: Reroute[];
   /** Ok when the move can be made; otherwise why not. */
-  check: Result<MoveCost>;
+  check: Result<RerouteCost>;
 }
 
 /**
@@ -75,8 +78,9 @@ export function moveIndex(state: Readonly<GameState>, id: NodeId): PlanarIndex {
  * Plans moving node `id` so its top-left cell sits at (x, y) (FR20): the
  * cells must be free, ignoring the node itself and its edges, and every
  * attached edge must find a route from the new place within its level's
- * length limit. Edges that grow pay for their new cells and edges that
- * shrink refund theirs. The undo of a move sets `undo`: an edge in its
+ * length limit, moving other edges out of the way if need be (`makeRoom`).
+ * Edges that grow pay for their new cells and edges that shrink refund
+ * theirs. The undo of a move sets `undo`: an edge in its
  * `paths` keeps that route, if it still fits, and it pays `charge`, what
  * the move's refund found room for. `index` must come from `moveIndex`; it
  * is left as it was.
@@ -90,18 +94,18 @@ export function planMove(
   undo?: MoveUndo,
 ): MovePlan {
   const node = state.nodes.get(id);
-  if (!node) return { node: null, edges: [], check: fail("not_found") };
-  const moved: FactoryNode = { ...structuredClone(node), x, y };
-  if (node.kind === "core") {
-    return { node: moved, edges: [], check: fail("immovable") };
-  }
+  const moved = node ? { ...structuredClone(node), x, y } : null;
+  const refuse = (reason: FailReason): MovePlan => ({
+    node: moved,
+    edges: [],
+    moved: [],
+    check: fail(reason),
+  });
+  if (!node || !moved) return refuse("not_found");
+  if (node.kind === "core") return refuse("immovable");
   // Rails are not re-routed: a Station moves only once its rails are gone.
-  if (hasRails(state, id)) {
-    return { node: moved, edges: [], check: fail("has_rails") };
-  }
-  if (isStationInUse(state, id)) {
-    return { node: moved, edges: [], check: fail("has_trains") };
-  }
+  if (hasRails(state, id)) return refuse("has_rails");
+  if (isStationInUse(state, id)) return refuse("has_trains");
   const attached = edgesOf(state, id);
   const fits = checkFootprint(
     withoutNode(state, id, attached),
@@ -109,7 +113,7 @@ export function planMove(
     x,
     y,
   );
-  if (!fits.ok) return { node: moved, edges: [], check: fail(fits.reason) };
+  if (!fits.ok) return refuse(fits.reason);
   // An Extractor moved onto another resource starts over on it.
   if (moved.kind === "extractor" && moved.resource !== fits.value) {
     moved.resource = fits.value!;
@@ -121,15 +125,44 @@ export function planMove(
   let reason: FailReason | null = null;
   const edges: MovedEdge[] = [];
   const added: EdgeId[] = [];
+  // Other edges moved out of the way (FR52), or, on an undo, moved back.
+  const pushed = new Map<EdgeId, Reroute>();
+  const pinned = new Set(attached.map((e) => e.id));
+  const back = [...(undo?.paths ?? [])].filter(([e]) => !pinned.has(e));
+  for (const [e] of back) index.removeEdge(e);
   const reserved = reservedCells(state, moved);
+  const ends = attached.map((edge) => ({
+    start: connectorCell(nodeOf(edge.from), "output", edge.fromPort),
+    end: connectorCell(nodeOf(edge.to), "input", edge.toPort),
+  }));
+  // Edges pushed aside keep off the ends of the edges not yet placed.
+  const keepOut = [...reserved, ...ends.flatMap((e) => [e.start, e.end])];
   index.addNode(id, nodeRect(moved));
-  for (const edge of attached) {
-    const start = connectorCell(nodeOf(edge.from), "output", edge.fromPort);
-    const end = connectorCell(nodeOf(edge.to), "input", edge.toPort);
+  for (const [i, edge] of attached.entries()) {
+    const { start, end } = ends[i];
     const given = undo?.paths.get(edge.id);
-    const routed = given
+    let routed = given
       ? keptRoute(index, given, start, end)
       : findRoute(state, index, start, end, reserved);
+    if (
+      !given &&
+      !(routed.ok && routed.value.length <= maxLength(edge.level))
+    ) {
+      const room = makeRoom(
+        state,
+        index,
+        edge.id,
+        start,
+        end,
+        maxLength(edge.level),
+        keepOut,
+        pinned,
+      );
+      if (room.ok) {
+        routed = ok(room.value.route);
+        for (const m of room.value.moved) pushed.set(m.id, m);
+      }
+    }
     const path = routed.ok ? routed.value.path : null;
     const length = routed.ok ? routed.value.length : null;
     edges.push({ id: edge.id, path, length, max: maxLength(edge.level) });
@@ -144,21 +177,37 @@ export function planMove(
       added.push(edge.id);
     }
   }
+  for (const [e, path] of back) {
+    const kept = state.edges.has(e)
+      ? keptRoute(index, path, path[0], path[path.length - 1])
+      : fail("not_found");
+    if (!kept.ok) {
+      reason ??= kept.reason;
+      continue;
+    }
+    index.addEdge(e, kept.value.path);
+    pushed.set(e, { id: e, ...kept.value });
+  }
   for (const edgeId of added) index.removeEdge(edgeId);
+  restoreRoom(state, index, pushed.values());
+  for (const [e] of back) {
+    if (!pushed.has(e) && state.edges.has(e)) {
+      index.addEdge(e, state.edges.get(e)!.path);
+    }
+  }
   index.removeNode(id);
-  if (reason) return { node: moved, edges, check: fail(reason) };
+  const others = [...pushed.values()].sort((a, b) => a.id - b.id);
+  if (reason) {
+    return { node: moved, edges, moved: others, check: fail(reason) };
+  }
 
-  const cost: MoveCost = { pay: {}, refund: {} };
-  attached.forEach((edge, i) => {
-    const change = edges[i].length! - pathLength(edge.path);
-    const into = change > 0 ? cost.pay : cost.refund;
-    addCounts(into, edgeCost(Math.abs(change), edge.level));
-  });
+  // Every edge is routed here: a missing route would have set `reason`.
+  const cost = rerouteCost(state, [...(edges as Reroute[]), ...others]);
   if (undo) cost.pay = { ...undo.charge };
   if (!canAfford(state, cost.pay)) {
-    return { node: moved, edges, check: fail("no_stock") };
+    return { node: moved, edges, moved: others, check: fail("no_stock") };
   }
-  return { node: moved, edges, check: ok(cost) };
+  return { node: moved, edges, moved: others, check: ok(cost) };
 }
 
 /** `state` as it looks with node `id` and its edges lifted off the map. */
@@ -190,7 +239,8 @@ function keptRoute(
  * Moves a node so its top-left cell sits at (x, y), re-routing its edges
  * (FR20). The move is refused when the cells are not free or an edge would
  * have no route or be too long. Items past the end of a shortened edge are
- * lost. Its undo moves the node back onto its old routes.
+ * lost; other edges moved out of the way keep theirs. Its undo moves the
+ * node back onto its old routes and the other edges back onto theirs.
  */
 export class MoveNode implements Command {
   readonly type = "MoveNode";
@@ -210,7 +260,7 @@ export class MoveNode implements Command {
   }
 
   apply(state: GameState, emit: Emit) {
-    const { node, edges, check } = this.plan(state);
+    const { node, edges, moved, check } = this.plan(state);
     if (!node || !check.ok)
       throw new Error("MoveNode applied without validating");
     const old = state.nodes.get(this.id)!;
@@ -219,12 +269,17 @@ export class MoveNode implements Command {
     for (const { id, path } of edges) {
       const edge = state.edges.get(id)!;
       paths.set(id, edge.path);
-      const moved = { ...edge, path: path! };
-      const units = edgeUnits(moved);
-      moved.items = edge.items
+      const next = { ...edge, path: path! };
+      const units = edgeUnits(next);
+      next.items = edge.items
         .filter((item) => item.pos <= units)
         .map((item) => ({ ...item, prevPos: item.pos }));
-      state.edges.set(id, moved);
+      state.edges.set(id, next);
+    }
+    for (const { id, path } of moved) {
+      const edge = state.edges.get(id)!;
+      paths.set(id, edge.path);
+      state.edges.set(id, rerouted(edge, path));
     }
     const site = nodeRect(node);
     const charge = deposit(state, check.value.refund, site);

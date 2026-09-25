@@ -6,7 +6,12 @@ import {
   ITEM_SPEED,
   type EdgeLevel,
 } from "../../data/edges";
-import { countsAbove, itemEntries, type ItemCounts } from "../../data/items";
+import {
+  addCounts,
+  countsAbove,
+  itemEntries,
+  type ItemCounts,
+} from "../../data/items";
 import { NODES, type Cost, type NodeKind } from "../../data/nodes";
 import {
   joins,
@@ -178,16 +183,18 @@ export function checkLength(length: number, level: EdgeLevel): Result {
 
 /**
  * Checks `length` cells of edge at `level` against the length limit and the
- * stock: what it costs, or why it cannot be built (FR44, FR54).
+ * stock: what it costs, with `extra` on top, or why it cannot be built
+ * (FR44, FR54).
  */
 export function priceRoute(
   state: Readonly<GameState>,
   length: number,
   level: EdgeLevel,
+  extra: Readonly<ItemCounts> = {},
 ): Result<Cost> {
   const fits = checkLength(length, level);
   if (!fits.ok) return fits;
-  const cost = edgeCost(length, level);
+  const cost = addCounts(edgeCost(length, level), extra);
   return canAfford(state, cost) ? ok(cost) : fail("no_stock");
 }
 

@@ -115,3 +115,9 @@ export const HINT_HALF_WIDTH_PX = 120;
  * the capsule goes above it, below the HUD.
  */
 export const HINT_TOP_PX = 120;
+
+/**
+ * Most existing edges one new route may push aside (FR52). Each costs one
+ * more search, so the cap keeps a rip-up under 5 ms on a 96² map.
+ */
+export const REROUTE_MAX_EDGES = 6;
