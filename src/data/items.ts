@@ -27,6 +27,33 @@ export const ITEMS = [
 
 export type ItemId = (typeof ITEMS)[number];
 
+/** The item categories, in the order the inventory lists them. */
+export const ITEM_CATEGORIES = [
+  "raw",
+  "smelted",
+  "intermediate",
+  "science",
+] as const;
+
+export type ItemCategory = (typeof ITEM_CATEGORIES)[number];
+
+/** Each item's category, which orders the inventory's slots (FR68). */
+export const ITEM_CATEGORY: Record<ItemId, ItemCategory> = {
+  "iron-ore": "raw",
+  "copper-ore": "raw",
+  coal: "raw",
+  stone: "raw",
+  "crude-oil": "raw",
+  "iron-plate": "smelted",
+  "copper-plate": "smelted",
+  brick: "smelted",
+  gear: "intermediate",
+  "copper-cable": "intermediate",
+  circuit: "intermediate",
+  rail: "intermediate",
+  "red-science": "science",
+};
+
 /** A count per item type; absent types count zero. */
 export type ItemCounts = Partial<Record<ItemId, number>>;
 

@@ -5,6 +5,7 @@ import type { PowerSummary } from "../sim/state/power";
 import { EdgeMenu } from "./EdgeMenu";
 import { ExportNotice } from "./ExportNotice";
 import { Hint, type HintView } from "./Hint";
+import { InventoryPanel } from "./InventoryPanel";
 import { LinePanel, LinePick } from "./LinePanel";
 import { NodeMenu } from "./NodeMenu";
 import { OfflineReport } from "./OfflineReport";
@@ -30,6 +31,7 @@ type Props = ComponentProps<typeof Palette> & {
   railToggle: ComponentProps<typeof RailToggle>;
   undo: ComponentProps<typeof UndoButton>;
   research: ComponentProps<typeof ResearchPanel>;
+  inventory: ComponentProps<typeof InventoryPanel>;
   researchNotice: ComponentProps<typeof ResearchNotice>;
   settings: ComponentProps<typeof SettingsMenu>;
   exportNotice: ComponentProps<typeof ExportNotice>;
@@ -47,9 +49,9 @@ type Props = ComponentProps<typeof Palette> & {
   storageFull: ReadonlySignal<boolean>;
 };
 
-// The DOM overlay layer above the canvas: the HUD capsule, the menus, the
-// Line panel and its pick prompt, the undo, research, settings and rail layer
-// buttons, the palette, the onboarding hint, the research and export notices
+// The DOM overlay layer above the canvas: the HUD capsule, the inventory,
+// the menus, the Line panel and its pick prompt, the undo, research, settings
+// and rail layer buttons, the palette, the onboarding hint, the research and export notices
 // and the offline report.
 export function UiRoot({
   stock,
@@ -64,6 +66,7 @@ export function UiRoot({
   railToggle,
   undo,
   research,
+  inventory,
   researchNotice,
   settings,
   exportNotice,
@@ -78,6 +81,7 @@ export function UiRoot({
         stamina={stamina}
         power={power}
         storageFull={storageFull}
+        inventoryOpen={inventory.open}
       />
       <EdgeMenu {...edgeMenu} />
       <NodeMenu {...nodeMenu} />
@@ -86,6 +90,7 @@ export function UiRoot({
       <LinePick {...linePick} />
       <UndoButton {...undo} />
       <ResearchPanel {...research} />
+      <InventoryPanel {...inventory} />
       <SettingsMenu {...settings} />
       <RailToggle {...railToggle} />
       <Palette {...palette} />

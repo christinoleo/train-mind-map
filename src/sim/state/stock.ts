@@ -129,8 +129,24 @@ export function sumStock(
  * True when a storage node gives to construction: every one but a Box the
  * player marked "não usar em construção" (FR71).
  */
-function buildsFrom(node: StorageNode): boolean {
+export function buildsFrom(node: StorageNode): boolean {
   return node.kind === "core" || !node.noConstruction;
+}
+
+/** What the storage construction draws from holds, and holds at most. */
+export function constructionFill(state: Readonly<GameState>): {
+  used: number;
+  capacity: number;
+} {
+  let used = 0;
+  let capacity = 0;
+  for (const node of state.nodes.values()) {
+    if (isStorage(node) && buildsFrom(node)) {
+      used += storedCount(node);
+      capacity += storageCapacity(state, node);
+    }
+  }
+  return { used, capacity };
 }
 
 /**

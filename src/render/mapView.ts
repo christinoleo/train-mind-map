@@ -14,6 +14,8 @@ import { worldText } from "./text";
 import {
   CELL_PX,
   PALETTE,
+  GLYPH_POLYS,
+  GLYPH_SQUARE_HALF,
   ITEM_STYLE,
   toWorld,
   type GlyphShape,
@@ -208,29 +210,13 @@ export function drawGlyph(
   switch (shape) {
     case "circle":
       return g.circle(cx, cy, r);
-    case "square":
-      return g.rect(cx - r * 0.85, cy - r * 0.85, r * 1.7, r * 1.7);
+    case "square": {
+      const h = r * GLYPH_SQUARE_HALF;
+      return g.rect(cx - h, cy - h, 2 * h, 2 * h);
+    }
     default:
       return g.poly(
         GLYPH_POLYS[shape].map((v, i) => (i % 2 ? cy : cx) + v * r),
       );
   }
 }
-
-/** Polygon glyphs as flat x, y offsets for a glyph of radius 1. */
-const GLYPH_POLYS = {
-  diamond: [0, -1.15, 1.15, 0, 0, 1.15, -1.15, 0],
-  // Twelve points alternating between the teeth and the gaps between them.
-  gear: Array.from({ length: 12 }, (_, k) => {
-    const a = (k * Math.PI) / 6;
-    const rr = k % 2 ? 0.75 : 1.15;
-    return [Math.cos(a) * rr, Math.sin(a) * rr];
-  }).flat(),
-  flask: [-0.35, -1.1, 0.35, -1.1, 0.35, -0.3, 1.05, 1, -1.05, 1, -0.35, -0.3],
-  triangle: [0, -1.15, 1.1, 0.8, -1.1, 0.8],
-  hexagon: Array.from({ length: 6 }, (_, k) => {
-    const a = (k * Math.PI) / 3;
-    return [Math.cos(a) * 1.05, Math.sin(a) * 1.05];
-  }).flat(),
-  bar: [-1.1, -0.45, 1.1, -0.45, 1.1, 0.45, -1.1, 0.45],
-} satisfies Record<Exclude<GlyphShape, "circle" | "square">, number[]>;
