@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import type { ReadonlySignal } from "@preact/signals";
 import { NODES, type Cost, type NodeKind } from "../data/nodes";
 import { RECIPE_IDS, RECIPES, type RecipeId } from "../data/recipes";
@@ -114,6 +114,10 @@ export function NodeMenu({
   /** The node whose recipe picker is open, in place of its actions. */
   const [picking, setPicking] = useState<NodeId | null>(null);
   const info = node.value;
+  // A bubble closed on its picker opens on its actions next time.
+  useEffect(() => {
+    if (!info) setPicking(null);
+  }, [info === null]);
   if (!info) return null;
   const text = strings.node;
   const glyphs = strings.bubble;
@@ -214,6 +218,7 @@ export function NodeMenu({
         )}
         {refund && <BubbleRemove refund={refund} onClick={onRemove} />}
       </div>
+      {!refund && <p class="bubble-note">{strings.reasons.indestructible}</p>}
     </ActionBubble>
   );
 }

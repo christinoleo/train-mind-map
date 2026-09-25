@@ -36,8 +36,9 @@ export class RemovalUndo {
   /** Undoes the removal, and the toast goes. */
   undo(state: Readonly<GameState>): Result | null {
     const removal = this.removal.peek();
-    this.hide();
+    // A removal not applied yet keeps its toast; `update` drops a stale one.
     if (!removal || !this.undoable(removal.command)) return null;
+    this.hide();
     return this.commands.undo(state);
   }
 

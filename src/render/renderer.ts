@@ -378,9 +378,13 @@ export function createRenderer(
     },
     setMoving(id) {
       moving = id;
+      // A new lift cuts short the last drop's animation.
+      if (id !== null) drop = null;
     },
     dropGhost(back) {
       if (!ghost || moving === null) return;
+      // The release may have planned a new cell since the last frame.
+      drawGhostLayer();
       drop = {
         node: moving,
         back,

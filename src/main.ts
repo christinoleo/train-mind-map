@@ -521,9 +521,14 @@ function goOffline(ms: number) {
   if (view) offlineReport.value = view;
 }
 
-/** Takes the camera to `id` and opens its menu. */
+/** Takes the camera to `id` and opens its action bubble, on the factory layer. */
 function showNode(id: NodeId) {
-  if (renderer.centerOnNode(id)) selectedNode.value = id;
+  if (!renderer.centerOnNode(id)) return;
+  focus.value = "factory";
+  batch(() => {
+    selectedEdge.value = null;
+    selectedNode.value = id;
+  });
 }
 
 /** Removes a node or an edge from its bubble, offering to undo it for a moment. */
