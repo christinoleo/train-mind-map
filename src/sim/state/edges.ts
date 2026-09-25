@@ -78,13 +78,13 @@ export function connectorCell(
 
 /**
  * How many cells' worth of base cost `length` cells of edge come to: cell i,
- * counted from 1, weighs 2^⌊(i−1)/12⌋, so cells 1–12 weigh 1, 13–24 weigh 2,
- * 25–36 weigh 4 (FR54).
+ * counted from 1, weighs 2^⌊(i−1)/EDGE_DISTANCE_STEP⌋, so with a step of 12
+ * cells 1–12 weigh 1, 13–24 weigh 2, 25–36 weigh 4 (FR54).
  */
 export function costWeight(length: number): number {
-  const steps = Math.floor(length / EDGE_DISTANCE_STEP);
-  const rest = length - steps * EDGE_DISTANCE_STEP;
-  return EDGE_DISTANCE_STEP * (2 ** steps - 1) + rest * 2 ** steps;
+  const factor = distanceFactor(length);
+  const rest = length % EDGE_DISTANCE_STEP;
+  return EDGE_DISTANCE_STEP * (factor - 1) + rest * factor;
 }
 
 /** What `length` cells of edge at `level` cost (FR44, FR54). */
@@ -125,13 +125,13 @@ export function upgradeCost(
 
 /**
  * Items per second an edge `length` cells long at `level` carries: the
- * level's throughput, halved every 12 cells (FR54, FR55).
+ * level's throughput, halved every `EDGE_DISTANCE_STEP` cells (FR54, FR55).
  */
 export function edgeThroughput(length: number, level: EdgeLevel): number {
   return EDGE_THROUGHPUT[level - 1] / distanceFactor(length);
 }
 
-/** 2^⌊length/12⌋: how many times over distance divides an edge's throughput. */
+/** 2^⌊length/EDGE_DISTANCE_STEP⌋: how many times over distance divides an edge's throughput. */
 function distanceFactor(length: number): number {
   return 2 ** Math.floor(length / EDGE_DISTANCE_STEP);
 }
@@ -370,8 +370,8 @@ export function spacingUnits(edge: {
   readonly level: EdgeLevel;
 }): number {
   return (
-    ((ITEM_SPEED * FLOW_UNITS_PER_CELL) / EDGE_THROUGHPUT[edge.level - 1]) *
-    distanceFactor(pathLength(edge.path))
+    (ITEM_SPEED * FLOW_UNITS_PER_CELL) /
+    edgeThroughput(pathLength(edge.path), edge.level)
   );
 }
 

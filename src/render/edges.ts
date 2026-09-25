@@ -281,9 +281,6 @@ export class EdgePreviewView {
     this.chipBg
       .clear()
       .roundRect(-w / 2, -h / 2, w, h, h / 2)
-      .fill({
-        color: reason ? GHOST_COLOR.invalid : GHOST_COLOR.valid,
-        alpha: 0.92,
-      });
+      .fill({ color, alpha: 0.92 });
   }
 }

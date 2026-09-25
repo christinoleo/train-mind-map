@@ -145,16 +145,7 @@ export function planMove(
       ? keptRoute(index, given, start, end)
       : findRoute(state, index, start, end, reserved);
     if (!given && !(routed.ok && routed.value.length <= EDGE_MAX_LENGTH)) {
-      const room = makeRoom(
-        state,
-        index,
-        edge.id,
-        start,
-        end,
-        EDGE_MAX_LENGTH,
-        keepOut,
-        pinned,
-      );
+      const room = makeRoom(state, index, edge.id, start, end, keepOut, pinned);
       if (room.ok) {
         routed = ok(room.value.route);
         for (const m of room.value.moved) pushed.set(m.id, m);

@@ -1,4 +1,4 @@
-import { EDGE_MAX_LENGTH, NEW_EDGE_LEVEL } from "../../data/edges";
+import { NEW_EDGE_LEVEL } from "../../data/edges";
 import type { ItemCounts } from "../../data/items";
 import type { Cost } from "../../data/nodes";
 import type { Emit } from "../events";
@@ -64,7 +64,6 @@ export function planEdge(
     state.nextIds.edge as EdgeId,
     start,
     end,
-    EDGE_MAX_LENGTH,
     reservedCells(state),
   );
   if (!room.ok) return { ...plan, moved: [], refund: {} };

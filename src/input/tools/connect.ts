@@ -22,10 +22,11 @@ import {
   type ConnectorSide,
   type EdgePlan,
 } from "../../sim/state/edges";
+import { addCounts } from "../../data/items";
 import type { Cost } from "../../data/nodes";
 import type { GameState } from "../../sim/state/gameState";
 import type { EdgeId } from "../../sim/state/ids";
-import type { Reroute } from "../../sim/state/reroute";
+import { rerouteCost, type Reroute } from "../../sim/state/reroute";
 import {
   cellCentre,
   connectorsOf,
@@ -38,13 +39,13 @@ import type { Tool } from "../controls";
 import { panAtEdge, type GesturePoint } from "../gestures";
 import { distanceToLine, nodeAt, touchReach, worldToCell } from "../hitTest";
 
-/** The edge being dragged, or a moving node's edges, as the renderer draws them. */
 /** A dragged edge's price and effective throughput, in items/s. */
 export interface EdgeStats {
   cost: Cost;
   throughput: number;
 }
 
+/** The edge being dragged, or a moving node's edges, as the renderer draws them. */
 export interface EdgePreview {
   /** The lines to draw, in world units. */
   lines: Point[][];
@@ -239,9 +240,13 @@ export class ConnectTool implements Tool {
       max: EDGE_MAX_LENGTH,
       stats: route
         ? {
+            // A refused edge still shows its full price, moved edges included.
             cost: check.ok
               ? check.value
-              : edgeCost(route.length, NEW_EDGE_LEVEL),
+              : addCounts(
+                  edgeCost(route.length, NEW_EDGE_LEVEL),
+                  rerouteCost(state, moved).pay,
+                ),
             throughput: edgeThroughput(route.length, NEW_EDGE_LEVEL),
           }
         : undefined,
