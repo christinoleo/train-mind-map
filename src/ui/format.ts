@@ -1,5 +1,9 @@
 import { itemEntries, type ItemCounts, type ItemId } from "../data/items";
+import { TICK_MS } from "../config/constants";
+import { EXTRACTOR_CELLS } from "../data/nodes";
 import type { FailReason } from "../sim/result";
+import type { Coverage } from "../sim/state/map";
+import { extractorTicks } from "../sim/state/production";
 import type { SlowedEdge } from "../sim/state/reroute";
 import { strings } from "./strings";
 
@@ -100,4 +104,45 @@ export function edgeReasonText(
   }
   if (reason === "on_water") return strings.edge.onWater;
   return strings.reasons[reason];
+}
+
+/** Fractions with a glyph of their own; any other is written "n/d". */
+const FRACTION_GLYPHS: Readonly<Record<string, string>> = {
+  "1/4": "¼",
+  "1/2": "½",
+  "3/4": "¾",
+};
+
+function gcd(a: number, b: number): number {
+  return b === 0 ? a : gcd(b, a % b);
+}
+
+/** `part` out of `whole`, in lowest terms: ¼, ½, 2/9. */
+function formatFraction(part: number, whole: number): string {
+  const g = gcd(part, whole);
+  const text = `${part / g}/${whole / g}`;
+  return FRACTION_GLYPHS[text] ?? text;
+}
+
+/**
+ * What an Extractor draws, for its card: each resource's short name with
+ * the share of its cells over it, "min. ferro ½ · carvão ¼", so it fits a
+ * 2×2 card, or the full name alone when one resource covers it all (FR30).
+ */
+export function coverageText(coverage: readonly Coverage[]): string {
+  const [only] = coverage;
+  if (coverage.length === 1 && only.cells === EXTRACTOR_CELLS) {
+    return strings.items[only.resource];
+  }
+  return coverage
+    .map(
+      ({ resource, cells }) =>
+        `${strings.itemsShort[resource] ?? strings.items[resource]} ${formatFraction(cells, EXTRACTOR_CELLS)}`,
+    )
+    .join(strings.menu.separator);
+}
+
+/** An Extractor's items/s, over all its resources: "0,38/s" (FR30). */
+export function extractorRateText(coverage: readonly Coverage[]): string {
+  return formatPerSecond(1000 / TICK_MS / extractorTicks(coverage));
 }

@@ -3,7 +3,9 @@ import {
   itemEntries,
   type ItemCounts,
   type ItemId,
+  type RawResource,
 } from "../../data/items";
+import { EXTRACTOR_CELLS } from "../../data/nodes";
 import {
   CRAFTERS,
   EXTRACTOR_SECONDS,
@@ -24,6 +26,9 @@ import type {
   ProducerNode,
   Production,
 } from "./gameState";
+import type { Coverage } from "./map";
+
+type ExtractorNode = Extract<FactoryNode, { kind: "extractor" }>;
 
 /** Empty buffers, no batch under way, waiting for its first tick. */
 export function newProduction(): Production {
@@ -51,15 +56,61 @@ function batchOf(node: ProducerNode): Batch | undefined {
   if (node.kind === "extractor") {
     return {
       inputs: {},
-      output: node.resource,
+      output: extractorItem(node),
       count: 1,
-      ticks: secondsToTicks(EXTRACTOR_SECONDS),
+      ticks: extractorTicks(node.coverage),
     };
   }
   if (node.recipe === null) return undefined;
   const { inputs, output, count, seconds } = RECIPES[node.recipe];
   const ticks = secondsToTicks(seconds / CRAFTERS[node.kind].speed);
   return { inputs, output, count, ticks };
+}
+
+/** How many of an Extractor's cells lie on deposits. */
+function coverageCells(coverage: readonly Coverage[]): number {
+  return coverage.reduce((sum, part) => sum + part.cells, 0);
+}
+
+/** The fraction of an Extractor's cells on deposits (FR30). */
+function coverageShare(coverage: readonly Coverage[]): number {
+  return coverageCells(coverage) / EXTRACTOR_CELLS;
+}
+
+/**
+ * Ticks an Extractor takes per item: the base time divided by the fraction
+ * of its cells on deposits, so 1 cell of 4 makes items at ¼ speed (FR30).
+ * It need not be a whole number of ticks: see `advance`.
+ */
+export function extractorTicks(coverage: readonly Coverage[]): number {
+  return secondsToTicks(EXTRACTOR_SECONDS) / coverageShare(coverage);
+}
+
+/**
+ * The resources an Extractor makes, one per item, over one cycle: each as
+ * many times as it has cells, spread evenly by a smooth weighted round
+ * robin. Over 2 iron cells and 1 coal cell it makes iron, coal, iron.
+ */
+export function extractorCycle(coverage: readonly Coverage[]): RawResource[] {
+  const total = coverageCells(coverage);
+  const credit = coverage.map(() => 0);
+  const cycle: RawResource[] = [];
+  for (let n = 0; n < total; n++) {
+    let best = 0;
+    coverage.forEach((part, i) => {
+      credit[i] += part.cells;
+      if (credit[i] > credit[best]) best = i;
+    });
+    credit[best] -= total;
+    cycle.push(coverage[best].resource);
+  }
+  return cycle;
+}
+
+/** The resource of the item an Extractor makes next, or holds finished. */
+export function extractorItem(node: Readonly<ExtractorNode>): RawResource {
+  const cycle = extractorCycle(node.coverage);
+  return cycle[node.turn % cycle.length];
 }
 
 /**
@@ -191,6 +242,13 @@ export function bufferedItems(node: FactoryNode): ItemCounts {
 /** Takes one finished item out of `node`'s output buffer, if there is one. */
 export function takeOutput(node: FactoryNode): ItemId | undefined {
   if (!isProducer(node) || node.production.output === 0) return undefined;
+  if (node.kind === "extractor") {
+    const item = extractorItem(node);
+    node.production.output--;
+    // Its next item is the next resource in its cycle.
+    node.turn++;
+    return item;
+  }
   const item = batchOf(node)?.output;
   if (item !== undefined) node.production.output--;
   return item;
@@ -258,7 +316,11 @@ function advance(
   if (worked !== "done") return worked;
   if (p.output > 0) return "blocked";
   p.output = batch.count;
-  p.progress = null;
+  // A batch with no inputs, an Extractor's, starts the next at once with the
+  // fraction of a tick this one ran over, so batches of 26⅔ ticks take 26⅔
+  // on average rather than 27.
+  const needsInputs = Object.keys(batch.inputs).length > 0;
+  p.progress = needsInputs ? null : Math.max(0, p.progress - batch.ticks);
   return "working";
 }
 

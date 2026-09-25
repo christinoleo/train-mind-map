@@ -1,6 +1,6 @@
 import type { ResearchId } from "../../data/research";
 import type { EdgeLevel } from "../../data/edges";
-import type { ItemCounts, ItemId, RawResource } from "../../data/items";
+import type { ItemCounts, ItemId } from "../../data/items";
 import {
   STARTING_NODES,
   STORAGE_CAPACITY,
@@ -23,7 +23,7 @@ import {
   type RailId,
   type TrainId,
 } from "./ids";
-import type { GameMap } from "./map";
+import type { Coverage, GameMap } from "./map";
 import { createNode } from "./nodes";
 import { newPower, type Power } from "./power";
 import { newResearch, type ResearchState } from "./research";
@@ -66,7 +66,14 @@ export interface ItemRun {
 /** A placed node, with the data its kind carries. */
 export type FactoryNode = NodeBase &
   (
-    | { kind: "extractor"; resource: RawResource; production: Production }
+    | {
+        kind: "extractor";
+        /** The deposit cells under it, by resource (FR30). */
+        coverage: Coverage[];
+        /** Its place in the interleave of its resources: see `extractorItem`. */
+        turn: number;
+        production: Production;
+      }
     | {
         kind: CrafterKind;
         /** The recipe it runs; a Furnace picks one from its first input. */

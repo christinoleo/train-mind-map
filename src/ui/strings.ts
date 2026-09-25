@@ -264,7 +264,7 @@ export const strings = {
       "Cada trem precisa de uma estação livre entre as linhas que se cruzam",
     locked: "Ainda não pesquisado",
     max_level: "Já está no nível máximo",
-    needs_deposit: "O Extrator precisa ficar sobre uma jazida",
+    needs_deposit: "O Extrator precisa de ao menos uma célula sobre uma jazida",
     newer_save: "Save de uma versão mais nova do jogo",
     no_backup: "Não há backup",
     no_route: "Sem rota",

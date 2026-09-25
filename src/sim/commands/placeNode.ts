@@ -1,9 +1,9 @@
-import type { RawResource } from "../../data/items";
 import { NODES, type NodeKind } from "../../data/nodes";
 import type { RecipeId } from "../../data/recipes";
 import type { Emit } from "../events";
 import { fail, ok, type Result } from "../result";
 import type { GameState } from "../state/gameState";
+import type { Coverage } from "../state/map";
 import { allocateId, type NodeId } from "../state/ids";
 import {
   canRun,
@@ -19,14 +19,14 @@ import { RemoveNode } from "./removeNode";
 /**
  * Checks that the player may place a node of `kind` with its top-left cell
  * at (x, y): the kind is unlocked, storage holds its cost and the footprint
- * fits. On success it returns the resource under an Extractor.
+ * fits. On success it returns the deposit cells under an Extractor.
  */
 export function checkPlacement(
   state: Readonly<GameState>,
   kind: NodeKind,
   x: number,
   y: number,
-): Result<RawResource | undefined> {
+): Result<Coverage[] | undefined> {
   if (!isUnlocked(state, kind)) return fail("locked");
   if (!canAfford(state, NODES[kind].cost)) return fail("no_stock");
   return checkFootprint(state, kind, x, y);
@@ -65,7 +65,7 @@ export class PlaceNode implements Command {
     const draws = debit(state, NODES[kind].cost, site);
     state.nodes.set(
       id,
-      createNode(id, kind, x, y, { resource: fits.value, recipe: this.recipe }),
+      createNode(id, kind, x, y, { coverage: fits.value, recipe: this.recipe }),
     );
     this.placed = id;
     emit({ type: "ConstructionPaid", site, draws });

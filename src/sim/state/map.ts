@@ -3,8 +3,14 @@ import {
   MAP_SIZE,
   RING_STEP,
 } from "../../config/constants";
-import type { RawResource } from "../../data/items";
-import { allCells, containsRect, type Rect } from "../geometry/rect";
+import { RAW_RESOURCES, type RawResource } from "../../data/items";
+import {
+  allCells,
+  containsCell,
+  containsRect,
+  overlaps,
+  type Rect,
+} from "../geometry/rect";
 
 export const Terrain = { Land: 0, Water: 1 } as const;
 export type Terrain = (typeof Terrain)[keyof typeof Terrain];
@@ -12,6 +18,12 @@ export type Terrain = (typeof Terrain)[keyof typeof Terrain];
 /** An infinite patch of one raw resource. */
 export interface Deposit extends Rect {
   resource: RawResource;
+}
+
+/** How many cells of a rect lie over deposits of `resource`. */
+export interface Coverage {
+  resource: RawResource;
+  cells: number;
 }
 
 /** The generated map, as plain data so it saves as-is. It is `MAP_SIZE` square. */
@@ -106,4 +118,22 @@ export function isRevealedRect(map: GameMap, rect: Rect): boolean {
 /** The deposit that wholly contains `rect`, if any. */
 export function depositUnder(map: GameMap, rect: Rect): Deposit | undefined {
   return map.deposits.find((d) => containsRect(d, rect));
+}
+
+/**
+ * The deposit cells under `rect`, counted by resource in the order of
+ * `RAW_RESOURCES`, with no entry for a resource it does not touch (FR30).
+ */
+export function coverageUnder(map: GameMap, rect: Rect): Coverage[] {
+  const cells: Partial<Record<RawResource, number>> = {};
+  const near = map.deposits.filter((d) => overlaps(d, rect));
+  allCells(rect, (x, y) => {
+    const deposit = near.find((d) => containsCell(d, x, y));
+    if (deposit) cells[deposit.resource] = (cells[deposit.resource] ?? 0) + 1;
+    return true;
+  });
+  return RAW_RESOURCES.filter((r) => cells[r]).map((resource) => ({
+    resource,
+    cells: cells[resource]!,
+  }));
 }

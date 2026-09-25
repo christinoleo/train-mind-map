@@ -1,11 +1,13 @@
 import { Container, Graphics, type Text } from "pixi.js";
 import type { Lod } from "../input/camera";
-import type { ItemId } from "../data/items";
+import type { ItemId, RawResource } from "../data/items";
 import { NODES, type NodeKind } from "../data/nodes";
 import { RECIPES } from "../data/recipes";
 import type { FactoryNode } from "../sim/state/gameState";
 import type { NodeId } from "../sim/state/ids";
+import type { Coverage } from "../sim/state/map";
 import { drawsPower } from "../sim/state/power";
+import { coverageText } from "../ui/format";
 import { strings } from "../ui/strings";
 import { connectorPoints } from "./connectors";
 import { drawGlyph } from "./mapView";
@@ -45,9 +47,14 @@ function cardSide(kind: NodeKind): number {
  * a recipe icon slot, hollow input circles on the left and amber output dots
  * on the right. The slot shows `item`'s glyph, with its name in a band at the
  * bottom of the body (FR150), labelled `item-name` so the level of detail can
- * hide it. An Extractor's item is its deposit's resource.
+ * hide it; `name` replaces the item's name there. An Extractor's item is its
+ * main resource, and its name gives each resource's share (FR30).
  */
-export function drawNodeCard(kind: NodeKind, item?: ItemId): Container {
+export function drawNodeCard(
+  kind: NodeKind,
+  item?: ItemId,
+  name: string | undefined = item && strings.items[item],
+): Container {
   const side = cardSide(kind);
   const card = new Container({ label: kind });
   const g = card.addChild(new Graphics());
@@ -73,23 +80,28 @@ export function drawNodeCard(kind: NodeKind, item?: ItemId): Container {
   for (const p of outputs) g.circle(p.x, p.y, CONNECTOR_R).fill(PALETTE.output);
 
   card.addChild(headerLabel(strings.nodes[kind], side));
-  if (item) card.addChild(itemLabel(item, side));
+  if (name) card.addChild(itemLabel(name, side));
   return card;
 }
 
 /**
- * The item a node's slot shows: an Extractor's resource, or what a crafter's
- * recipe makes.
+ * The item a node's slot shows: an Extractor's main resource, or what a
+ * crafter's recipe makes.
  */
 export function iconItem(node: NodeView): ItemId | undefined {
-  if (node.kind === "extractor") return node.resource;
+  if (node.kind === "extractor") return mainResource(node.coverage);
   if ("recipe" in node && node.recipe) return RECIPES[node.recipe].output;
   return undefined;
 }
 
+/** The resource over most of an Extractor's cells, the first on a tie. */
+export function mainResource(coverage: DeepReadonly<Coverage[]>): RawResource {
+  return coverage.reduce((a, b) => (b.cells > a.cells ? b : a)).resource;
+}
+
 /** The slot item's name, centred in the band at the bottom of the card. */
-function itemLabel(item: ItemId, side: number) {
-  const text = worldText(strings.items[item], NAME_BAND * 0.6, {
+function itemLabel(name: string, side: number) {
+  const text = worldText(name, NAME_BAND * 0.6, {
     fill: PALETTE.text,
     maxWidth: side - 2 * CONNECTOR_R - CELL_PX * 0.2,
   });
@@ -265,7 +277,9 @@ export class NodeViews {
       if (this.views.has(id)) continue;
       changed = true;
       const item = iconItem(node);
-      const card = drawNodeCard(node.kind, item);
+      const name =
+        node.kind === "extractor" ? coverageText(node.coverage) : undefined;
+      const card = drawNodeCard(node.kind, item, name);
       card.position.set(node.x * CELL_PX, node.y * CELL_PX);
       this.layer.addChild(card);
       this.views.set(id, {

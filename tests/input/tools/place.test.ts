@@ -63,10 +63,13 @@ describe("PlaceTool", () => {
     expect(hint()).toBe("on_water");
   });
 
-  it("carries the deposit's resource on an Extractor's ghost", () => {
+  it("carries the deposit cells under an Extractor's ghost", () => {
     const { tool, ghost } = setup();
     tool.select("extractor", cell(67, 60));
-    expect(ghost()).toMatchObject({ valid: true, resource: "iron-ore" });
+    expect(ghost()).toMatchObject({
+      valid: true,
+      coverage: [{ resource: "iron-ore", cells: 4 }],
+    });
   });
 
   it("places on a tap where the ghost fits", () => {

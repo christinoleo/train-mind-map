@@ -20,12 +20,17 @@ import {
   drawTerrain,
   revealedBounds,
 } from "./mapView";
-import { drawGhostOutline, drawNodeCard, NodeViews } from "./nodes";
+import {
+  drawGhostOutline,
+  drawNodeCard,
+  mainResource,
+  NodeViews,
+} from "./nodes";
 import { drawRailPorts, RailPortViews, RailViews } from "./rails";
 import type { DeepReadonly } from "./readonly";
 import { screenText } from "./text";
 import { TrainViews } from "./trains";
-import { formatGain } from "../ui/format";
+import { coverageText, extractorRateText, formatGain } from "../ui/format";
 import { strings } from "../ui/strings";
 import {
   BUILD_FLIGHT_MS,
@@ -106,7 +111,8 @@ export function createRenderer(
   const depositName = layers.overlays.addChild(screenText("", 14));
   depositName.anchor.set(0.5, 1);
   depositName.visible = false;
-  /** The ghost as drawn: its card is rebuilt only when kind or resource change. */
+  /** The ghost as drawn: its card is rebuilt only when kind or name change. */
+  let drawnGhost: Ghost | null = null;
   let drawnCard: string | null = null;
   let drawnValid: boolean | null = null;
 
@@ -119,14 +125,22 @@ export function createRenderer(
   const drawGhostLayer = () => {
     ghostLayer.visible = ghost !== null;
     if (!ghost) return;
-    const { kind, resource, valid } = ghost;
-    const look = `${kind}|${resource ?? ""}`;
-    if (look !== drawnCard) {
-      ghostCard?.destroy({ children: true });
-      ghostCard = ghostLayer.addChildAt(drawNodeCard(kind, resource), 0);
-      drawRailPorts(ghostCard.addChild(new Graphics()), kind);
-      drawnCard = look;
-      drawnValid = null;
+    const { kind, coverage, valid } = ghost;
+    if (ghost !== drawnGhost) {
+      drawnGhost = ghost;
+      // An Extractor's ghost previews what it would make, and how fast (FR30).
+      const name = coverage
+        ? `${coverageText(coverage)}${strings.menu.separator}${extractorRateText(coverage)}`
+        : undefined;
+      const look = `${kind}|${name ?? ""}`;
+      if (look !== drawnCard) {
+        ghostCard?.destroy({ children: true });
+        const item = coverage && mainResource(coverage);
+        ghostCard = ghostLayer.addChildAt(drawNodeCard(kind, item, name), 0);
+        drawRailPorts(ghostCard.addChild(new Graphics()), kind);
+        drawnCard = look;
+        drawnValid = null;
+      }
     }
     if (valid !== drawnValid) {
       drawGhostOutline(ghostOutline, kind, valid);
@@ -170,6 +184,7 @@ export function createRenderer(
     edgeViews.clear();
     itemViews.clear();
     flights.clear();
+    drawnGhost = null;
     drawnCard = null;
   });
 

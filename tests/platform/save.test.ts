@@ -213,6 +213,36 @@ describe("migrations", () => {
     });
   });
 
+  it("gives each schema 8 Extractor its 4 cells over its resource", () => {
+    const production = { status: "working", input: {}, output: 1 };
+    const v8: RawSave = {
+      schemaVersion: 8,
+      state: {
+        nodes: [
+          [2, { id: 2, kind: "extractor", resource: "coal", production }],
+          [3, { id: 3, kind: "box", items: [] }],
+        ],
+      },
+    };
+    const migrated = migrate(v8);
+    if (!migrated.ok) throw new Error(migrated.reason);
+    expect(migrated.value.state).toEqual({
+      nodes: [
+        [
+          2,
+          {
+            id: 2,
+            kind: "extractor",
+            coverage: [{ resource: "coal", cells: 4 }],
+            turn: 0,
+            production,
+          },
+        ],
+        [3, { id: 3, kind: "box", items: [] }],
+      ],
+    });
+  });
+
   it("starts each schema 6 train unblocked", () => {
     const v6: RawSave = {
       schemaVersion: 6,

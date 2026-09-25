@@ -34,7 +34,7 @@ import {
 import { log, type LogEntry } from "./log";
 
 /** Bumped whenever the saved state changes shape; add a migration with it. */
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 export const SAVE_KEYS = {
   /** The latest save. */
@@ -190,6 +190,22 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
     const grown = deserializeState(state);
     growFootprints(grown, SCHEMA_7_SIZES);
     return { ...save, schemaVersion: 8, state: serializeState(grown) };
+  },
+  // Schema 9: an Extractor may sit partly on deposits, and on several
+  // (FR30). It keeps the cells under it by resource, and its turn in their
+  // interleave. Until now an Extractor sat wholly on one deposit, so all 4
+  // cells of its 2×2 card cover its resource.
+  8: (save) => {
+    const state = save.state as { nodes?: unknown } | undefined;
+    if (!Array.isArray(state?.nodes)) return { ...save, schemaVersion: 9 };
+    const nodes = (
+      state.nodes as [number, { kind: string; resource?: string }][]
+    ).map(([id, node]) => {
+      if (node.kind !== "extractor") return [id, node];
+      const { resource, ...rest } = node;
+      return [id, { ...rest, coverage: [{ resource, cells: 4 }], turn: 0 }];
+    });
+    return { ...save, schemaVersion: 9, state: { ...state, nodes } };
   },
 };
 

@@ -21,6 +21,7 @@ import {
 } from "../state/edges";
 import type { Edge, FactoryNode, GameState } from "../state/gameState";
 import type { EdgeId, NodeId } from "../state/ids";
+import type { Coverage } from "../state/map";
 import { checkFootprint, nodeRect } from "../state/nodes";
 import {
   makeRoom,
@@ -30,7 +31,7 @@ import {
   type Reroute,
   type RerouteCost,
 } from "../state/reroute";
-import { newProduction } from "../state/production";
+import { extractorTicks, newProduction } from "../state/production";
 import { canAfford, debit, deposit } from "../state/stock";
 import type { Command } from "./command";
 
@@ -114,10 +115,20 @@ export function planMove(
     y,
   );
   if (!fits.ok) return refuse(fits.reason);
-  // An Extractor moved onto another resource starts over on it.
-  if (moved.kind === "extractor" && moved.resource !== fits.value) {
-    moved.resource = fits.value!;
-    moved.production = newProduction();
+  // An Extractor moved onto other deposit cells starts over on them, unless
+  // it still draws one and the same resource, only faster or slower.
+  if (moved.kind === "extractor") {
+    const coverage = fits.value!;
+    const p = moved.production;
+    if (!keepsMix(moved.coverage, coverage)) {
+      moved.turn = 0;
+      moved.production = newProduction();
+    } else if (p.progress !== null) {
+      // The batch under way keeps its share done, not its ticks, so a move
+      // to faster cells does not finish several batches at once.
+      p.progress *= extractorTicks(coverage) / extractorTicks(moved.coverage);
+    }
+    moved.coverage = coverage;
   }
 
   const nodeOf = (other: NodeId) =>
@@ -283,4 +294,17 @@ export class MoveNode implements Command {
   private plan(state: Readonly<GameState>): MovePlan {
     return planMove(state, this.id, this.x, this.y, undefined, this.undo);
   }
+}
+
+/**
+ * True when an Extractor moved from deposit cells `a` to `b` keeps its
+ * buffers: it covers the same cells of each resource, or draws the same
+ * single resource at another speed.
+ */
+function keepsMix(a: readonly Coverage[], b: readonly Coverage[]): boolean {
+  if (a.length !== b.length) return false;
+  if (a.length === 1) return a[0].resource === b[0].resource;
+  return a.every(
+    (part, i) => part.resource === b[i].resource && part.cells === b[i].cells,
+  );
 }

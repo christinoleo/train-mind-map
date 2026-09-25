@@ -88,7 +88,12 @@ describe("PlaceNode validation", () => {
     [
       "an Extractor half on a deposit",
       new PlaceNode("extractor", 64, 58),
-      fail("needs_deposit"),
+      ok(),
+    ],
+    [
+      "an Extractor with one cell on a deposit",
+      new PlaceNode("extractor", 64, 57),
+      ok(),
     ],
     [
       "a Furnace on a deposit",
@@ -166,7 +171,27 @@ describe("PlaceNode", () => {
     run(new PlaceNode("extractor", 51, 59));
     expect(state.nodes.get(2 as NodeId)).toMatchObject({
       kind: "extractor",
-      resource: "stone",
+      coverage: [{ resource: "stone", cells: 4 }],
+      turn: 0,
+    });
+  });
+
+  it("records the deposit cells under an Extractor, by resource (FR30)", () => {
+    const { state, run } = setup();
+    state.map.deposits.push(
+      { resource: "coal", x: 45, y: 45, w: 1, h: 1 },
+      { resource: "iron-ore", x: 46, y: 45, w: 1, h: 2 },
+    );
+    run(new PlaceNode("extractor", 45, 45));
+    expect(state.nodes.get(2 as NodeId)).toMatchObject({
+      coverage: [
+        { resource: "iron-ore", cells: 2 },
+        { resource: "coal", cells: 1 },
+      ],
+    });
+    run(new PlaceNode("extractor", 64, 57));
+    expect(state.nodes.get(3 as NodeId)).toMatchObject({
+      coverage: [{ resource: "iron-ore", cells: 1 }],
     });
   });
 
