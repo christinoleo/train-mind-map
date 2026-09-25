@@ -23,8 +23,12 @@ import {
 
 /** Height of a card's category header, in world units. */
 const HEADER = CELL_PX * 0.7;
+/** Height of the band at the bottom of a card that names its item. */
+const NAME_BAND = CELL_PX * 0.5;
 /** Height of a card's state pill, in world units. */
 const PILL_HEIGHT = CELL_PX * 0.55;
+/** Gap between a card's bottom edge and its state pill, in world units. */
+const PILL_GAP = CELL_PX * 0.12;
 /** Radius of a connector's circle, in world units. */
 const CONNECTOR_R = CELL_PX * 0.16;
 const CARD_RADIUS = PALETTE.cardRadius * CELL_PX;
@@ -38,8 +42,9 @@ function cardSide(kind: NodeKind): number {
  * A node card drawn at its container's origin (GDD §Arte, FR149): a rounded
  * body with a soft shadow, a header in the category's colour with the name,
  * a recipe icon slot, hollow input circles on the left and amber output dots
- * on the right. The slot shows `item`'s glyph, with its name under the card
- * (FR150), labelled `item-name` so the level of detail can hide it.
+ * on the right. The slot shows `item`'s glyph, with its name in a band at the
+ * bottom of the body (FR150), labelled `item-name` so the level of detail can
+ * hide it. An Extractor's item is its deposit's resource.
  */
 export function drawNodeCard(kind: NodeKind, item?: ItemId): Container {
   const side = cardSide(kind);
@@ -53,8 +58,9 @@ export function drawNodeCard(kind: NodeKind, item?: ItemId): Container {
     .fill(CATEGORY_COLOR[NODES[kind].category]);
 
   const cx = side / 2;
-  const cy = HEADER + (side - HEADER) / 2;
-  const r = (side - HEADER) * 0.28;
+  const body = side - HEADER - NAME_BAND;
+  const cy = HEADER + body / 2;
+  const r = body * 0.36;
   drawIconSlot(g, kind, cx, cy, r, item);
 
   const { inputs, outputs } = connectorPoints(kind);
@@ -80,16 +86,15 @@ export function iconItem(node: NodeView): ItemId | undefined {
   return undefined;
 }
 
-/** The slot item's name, centred under the card, below the state pill. */
+/** The slot item's name, centred in the band at the bottom of the card. */
 function itemLabel(item: ItemId, side: number) {
-  const text = worldText(strings.items[item], CELL_PX * 0.32, {
+  const text = worldText(strings.items[item], NAME_BAND * 0.6, {
     fill: PALETTE.text,
-    maxWidth: side + CELL_PX,
-    outline: true,
+    maxWidth: side - 2 * CONNECTOR_R - CELL_PX * 0.2,
   });
   text.label = ITEM_NAME;
-  text.anchor.set(0.5, 0);
-  text.position.set(side / 2, side + PILL_HEIGHT / 2 + 1);
+  text.anchor.set(0.5);
+  text.position.set(side / 2, side - NAME_BAND / 2);
   return text;
 }
 
@@ -180,8 +185,9 @@ export function flaggedStatus(node: NodeView): FlaggedStatus | null {
 }
 
 /**
- * A card's state (FR149): an outline round the card and a pill on its
- * bottom edge naming the state, both in the state's colour.
+ * A card's state (FR149): an outline round the card and a pill centred below
+ * it naming the state, both in the state's colour. The pill sits wholly
+ * outside the card, so it never covers the card's text.
  */
 function drawStatusBadge(kind: NodeKind, status: FlaggedStatus) {
   const side = cardSide(kind);
@@ -195,9 +201,10 @@ function drawStatusBadge(kind: NodeKind, status: FlaggedStatus) {
     maxWidth: side - h,
   });
   text.anchor.set(0.5);
-  text.position.set(side / 2, side);
+  const top = side + PILL_GAP;
+  text.position.set(side / 2, top + h / 2);
   const w = text.width + h;
-  g.roundRect(side / 2 - w / 2, side - h / 2, w, h, h / 2).fill(color);
+  g.roundRect(side / 2 - w / 2, top, w, h, h / 2).fill(color);
   badge.addChild(text);
   return badge;
 }
@@ -225,21 +232,27 @@ export class NodeViews {
 
   constructor(private readonly layer: Container) {}
 
-  /** `faded` names the node being moved, drawn faint, or none with `null`. */
+  /**
+   * `faded` names the node being moved, drawn faint, or none with `null`.
+   * Returns true when a card was added or dropped.
+   */
   sync(
     nodes: ReadonlyMap<NodeId, NodeView>,
     faded: NodeId | null = null,
     lod: Lod = "icons",
-  ) {
+  ): boolean {
+    let changed = false;
     for (const [id, view] of this.views) {
       const node = nodes.get(id);
       if (node !== view.node || iconItem(node) !== view.item) {
         view.card.destroy({ children: true });
         this.views.delete(id);
+        changed = true;
       }
     }
     for (const [id, node] of nodes) {
       if (this.views.has(id)) continue;
+      changed = true;
       const item = iconItem(node);
       const card = drawNodeCard(node.kind, item);
       card.position.set(node.x * CELL_PX, node.y * CELL_PX);
@@ -268,6 +281,7 @@ export class NodeViews {
       }
       view.status = status;
     }
+    return changed;
   }
 
   /** Drops every card, so the next `sync` draws them all again. */

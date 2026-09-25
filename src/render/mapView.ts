@@ -1,6 +1,7 @@
-import { Container, Graphics } from "pixi.js";
+import { Container, Graphics, type Text } from "pixi.js";
 import { MAP_SIZE } from "../config/constants";
 import type { Rect } from "../sim/geometry/rect";
+import type { GameState } from "../sim/state/gameState";
 import {
   cellIndex,
   ringRect,
@@ -8,6 +9,7 @@ import {
   waterRuns,
   type GameMap,
 } from "../sim/state/map";
+import { isOccupied } from "../sim/state/nodes";
 import { strings } from "../ui/strings";
 import type { DeepReadonly } from "./readonly";
 import { worldText } from "./text";
@@ -179,24 +181,36 @@ export function drawDeposits(map: MapView, bounds: Rect): Graphics {
 
 /**
  * Each revealed deposit's resource name, centred on it (FR150). The level of
- * detail shows these at the closest zoom only.
+ * detail shows these at the closest zoom only, and a deposit a node covers
+ * hides its name: the node's card names the resource instead.
  */
-export function drawDepositLabels(map: MapView, bounds: Rect): Container {
-  const labels = new Container({ label: "deposit-labels" });
-  for (const deposit of map.deposits) {
-    if (!isInside(deposit, bounds)) continue;
-    const { x, y, w, h } = toWorld(deposit);
-    const text = labels.addChild(
-      worldText(strings.items[deposit.resource], CELL_PX * 0.4, {
-        fill: PALETTE.text,
-        maxWidth: w,
-        outline: true,
-      }),
-    );
-    text.anchor.set(0.5);
-    text.position.set(x + w / 2, y + h / 2);
+export class DepositLabels {
+  readonly container = new Container({ label: "deposit-labels" });
+  private readonly labels: { deposit: Rect; text: Text }[] = [];
+
+  constructor(map: MapView, bounds: Rect) {
+    for (const deposit of map.deposits) {
+      if (!isInside(deposit, bounds)) continue;
+      const { x, y, w, h } = toWorld(deposit);
+      const text = this.container.addChild(
+        worldText(strings.items[deposit.resource], CELL_PX * 0.4, {
+          fill: PALETTE.text,
+          maxWidth: w,
+          outline: true,
+        }),
+      );
+      text.anchor.set(0.5);
+      text.position.set(x + w / 2, y + h / 2);
+      this.labels.push({ deposit, text });
+    }
   }
-  return labels;
+
+  /** Hides the name of each deposit a node overlaps. */
+  hideCovered(state: DeepReadonly<GameState>) {
+    for (const { deposit, text } of this.labels) {
+      text.visible = !isOccupied(state, deposit);
+    }
+  }
 }
 
 /** Adds the path of an item glyph of radius `r`. */

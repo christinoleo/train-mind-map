@@ -93,7 +93,12 @@ export function nodeRect(node: Pick<FactoryNode, "kind" | "x" | "y">): Rect {
 }
 
 /** True when any node covers a cell of `rect`. */
-export function isOccupied(state: Readonly<GameState>, rect: Rect): boolean {
+export function isOccupied(
+  state: {
+    readonly nodes: ReadonlyMap<NodeId, Pick<FactoryNode, "kind" | "x" | "y">>;
+  },
+  rect: Rect,
+): boolean {
   for (const node of state.nodes.values()) {
     if (overlaps(rect, nodeRect(node))) return true;
   }
