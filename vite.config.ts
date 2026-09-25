@@ -18,5 +18,7 @@ export default defineConfig({
   },
   test: {
     include: ["tests/**/*.test.ts"],
+    // Process the stylesheet, so a test can read it with `?raw`.
+    css: { include: [/style\.css/] },
   },
 });
