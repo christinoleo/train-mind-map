@@ -12,6 +12,7 @@ import type { DeepReadonly } from "./readonly";
 import {
   CELL_PX,
   GHOST_COLOR,
+  REROUTE_COLOR,
   ITEM_COLOR,
   MOVING_ALPHA,
   PALETTE,
@@ -208,9 +209,9 @@ export class EdgeViews {
 
 /**
  * The edge being dragged, or a moving node's edges: their routes, green where
- * releasing builds them and red where it does not, and a chip with the
- * reason. The chip keeps its screen
- * size at any zoom.
+ * releasing builds them and red where it does not, the other edges they
+ * would move out of the way in amber on their new routes, and a chip with the
+ * reason. The chip keeps its screen size at any zoom.
  */
 export class EdgePreviewView {
   private readonly line = new Graphics({ label: "edge-preview" });
@@ -261,6 +262,9 @@ export class EdgePreviewView {
     const color =
       preview.reason === null ? GHOST_COLOR.valid : GHOST_COLOR.invalid;
     this.line.clear();
+    for (const line of preview.moved ?? []) {
+      strokeLine(this.line, line, REROUTE_COLOR, 0.8);
+    }
     for (const line of preview.lines) strokeLine(this.line, line, color, 0.8);
     if (!preview.reason) return;
     this.chipText.text = edgeReasonText(

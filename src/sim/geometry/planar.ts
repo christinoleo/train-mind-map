@@ -120,6 +120,16 @@ function segmentBounds(a: Point, b: Point): Rect {
   return { x, y, w: Math.abs(b.x - a.x) + 1, h: Math.abs(b.y - a.y) + 1 };
 }
 
+/** True when two polylines share any point. */
+export function pathsTouch(p: readonly Point[], q: readonly Point[]): boolean {
+  for (const [a, b] of segments(p)) {
+    for (const [c, d] of segments(q)) {
+      if (segmentsIntersect(a, b, c, d)) return true;
+    }
+  }
+  return false;
+}
+
 /** What the planar index holds: water, node footprints and edge segments. */
 export type Obstacle =
   | { kind: "water"; rect: Rect }
@@ -139,7 +149,10 @@ function obstacleBounds(o: Obstacle): Rect {
 export class PlanarIndex {
   readonly hash = new SpatialHash<Obstacle>(HASH_BUCKET_CELLS);
   private readonly nodes = new Map<NodeId, Obstacle>();
-  private readonly edges = new Map<EdgeId, Obstacle[]>();
+  private readonly edges = new Map<
+    EdgeId,
+    { path: Point[]; parts: Obstacle[] }
+  >();
   /** Blocked cells of each bucket, row by row, built on first use. */
   private readonly blockedCache = new Map<number, Uint8Array>();
 
@@ -172,15 +185,27 @@ export class PlanarIndex {
       a,
       b,
     }));
-    this.edges.set(id, parts);
+    this.edges.set(id, { path: [...path], parts });
     for (const part of parts) this.insert(part);
   }
 
   removeEdge(id: EdgeId): void {
-    const parts = this.edges.get(id);
-    if (!parts) throw new Error(`edge ${id} is not indexed`);
+    const edge = this.edges.get(id);
+    if (!edge) throw new Error(`edge ${id} is not indexed`);
     this.edges.delete(id);
-    for (const part of parts) this.remove(part);
+    for (const part of edge.parts) this.remove(part);
+  }
+
+  /** The ids of the edges indexed, ascending. */
+  edgeIds(): EdgeId[] {
+    return [...this.edges.keys()].sort((a, b) => a - b);
+  }
+
+  /** The route edge `id` is indexed along. */
+  edgePath(id: EdgeId): readonly Point[] {
+    const edge = this.edges.get(id);
+    if (!edge) throw new Error(`edge ${id} is not indexed`);
+    return edge.path;
   }
 
   /** True when a node, water or an edge occupies cell (x, y). */

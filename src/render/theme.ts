@@ -75,6 +75,8 @@ export const CATEGORY_COLOR: Record<NodeCategory, number> = {
 
 /** Outline of the placement ghost: green where it fits, red where it does not. */
 export const GHOST_COLOR = { valid: 0x4ade80, invalid: 0xf87171 } as const;
+/** Edges a preview would move out of the way, on their new routes (FR52). */
+export const REROUTE_COLOR = 0xfbbf24;
 export const GHOST_ALPHA = 0.6;
 /** A node being moved, and its edges, fade to this while its ghost is dragged. */
 export const MOVING_ALPHA = 0.3;

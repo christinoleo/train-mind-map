@@ -149,7 +149,7 @@ export class MoveTool implements Tool {
     this.show(plan);
   }
 
-  private show({ node, edges, check }: MovePlan) {
+  private show({ node, edges, moved, check }: MovePlan) {
     if (!node) return;
     const { state } = this.deps;
     this.deps.showGhost({
@@ -167,9 +167,15 @@ export class MoveTool implements Tool {
       const line = edgeLineOf({ ...edge, path: path ?? [] }, nodes);
       if (line) lines.push(line);
     }
+    const pushed: Point[][] = [];
+    for (const { id, path } of moved) {
+      const line = edgeLineOf({ ...state.edges.get(id)!, path: path! }, nodes);
+      if (line) pushed.push(line);
+    }
     const tooLong = edges.find((e) => e.length !== null && e.length > e.max);
     this.deps.showPreview({
       lines,
+      moved: pushed,
       reason: check.ok ? null : check.reason,
       length: tooLong?.length ?? null,
       max: tooLong?.max ?? 0,

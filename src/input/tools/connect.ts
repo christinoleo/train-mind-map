@@ -1,6 +1,10 @@
 import { CELL_PX } from "../../config/constants";
 import { NEW_EDGE_LEVEL } from "../../data/edges";
-import { ConnectEdge, planEdge } from "../../sim/commands/connectEdge";
+import {
+  ConnectEdge,
+  planEdge,
+  priceEdge,
+} from "../../sim/commands/connectEdge";
 import {
   buildPlanarIndex,
   type PlanarIndex,
@@ -13,7 +17,6 @@ import {
   isConnected,
   maxLength,
   planRoute,
-  priceRoute,
   type Connector,
   type ConnectorSide,
   type EdgePlan,
@@ -21,6 +24,7 @@ import {
 import type { Cost } from "../../data/nodes";
 import type { GameState } from "../../sim/state/gameState";
 import type { EdgeId } from "../../sim/state/ids";
+import type { Reroute } from "../../sim/state/reroute";
 import {
   cellCentre,
   connectorsOf,
@@ -36,6 +40,8 @@ import { distanceToLine, nodeAt, touchReach, worldToCell } from "../hitTest";
 export interface EdgePreview {
   /** The lines to draw, in world units. */
   lines: Point[][];
+  /** Other edges that would move out of the way, on their new routes (FR52). */
+  moved?: Point[][];
   /** Why the edge cannot be built here, or `null` when it can. */
   reason: FailReason | null;
   /** The route's length, when one was found, and the level's limit. */
@@ -72,6 +78,8 @@ interface Drag {
   /** The last route planned, if one was found, and its check. */
   route: Route | null;
   check: Result<Cost>;
+  /** The edges that route moves out of the way. */
+  moved: Reroute[];
   /** Where the dragged end sits, and the input connector it snaps to. */
   tip: Point;
   end: Point | undefined;
@@ -124,6 +132,7 @@ export class ConnectTool implements Tool {
       target: null,
       route: null,
       check: fail("no_route"),
+      moved: [],
       tip: start,
       end: undefined,
     };
@@ -161,11 +170,7 @@ export class ConnectTool implements Tool {
   refresh() {
     const { drag } = this;
     if (!drag?.route) return;
-    const check = priceRoute(
-      this.deps.state,
-      drag.route.length,
-      NEW_EDGE_LEVEL,
-    );
+    const { check } = priceEdge(this.deps.state, drag.route.length, drag.moved);
     const was = drag.check;
     if (check.ok ? was.ok : !was.ok && was.reason === check.reason) return;
     drag.check = check;
@@ -190,7 +195,7 @@ export class ConnectTool implements Tool {
     if (key === drag.planned) return;
     drag.planned = key;
 
-    let plan: EdgePlan;
+    let plan: EdgePlan & { moved?: Reroute[] };
     let end: Point | undefined;
     if (target) {
       plan = planEdge(state, drag.from, target, drag.index);
@@ -208,14 +213,20 @@ export class ConnectTool implements Tool {
     drag.target = target;
     drag.route = plan.route;
     drag.check = plan.check;
+    drag.moved = plan.moved ?? [];
     drag.end = end;
     drag.tip = end ?? cellCentre(cell);
     this.show(drag);
   }
 
-  private show({ start, route, check, end, tip }: Drag) {
+  private show({ start, route, check, moved, end, tip }: Drag) {
+    const { state } = this.deps;
     this.deps.showPreview({
       lines: [route ? edgeLine(start, route.path, end) : [start, tip]],
+      moved: moved.flatMap(({ id, path }) => {
+        const line = edgeLineOf({ ...state.edges.get(id)!, path }, state.nodes);
+        return line ? [line] : [];
+      }),
       reason: check.ok ? null : check.reason,
       length: route?.length ?? null,
       max: maxLength(NEW_EDGE_LEVEL),
