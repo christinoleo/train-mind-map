@@ -315,7 +315,7 @@ describe("items a node refuses (FR57)", () => {
     const edge = w.wire(core, 0, furnace);
     w.run(100);
     expect(furnace).toMatchObject({
-      recipe: "brick",
+      running: "brick",
       production: { input: { stone: 3 } },
     });
     expect(storedItems(core)).toEqual({ "copper-ore": 1 });

@@ -11,7 +11,11 @@ import { SetRecipe } from "../../../src/sim/commands/setRecipe";
 import { EventQueue } from "../../../src/sim/events";
 import { pathLength } from "../../../src/sim/geometry/route";
 import { fail, ok } from "../../../src/sim/result";
-import { connectorCell, edgeCost } from "../../../src/sim/state/edges";
+import {
+  connectorCell,
+  edgeCost,
+  reservedCells,
+} from "../../../src/sim/state/edges";
 import {
   createGameState,
   type ProducerNode,
@@ -156,6 +160,56 @@ describe("ConnectEdge onto a typed input (FR25)", () => {
     expect(run(new ConnectEdge(out(box), into(assembler)))).toEqual(
       fail("not_found"),
     );
+  });
+});
+
+describe("an automatic Furnace (FR25)", () => {
+  it("feeds only generic inputs, since its product changes with its ore", () => {
+    const { run, put } = setup();
+    const furnace = put("furnace", 50, 50);
+    const gears = put("assembler-1", 56, 50, { recipe: "gear" });
+    expect(run(new ConnectEdge(out(furnace), into(gears)))).toEqual(
+      fail("wrong_item"),
+    );
+    const box = put("box", 56, 55);
+    expect(run(new ConnectEdge(out(furnace), into(box)))).toEqual(ok());
+  });
+});
+
+describe("a crafter's input cells (FR25)", () => {
+  it("stay reserved for every input a recipe may give it", () => {
+    const { state, put } = setup();
+    const id = put("assembler-1", 56, 50, { recipe: "gear" });
+    const node = state.nodes.get(id)!;
+    const cells = reservedCells(state).map((c) => `${c.x},${c.y}`);
+    // Gear has one input, on row 2; circuit's two sit on rows 1 and 2.
+    expect(cells).toContain(`${node.x - 1},${node.y + 1}`);
+    expect(cells).toContain(`${node.x - 1},${node.y + 2}`);
+  });
+
+  it("refuse a recipe whose new input would sit under another edge", () => {
+    const { state, commands, put } = setup();
+    const a = put("box", 44, 44);
+    const b = put("box", 44, 56);
+    const assembler = put("assembler-1", 56, 50, { recipe: "gear" });
+    // An edge left over from before, through the cell of circuit's input 0.
+    state.edges.set(1 as never, {
+      id: 1 as never,
+      from: a,
+      fromPort: 0,
+      to: b,
+      toPort: 0,
+      level: 1,
+      path: [
+        { x: 55, y: 49 },
+        { x: 55, y: 51 },
+        { x: 54, y: 51 },
+      ],
+      items: [],
+    });
+    expect(
+      commands.dispatch(state, new SetRecipe(assembler, "circuit")),
+    ).toEqual(fail("crosses_edge"));
   });
 });
 

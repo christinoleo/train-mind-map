@@ -27,7 +27,7 @@ import { fail, ok, type Result } from "../result";
 import type { Edge, FactoryNode, GameState } from "./gameState";
 import type { NodeId } from "./ids";
 import { ringRect } from "./map";
-import { canFeed, inputTypes, type Typed } from "./production";
+import { canFeed, inputTypes, isCrafter, type Typed } from "./production";
 import { canAfford } from "./stock";
 
 export type ConnectorSide = "input" | "output";
@@ -194,8 +194,10 @@ export function isConnected(
 /**
  * The cells in front of every free connector (FR52), which other edges' routes
  * leave open so no route runs flush against a connector an edge may still
- * use. A connector that has an edge releases its cell. `moved` stands in for
- * the node of the same id, at the place it is moving to.
+ * use. A connector that has an edge releases its cell. A crafter keeps free
+ * the cells of every input any recipe may give it (FR25), so a change of
+ * recipe never puts an input under an edge. `moved` stands in for the node
+ * of the same id, at the place it is moving to.
  */
 export function reservedCells(
   state: Readonly<GameState>,
@@ -204,19 +206,39 @@ export function reservedCells(
   const taken = new Set<string>();
   for (const e of state.edges.values()) {
     taken.add(`output:${e.from}:${e.fromPort}`);
-    taken.add(`input:${e.to}:${e.toPort}`);
+    const end = e.path[e.path.length - 1];
+    taken.add(`input:${e.to}:${end.x},${end.y}`);
   }
   const cells: Point[] = [];
   for (const stored of state.nodes.values()) {
     const node = stored.id === moved?.id ? moved : stored;
-    for (const side of ["output", "input"] as const) {
-      for (let port = 0; port < connectorCount(node, side); port++) {
-        if (taken.has(`${side}:${node.id}:${port}`)) continue;
-        cells.push(connectorCell(node, side, port));
-      }
+    for (let port = 0; port < connectorCount(node, "output"); port++) {
+      if (taken.has(`output:${node.id}:${port}`)) continue;
+      cells.push(connectorCell(node, "output", port));
+    }
+    for (const cell of inputCells(node)) {
+      if (!taken.has(`input:${node.id}:${cell.x},${cell.y}`)) cells.push(cell);
     }
   }
   return cells;
+}
+
+/**
+ * The cells in front of `node`'s inputs: on a crafter, those of every count
+ * of inputs a recipe may give it, up to its kind's most.
+ */
+function inputCells(node: FactoryNode): Point[] {
+  if (!isCrafter(node)) {
+    return Array.from({ length: connectorCount(node, "input") }, (_, port) =>
+      connectorCell(node, "input", port),
+    );
+  }
+  const { size, inputs } = NODES[node.kind];
+  const rows = new Set<number>();
+  for (let count = 1; count <= inputs; count++) {
+    for (const row of connectorRows(count, size)) rows.add(row);
+  }
+  return [...rows].map((row) => ({ x: node.x - 1, y: node.y + row }));
 }
 
 /** An edge route checked against a level: what it costs, or why it fails. */

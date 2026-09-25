@@ -133,17 +133,25 @@ export function NodeMenu({
 }: Props) {
   /** The node whose recipe picker is open, in place of its actions. */
   const [picking, setPicking] = useState<NodeId | null>(null);
-  /** The picked recipe waiting for the player to confirm its disconnections. */
-  const [confirming, setConfirming] = useState<RecipeOption | null>(null);
+  /**
+   * The node and the recipe picked for it that waits for the player to
+   * confirm its disconnections.
+   */
+  const [pending, setPending] = useState<{
+    id: NodeId;
+    option: RecipeOption;
+  } | null>(null);
   const info = node.value;
   // A bubble closed on its picker opens on its actions next time.
   useEffect(() => {
     if (!info) {
       setPicking(null);
-      setConfirming(null);
+      setPending(null);
     }
   }, [info === null]);
   if (!info) return null;
+  // Another node's pending pick never shows here.
+  const confirming = pending?.id === info.id ? pending.option : null;
   const text = strings.node;
   const glyphs = strings.bubble;
   const { recipes, upgrade, refund, storage } = info;
@@ -170,9 +178,7 @@ export function NodeMenu({
             type="button"
             class="bubble-back"
             aria-label={glyphs.back}
-            onClick={() =>
-              confirming ? setConfirming(null) : setPicking(null)
-            }
+            onClick={() => (confirming ? setPending(null) : setPicking(null))}
           >
             {glyphs.backGlyph}
           </button>
@@ -199,7 +205,7 @@ export function NodeMenu({
                 danger
                 onClick={() => {
                   onRecipe(confirming.recipe);
-                  setConfirming(null);
+                  setPending(null);
                   setPicking(null);
                 }}
               />
@@ -215,7 +221,8 @@ export function NodeMenu({
                 aria-pressed={recipe === recipes.current}
                 onClick={() => {
                   if (recipe === recipes.current) setPicking(null);
-                  else if (drops > 0) setConfirming({ recipe, drops });
+                  else if (drops > 0)
+                    setPending({ id: info.id, option: { recipe, drops } });
                   else {
                     onRecipe(recipe);
                     setPicking(null);

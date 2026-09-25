@@ -180,19 +180,19 @@ describe("Furnace", () => {
   it("picks the smelting recipe of its first input", () => {
     const { node } = setup("furnace");
     expect(acceptItem(node, "stone", 0)).toBe(true);
-    expect(node).toMatchObject({ recipe: "brick" });
+    expect(node).toMatchObject({ recipe: null, running: "brick" });
     // Iron ore has no place while stone is inside.
     expect(acceptItem(node, "iron-ore", 0)).toBe(false);
   });
 
-  it("keeps the recipe it picked, so its input then takes only that ore", () => {
+  it("switches recipe once it is empty, its input staying generic", () => {
     const { node, run } = setup("furnace");
     acceptItem(node, "copper-ore", 0);
     run(32);
     expect(node.production.output).toBe(0);
-    expect(inputTypes(node)).toEqual(["copper-ore"]);
-    expect(acceptItem(node, "iron-ore", 0)).toBe(false);
-    expect(node).toMatchObject({ recipe: "copper-plate" });
+    expect(inputTypes(node)).toEqual([null]);
+    expect(acceptItem(node, "iron-ore", 0)).toBe(true);
+    expect(node).toMatchObject({ recipe: null, running: "iron-plate" });
   });
 
   it("refuses items no smelting recipe takes", () => {

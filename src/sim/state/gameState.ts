@@ -76,8 +76,13 @@ export type FactoryNode = NodeBase &
       }
     | {
         kind: CrafterKind;
-        /** The recipe it runs; a Furnace picks one from its first input. */
+        /** The recipe the player chose; `null` on an automatic Furnace. */
         recipe: RecipeId | null;
+        /**
+         * The recipe an automatic Furnace runs now, picked from the first ore
+         * to reach it while it is empty.
+         */
+        running?: RecipeId | null;
         production: Production;
       }
     | {

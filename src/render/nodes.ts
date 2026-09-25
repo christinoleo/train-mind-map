@@ -110,7 +110,10 @@ export function drawNodeCard(
  */
 export function iconItem(node: NodeView): ItemId | undefined {
   if (node.kind === "extractor") return mainResource(node.coverage);
-  if ("recipe" in node && node.recipe) return RECIPES[node.recipe].output;
+  if ("recipe" in node) {
+    const recipe = node.recipe ?? node.running;
+    if (recipe) return RECIPES[recipe].output;
+  }
   return undefined;
 }
 

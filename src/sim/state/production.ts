@@ -66,8 +66,9 @@ function batchOf(node: ProducerNode): Batch | undefined {
       ticks: extractorTicks(node.coverage),
     };
   }
-  if (node.recipe === null) return undefined;
-  const { inputs, output, count, seconds } = RECIPES[node.recipe];
+  const recipe = activeRecipe(node);
+  if (recipe === null) return undefined;
+  const { inputs, output, count, seconds } = RECIPES[recipe];
   const ticks = secondsToTicks(seconds / CRAFTERS[node.kind].speed);
   return { inputs, output, count, ticks };
 }
@@ -133,22 +134,36 @@ function smeltingFor(item: ItemId): RecipeId | undefined {
   );
 }
 
+/** The recipe a crafter runs: the chosen one, or an automatic Furnace's pick. */
+export function activeRecipe(node: Readonly<CrafterNode>): RecipeId | null {
+  return node.recipe ?? node.running ?? null;
+}
+
+function isEmpty({ input, output, progress }: Production): boolean {
+  return (
+    output === 0 &&
+    progress === null &&
+    Object.values(input).every((n) => n === 0)
+  );
+}
+
 /**
  * The recipe a crafter would run on `item` arriving after `pending`, the
- * items already on their way to it: a Furnace without a recipe takes the
- * smelting recipe of whatever reaches it first.
+ * items already on their way to it: an automatic Furnace, while it is empty,
+ * takes the smelting recipe of whatever reaches it first.
  */
 function recipeOn(
   node: CrafterNode,
   item: ItemId,
   pending: Readonly<ItemCounts> = {},
 ): RecipeId | null {
-  if (node.kind !== "furnace" || node.recipe !== null) return node.recipe;
+  if (node.recipe !== null || node.kind !== "furnace") return node.recipe;
+  if (!isEmpty(node.production)) return activeRecipe(node);
   for (const [coming] of itemEntries(pending)) {
     const recipe = smeltingFor(coming);
     if (recipe) return recipe;
   }
-  return smeltingFor(item) ?? null;
+  return smeltingFor(item) ?? activeRecipe(node);
 }
 
 /** What `inputTypes` needs of a node: its kind and, on a crafter, its recipe. */
@@ -174,19 +189,12 @@ const FURNACE_AUTO: readonly null[] = [null];
 const NO_INPUTS: readonly null[] = [];
 const GENERATOR_INPUTS: readonly ItemId[] = [GENERATOR.fuel];
 
-/** The items some smelting recipe makes: what a Furnace without one may send. */
-const SMELTED = new Set(
-  RECIPE_IDS.filter((id) => RECIPES[id].category === "smelting").map(
-    (id) => RECIPES[id].output,
-  ),
-);
-
 /**
  * The item each input connector of `node` takes, by port: `null` on a
  * generic connector, which takes any item (FR25). A production node's inputs
  * are typed, one per ingredient of its recipe, a Generator's fuel or a Lab's
- * science packs. An Assembler without a recipe has none; a Furnace without
- * one has a single generic input and takes the recipe of the first ore in.
+ * science packs. An Assembler without a recipe has none; an automatic
+ * Furnace has a single generic input and smelts whatever ore reaches it.
  * Storage and logistics nodes keep generic connectors. The arrays are shared
  * and worked out once, since the flow asks on every delivery.
  */
@@ -218,7 +226,8 @@ export function inputTakes(node: Typed, port: number, item: ItemId): boolean {
 /**
  * True when `source` can send `item` out of its outputs: a producer that
  * makes it, or a storage or logistics node, which sends any item it holds.
- * `null`, a generic input, takes anything.
+ * `null`, a generic input, takes anything. An automatic Furnace makes
+ * whatever ore it gets, so it feeds generic inputs only.
  */
 export function canFeed(source: FactoryNode, item: ItemId | null): boolean {
   if (item === null) return true;
@@ -226,9 +235,7 @@ export function canFeed(source: FactoryNode, item: ItemId | null): boolean {
     return source.coverage.some((part) => part.resource === item);
   }
   if (isCrafter(source)) {
-    if (source.recipe !== null) return RECIPES[source.recipe].output === item;
-    // A Furnace without a recipe smelts whatever ore reaches it.
-    return source.kind === "furnace" && SMELTED.has(item);
+    return source.recipe !== null && RECIPES[source.recipe].output === item;
   }
   return true;
 }
@@ -282,8 +289,8 @@ function wouldAccept(node: FactoryNode, item: ItemId, port: number): boolean {
 /**
  * Hands `item` to `node`'s input buffers through input `port`, when
  * `wouldAccept` says it takes it: a typed input takes only its own item
- * (FR25). A Furnace without a recipe takes the smelting recipe of whatever
- * arrives. Returns whether the item entered.
+ * (FR25). An empty automatic Furnace switches to the smelting recipe of
+ * whatever arrives. Returns whether the item entered.
  */
 export function acceptItem(
   node: FactoryNode,
@@ -296,7 +303,9 @@ export function acceptItem(
     return true;
   }
   if (!isProducer(node)) return false;
-  if (isCrafter(node)) node.recipe = recipeOn(node, item);
+  if (isCrafter(node) && node.recipe === null) {
+    node.running = recipeOn(node, item);
+  }
   const { input } = node.production;
   input[item] = (input[item] ?? 0) + 1;
   return true;

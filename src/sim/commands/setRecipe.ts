@@ -63,6 +63,36 @@ export function recipeChange(
   return { dropped, moved };
 }
 
+/**
+ * Checks that every input `node` has under `recipe`, bar those an edge will
+ * end at, lies on a free cell once `change`'s dropped edges are gone: a new
+ * input under another edge or a node could never be connected (FR25).
+ */
+function checkInputCells(
+  state: Readonly<GameState>,
+  node: Readonly<CrafterNode>,
+  recipe: RecipeId | null,
+  { dropped }: RecipeChange,
+): Result {
+  const next = { ...node, recipe };
+  const index = buildPlanarIndex(state);
+  for (const edge of dropped) index.removeEdge(edge.id);
+  const ends = new Set<string>();
+  for (const edge of state.edges.values()) {
+    if (edge.to !== node.id || dropped.includes(edge)) continue;
+    const end = edge.path[edge.path.length - 1];
+    ends.add(`${end.x},${end.y}`);
+  }
+  for (let port = 0; port < inputTypes(next).length; port++) {
+    const cell = connectorCell(next, "input", port);
+    if (ends.has(`${cell.x},${cell.y}`)) continue;
+    const obstacle = index.obstacleAt(cell.x, cell.y);
+    if (obstacle)
+      return fail(obstacle.kind === "edge" ? "crosses_edge" : "occupied");
+  }
+  return ok();
+}
+
 /** Moves each edge in `moved` onto its new port. */
 function movePorts(
   edges: Map<EdgeId, Edge>,
@@ -84,8 +114,9 @@ interface Dropped {
  * items inside the node, and disconnects the edges that no longer fit its
  * typed inputs, or its product, refunding their cost and the items on them
  * (FR25); its undo sets the old recipe back on empty buffers and puts those
- * edges back. `null` leaves it without one: a Furnace then picks its recipe
- * from its first input, and an Assembler idles.
+ * edges back. It is refused when a new input would sit under another edge
+ * or a node. `null` leaves it without one: a Furnace then smelts whatever
+ * ore reaches it, and an Assembler idles.
  */
 export class SetRecipe implements Command {
   readonly type = "SetRecipe";
@@ -101,9 +132,11 @@ export class SetRecipe implements Command {
     const node = state.nodes.get(this.id);
     if (!node || !isCrafter(node)) return fail("not_found");
     // `null` clears the recipe: a new Assembler has none, so its undo needs it.
-    return this.recipe === null || canRun(node.kind, this.recipe)
-      ? ok()
-      : fail("wrong_recipe");
+    if (this.recipe !== null && !canRun(node.kind, this.recipe)) {
+      return fail("wrong_recipe");
+    }
+    const change = recipeChange(state, node, this.recipe);
+    return checkInputCells(state, node, this.recipe, change);
   }
 
   apply(state: GameState) {
@@ -120,6 +153,7 @@ export class SetRecipe implements Command {
     state.nodes.set(this.id, {
       ...node,
       recipe: this.recipe,
+      running: null,
       production: newProduction(),
     });
   }
@@ -132,8 +166,8 @@ export class SetRecipe implements Command {
 
 /**
  * The undo of `SetRecipe`: the old recipe on empty buffers, the input edges
- * that stayed back on their old ports, and the edges it disconnected back, empty, taking
- * back what they refunded.
+ * that stayed back on their old ports, and the edges it disconnected back,
+ * empty, taking back what they refunded.
  */
 class RestoreRecipe implements Command {
   readonly type = "RestoreRecipe";
@@ -149,7 +183,8 @@ class RestoreRecipe implements Command {
     if (!node || !isCrafter(node)) return fail("not_found");
     const back = { ...node, recipe: this.recipe };
     // Edges connected since must still fit the old recipe.
-    const { dropped, moved } = recipeChange(state, node, this.recipe);
+    const change = recipeChange(state, node, this.recipe);
+    const { dropped, moved } = change;
     if (dropped.length > 0) return fail("connector_taken");
     // The dropped edges come back beside the kept ones, on their old ports.
     const after = { ...state, edges: new Map(state.edges) };
@@ -163,7 +198,11 @@ class RestoreRecipe implements Command {
       index.addEdge(edge.id, edge.path);
       addCounts(refund, refunded);
     }
-    return canAfford(state, refund) ? ok() : fail("no_stock");
+    if (!canAfford(state, refund)) return fail("no_stock");
+    // The restored edges end at their own inputs; the others must be clear.
+    const withBack = { ...after, edges: new Map(after.edges) };
+    for (const { edge } of this.dropped) withBack.edges.set(edge.id, edge);
+    return checkInputCells(withBack, node, this.recipe, change);
   }
 
   apply(state: GameState, emit: Emit) {
@@ -176,6 +215,7 @@ class RestoreRecipe implements Command {
     state.nodes.set(this.id, {
       ...node,
       recipe: this.recipe,
+      running: null,
       production: newProduction(),
     });
     for (const { edge, refunded } of this.dropped) {
