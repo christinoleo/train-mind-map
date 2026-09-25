@@ -129,7 +129,7 @@ export function sumStock(
  * True when a storage node gives to construction: every one but a Box the
  * player marked "não usar em construção" (FR71).
  */
-function buildsFrom(node: StorageNode): boolean {
+export function buildsFrom(node: StorageNode): boolean {
   return node.kind === "core" || !node.noConstruction;
 }
 

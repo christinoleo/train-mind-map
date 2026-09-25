@@ -209,6 +209,37 @@ canvas {
   color: #8a93a6;
 }
 
+/* The chips' row: the inventory button, then the stock. The button takes
+   touches though the rest of the HUD lets them through to the map. */
+.hud-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-row .stock {
+  flex: 1;
+}
+
+.inventory-toggle {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  margin: -4px 0 -4px -8px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  pointer-events: auto;
+}
+
+.inventory-toggle[aria-expanded="true"] {
+  background: rgba(245, 197, 66, 0.3);
+}
+
 /* The node palette: a "+" button and a bottom tray of node kinds. Only the
    buttons and the hint take touches; the rest lets them through to the map. */
 #ui-root > .palette {
@@ -848,4 +879,116 @@ canvas {
   color: #f5c542;
   font: inherit;
   font-weight: 600;
+}
+
+/* The inventory (FR68): a wider menu card over a transparent backdrop that
+   closes it on a tap outside. Its slots form a grid that scrolls with it. */
+#ui-root > .inventory-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+}
+
+#ui-root > .menu.inventory {
+  width: min(440px, calc(100vw - 32px));
+}
+
+.inventory-capacity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.inventory-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.inventory-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: #4ade80;
+}
+
+.inventory-capacity[data-full="true"] {
+  color: #f87171;
+}
+
+.inventory-capacity[data-full="true"] .inventory-fill {
+  background: #f87171;
+}
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.inventory-slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 76px;
+  padding: 6px 4px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: #2b303c;
+  color: inherit;
+  font: inherit;
+}
+
+.inventory-slot[aria-pressed="true"] {
+  border-color: #f5c542;
+}
+
+.item-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.inventory-count {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.inventory-name {
+  color: #8a93a6;
+  font-size: 0.65rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.inventory-storages {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inventory-storage {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.inventory-share {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }

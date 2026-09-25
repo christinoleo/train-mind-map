@@ -70,6 +70,7 @@ import type { OfflineReportView } from "./ui/OfflineReport";
 import { linePanelInfo, type LinePanelInfo } from "./ui/LinePanel";
 import { railMenuInfo, type RailMenuInfo } from "./ui/RailMenu";
 import { Onboarding, type HintTarget } from "./ui/onboarding";
+import { inventoryInfo, type InventoryInfo } from "./ui/InventoryPanel";
 import { researchInfo, type ResearchInfo } from "./ui/ResearchPanel";
 import { showOverlay } from "./ui/overlay";
 import { UiRoot } from "./ui/UiRoot";
@@ -149,6 +150,9 @@ const focus = signal<Focus>("factory");
 const storageFull = signal(false);
 const canUndo = signal(false);
 const researchOpen = signal(false);
+const inventoryOpen = signal(false);
+/** The inventory panel's slots, published at 4 Hz while it is open. */
+const inventory = signal<InventoryInfo>(inventoryInfo(state));
 const research = signal<ResearchInfo>(researchInfo(state));
 /** The research completed last, shown for a moment. */
 const completed = signal<ResearchId | null>(null);
@@ -357,7 +361,7 @@ function toggleFocus() {
 controls.shortcuts.set("KeyT", toggleFocus);
 // The research panel and the menus share one place on screen: opening one
 // closes the others.
-const panels = [researchOpen, settingsOpen];
+const panels = [researchOpen, settingsOpen, inventoryOpen];
 for (const panel of panels) {
   effect(() => {
     if (!panel.value) return;
@@ -377,6 +381,10 @@ effect(() => {
   ) {
     for (const panel of panels) panel.value = false;
   }
+});
+// The inventory is only published while open, so it catches up on opening.
+effect(() => {
+  if (inventoryOpen.value) publishIfChanged(inventory, inventoryInfo(state));
 });
 effect(() => {
   renderer.setSelectedEdge(selectedEdge.value);
@@ -542,6 +550,8 @@ loop = createLoop({
       if (!samePower(power.value, summary)) power.value = summary;
       storageFull.value = isStorageFull(state);
       publishIfChanged(research, researchInfo(state));
+      if (inventoryOpen.value)
+        publishIfChanged(inventory, inventoryInfo(state));
       published = now;
     }
   },
@@ -642,6 +652,7 @@ render(
         commands.dispatch(state, new SetResearch(id));
       },
     },
+    inventory: { inventory, open: inventoryOpen, onShowStorage: showNode },
     researchNotice: { completed, ended },
     settings: {
       open: settingsOpen,

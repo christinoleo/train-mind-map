@@ -104,6 +104,24 @@ export type GlyphShape =
   | "hexagon"
   | "bar";
 
+/** Polygon glyphs as flat x, y offsets for a glyph of radius 1. */
+export const GLYPH_POLYS = {
+  diamond: [0, -1.15, 1.15, 0, 0, 1.15, -1.15, 0],
+  // Twelve points alternating between the teeth and the gaps between them.
+  gear: Array.from({ length: 12 }, (_, k) => {
+    const a = (k * Math.PI) / 6;
+    const rr = k % 2 ? 0.75 : 1.15;
+    return [Math.cos(a) * rr, Math.sin(a) * rr];
+  }).flat(),
+  flask: [-0.35, -1.1, 0.35, -1.1, 0.35, -0.3, 1.05, 1, -1.05, 1, -0.35, -0.3],
+  triangle: [0, -1.15, 1.1, 0.8, -1.1, 0.8],
+  hexagon: Array.from({ length: 6 }, (_, k) => {
+    const a = (k * Math.PI) / 3;
+    return [Math.cos(a) * 1.05, Math.sin(a) * 1.05];
+  }).flat(),
+  bar: [-1.1, -0.45, 1.1, -0.45, 1.1, 0.45, -1.1, 0.45],
+} satisfies Record<Exclude<GlyphShape, "circle" | "square">, number[]>;
+
 interface ItemStyle {
   color: number;
   shape: GlyphShape;

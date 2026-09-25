@@ -92,6 +92,14 @@ export const strings = {
     powerGlyph: "⚡",
     storageFull: "Estoque cheio: a fábrica parou",
   },
+  // The inventory button in the HUD and the panel it opens (FR68).
+  inventory: {
+    title: "Inventário",
+    glyph: "▦",
+    capacity: "Capacidade",
+    heldIn: "guardado em:",
+    kept: "fora da construção",
+  },
   // The node palette: the "+" button, the bottom tray and placement feedback.
   palette: {
     open: "Construir",
