@@ -3,7 +3,11 @@ import type { ItemId } from "../../../src/data/items";
 import { STORAGE_CAPACITY, type NodeKind } from "../../../src/data/nodes";
 import { MVP_SCENARIO } from "../../../src/data/scenarios/mvp";
 import type { SimEvent } from "../../../src/sim/events";
-import { isEdgeFull } from "../../../src/sim/state/edges";
+import {
+  edgeUnits,
+  isEdgeFull,
+  spacingUnits,
+} from "../../../src/sim/state/edges";
 import {
   createGameState,
   type Edge,
@@ -280,6 +284,27 @@ describe("the Station's buffer (FR92)", () => {
   });
 });
 
+/**
+ * Runs the flow while `assembler`, on rails, consumes a batch whenever it
+ * has one, as production would, and returns how many batches it made.
+ */
+function railBatches(
+  w: ReturnType<typeof world>,
+  assembler: FactoryNode & { kind: "assembler-1" },
+) {
+  const { input } = assembler.production;
+  let batches = 0;
+  for (let t = 0; t < 1500; t++) {
+    w.run(1);
+    if ((input["iron-plate"] ?? 0) >= 1 && (input.stone ?? 0) >= 1) {
+      input["iron-plate"]!--;
+      input.stone!--;
+      batches++;
+    }
+  }
+  return batches;
+}
+
 describe("items a node refuses (FR57)", () => {
   it("sends a Furnace only what its recipe takes, the rest staying in the Core", () => {
     const w = world();
@@ -311,7 +336,27 @@ describe("items a node refuses (FR57)", () => {
     edge.items.push({ item: "copper-ore", pos: 0, prevPos: 0 });
     w.run(200);
     expect(furnace.production.input).toEqual({ stone: 4 });
-    expect(edge.items.map(({ item }) => item)).toEqual(["copper-ore"]);
+    expect(edge.items[0].item).toBe("copper-ore");
+    expect(edge.items.slice(1).every(({ item }) => item === "stone")).toBe(
+      true,
+    );
+  });
+
+  it("backs a long edge to a Furnace up past its buffer, as to a Box", () => {
+    const w = world();
+    const core = coreNode(w.state);
+    store(core, "iron-ore", 1000);
+    const furnace = w.put("furnace", { recipe: "iron-plate" });
+    const edge = w.wire(core, 0, furnace);
+    edge.path = [
+      { x: 0, y: 0 },
+      { x: 59, y: 0 },
+    ];
+    w.run(1200);
+    const slots = Math.floor(edgeUnits(edge) / spacingUnits(edge)) + 1;
+    expect(furnace.production.input).toEqual({ "iron-ore": 2 });
+    // Every slot but one, which stays free for any other input.
+    expect(edge.items.length).toBe(slots - 1);
   });
 
   it("sends a Lab only science packs", () => {
@@ -333,8 +378,7 @@ describe("items a node refuses (FR57)", () => {
     store(core, "stone", 50);
     const assembler = w.put("assembler-1", { recipe: "rail" });
     w.wire(core, 0, assembler);
-    w.run(200);
-    expect(assembler.production.input).toEqual({ "iron-plate": 2, stone: 2 });
+    expect(railBatches(w, assembler)).toBeGreaterThanOrEqual(20);
   });
 
   it("routes a Box's items through a Splitter only to the nodes that take them", () => {
@@ -353,14 +397,11 @@ describe("items a node refuses (FR57)", () => {
     w.run(400);
     expect(bricks.production.input).toEqual({ stone: 4 });
     expect(plates.production.input).toEqual({ "iron-ore": 2 });
-    expect(toBricks.items).toEqual([]);
-    expect(toPlates.items).toEqual([]);
+    const carried = (edge: Edge) => new Set(edge.items.map((it) => it.item));
+    expect([...carried(toBricks)]).toEqual(["stone"]);
+    expect([...carried(toPlates)]).toEqual(["iron-ore"]);
     expect(splitter.blocked).toBe(false);
-    expect(storedItems(source)).toEqual({
-      "copper-ore": 5,
-      stone: 7,
-      "iron-ore": 9,
-    });
+    expect(storedItems(source)["copper-ore"]).toBe(5);
   });
 
   it("merges Boxes into an Assembler without jamming on either input", () => {
@@ -372,8 +413,7 @@ describe("items a node refuses (FR57)", () => {
     w.wire(plates, 0, merger, 0);
     w.wire(mixed, 0, merger, 1);
     w.wire(merger, 0, assembler);
-    w.run(400);
-    expect(assembler.production.input).toEqual({ "iron-plate": 2, stone: 2 });
+    expect(railBatches(w, assembler)).toBe(20);
     expect(merger.blocked).toBe(false);
   });
 });

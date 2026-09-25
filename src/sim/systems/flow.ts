@@ -5,7 +5,13 @@ import { NODES } from "../../data/nodes";
 import { edgeUnits, spacingUnits } from "../state/edges";
 import type { Edge, FactoryNode, GameState } from "../state/gameState";
 import type { NodeId } from "../state/ids";
-import { acceptItem, takeOutput, wouldAccept } from "../state/production";
+import {
+  acceptItem,
+  heldInput,
+  inputLimit,
+  inputNeeds,
+  takeOutput,
+} from "../state/production";
 import { bufferRoom, isBuffer, store, takeOldest } from "../state/stock";
 import type { Emit } from "../events";
 import type { System } from "../tick";
@@ -155,18 +161,25 @@ function isRouter(node: FactoryNode): node is RouterNode {
   return node.kind === "splitter" || node.kind === "merger";
 }
 
+/** How many items `edge` holds at most, spaced out. */
+function slots(edge: Edge): number {
+  return Math.floor(edgeUnits(edge) / spacingUnits(edge)) + 1;
+}
+
 /**
- * Whether the node `target` takes an item now, counting the items already
- * on their way to it: on its input edges and on those of the Splitters and
- * Mergers that feed it, but not beyond the router `from` that asks. So a
- * sender that sends only what this accepts never puts on an edge an item
- * its node will refuse. A Splitter or Merger takes what any node it leads
- * to takes.
+ * Whether an item may go onto `edge` for the node `target`, counting the
+ * items already on their way to it: on its input edges and on those of the
+ * Splitters and Mergers that feed it, but not beyond the router `from` that
+ * asks. A machine gets only what it needs: of each input, what its buffer
+ * holds plus a share of the edge's slots, in proportion to what a batch
+ * needs, less one slot. So the inputs it refuses never fill the edge, and
+ * the one it lacks always finds room. Storage gets items while it has room.
+ * A Splitter or Merger takes what any node it leads to takes.
  */
 function acceptor(
   state: GameState,
   links: Links,
-  target: NodeId,
+  edge: Edge,
   from?: NodeId,
 ): (item: ItemId) => boolean {
   const pending = new Map<NodeId, ItemCounts>();
@@ -206,7 +219,16 @@ function acceptor(
       const outputs = links.outputs.get(id) ?? [];
       return outputs.some((edge) => edge && takes(edge.to, item, seen));
     }
-    if (!isBuffer(node)) return wouldAccept(node, item, pendingOf(id));
+    if (!isBuffer(node)) {
+      const coming = pendingOf(id);
+      const needs = inputNeeds(node, item, coming);
+      const need = needs[item];
+      if (!need) return false;
+      const all = Object.values(needs).reduce((a, b) => a + b, 0);
+      const share = Math.floor(((slots(edge) - 1) * need) / all);
+      const held = heldInput(node, item) + (coming[item] ?? 0);
+      return held < inputLimit(node, need) + share;
+    }
     let has = room.get(id);
     if (has === undefined) {
       const coming = Object.values(pendingOf(id)).reduce((a, b) => a + b, 0);
@@ -214,7 +236,7 @@ function acceptor(
     }
     return has;
   };
-  return (item) => takes(target, item, new Set());
+  return (item) => takes(edge.to, item, new Set());
 }
 
 /**
@@ -230,7 +252,7 @@ function split(state: GameState, node: RouterNode, port: number, links: Links) {
   const outputs = links.outputs.get(node.id) ?? [];
   const count = NODES[node.kind].outputs;
   const takes = outputs.map(
-    (edge) => edge && acceptor(state, links, edge.to, node.id),
+    (edge) => edge && acceptor(state, links, edge, node.id),
   );
   const turnOf = (item: ItemId) =>
     nextInTurn(
@@ -256,7 +278,7 @@ function split(state: GameState, node: RouterNode, port: number, links: Links) {
 function merge(state: GameState, node: RouterNode, edge: Edge, links: Links) {
   const inputs = links.inputs.get(node.id) ?? [];
   const count = NODES[node.kind].inputs;
-  const takes = acceptor(state, links, edge.to, node.id);
+  const takes = acceptor(state, links, edge, node.id);
   let item: ItemId | undefined;
   const turn = nextInTurn(node, count, (t) => {
     const input = inputs[t];
@@ -272,7 +294,7 @@ function take(state: GameState, node: FactoryNode, edge: Edge, links: Links) {
   if (node.kind === "splitter") return split(state, node, edge.fromPort, links);
   if (node.kind === "merger") return merge(state, node, edge, links);
   // Storage sends only what its target takes, so no item it sends jams.
-  if (isBuffer(node)) return takeOldest(node, acceptor(state, links, edge.to));
+  if (isBuffer(node)) return takeOldest(node, acceptor(state, links, edge));
   return takeOutput(node);
 }
 
@@ -296,7 +318,7 @@ function isBlocked(state: GameState, node: RouterNode, links: Links): boolean {
   if (waiting.length === 0) return false;
   return !(links.outputs.get(node.id) ?? []).some((edge) => {
     if (!isOpen(edge)) return false;
-    const takes = acceptor(state, links, edge.to, node.id);
+    const takes = acceptor(state, links, edge, node.id);
     return waiting.some(takes);
   });
 }

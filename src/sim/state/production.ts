@@ -104,30 +104,45 @@ function recipeOn(
 }
 
 /**
- * True when `node` takes `item` once `pending`, the items already on their
- * way to it, have entered: the active recipe consumes it and its buffer,
- * 2× what one batch needs, has room (FR24). A Generator takes its fuel
- * (FR67), and a Lab science packs (FR40).
+ * What one batch of `node` needs of each item it takes, once `pending`, the
+ * items already on its way to it, and then `item` have arrived: the active
+ * recipe's inputs, a Generator's fuel (FR67), or a Lab's science packs
+ * (FR40), one of each.
  */
-export function wouldAccept(
+export function inputNeeds(
   node: FactoryNode,
   item: ItemId,
   pending: Readonly<ItemCounts> = {},
-): boolean {
-  const coming = pending[item] ?? 0;
+): ItemCounts {
   if (node.kind === "lab") {
-    const have = node.production.input[item] ?? 0;
-    return SCIENCE_PACKS.includes(item) && have + coming < LAB.buffer;
+    return Object.fromEntries(SCIENCE_PACKS.map((pack) => [pack, 1]));
   }
-  if (node.kind === "generator") {
-    return item === GENERATOR.fuel && node.fuel + coming < GENERATOR.buffer;
-  }
-  if (!isCrafter(node)) return false;
+  if (node.kind === "generator") return { [GENERATOR.fuel]: 1 };
+  if (!isCrafter(node)) return {};
   const recipe = recipeOn(node, item, pending);
-  if (recipe === null) return false;
-  const need = RECIPES[recipe].inputs[item];
-  const have = node.production.input[item] ?? 0;
-  return need !== undefined && have + coming < 2 * need;
+  return recipe === null ? {} : RECIPES[recipe].inputs;
+}
+
+/** How many of `item` wait in `node`'s input buffers. */
+export function heldInput(node: FactoryNode, item: ItemId): number {
+  if (node.kind === "generator") return item === GENERATOR.fuel ? node.fuel : 0;
+  return isProducer(node) ? (node.production.input[item] ?? 0) : 0;
+}
+
+/**
+ * How many of an item `node` holds at most, when one batch needs `need` of
+ * it: 2× that for a crafter (FR24), and a Lab's or Generator's own size.
+ */
+export function inputLimit(node: FactoryNode, need: number): number {
+  if (node.kind === "lab") return LAB.buffer;
+  if (node.kind === "generator") return GENERATOR.buffer;
+  return 2 * need;
+}
+
+/** True when `node` takes `item` now: it needs it and its buffer has room. */
+function wouldAccept(node: FactoryNode, item: ItemId): boolean {
+  const need = inputNeeds(node, item)[item];
+  return !!need && heldInput(node, item) < inputLimit(node, need);
 }
 
 /**
