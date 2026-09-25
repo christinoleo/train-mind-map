@@ -249,7 +249,7 @@ describe("RemoveNode", () => {
   it("loses the items inside, so its undo brings the node back empty", () => {
     const { state, commands, step, run } = setup();
     run(new PlaceNode("extractor", 65, 58));
-    // Powered by a fuelled Generator, so it produces.
+    // The Core powers it from the start; the Generator takes its coal.
     run(new PlaceNode("generator", 71, 58));
     run(
       new ConnectEdge(
@@ -261,8 +261,8 @@ describe("RemoveNode", () => {
     acceptItem(state.nodes.get(3 as NodeId)!, "coal");
     for (let t = 0; t < 30; t++) step();
     const extractor = state.nodes.get(2 as NodeId) as ProducerNode;
-    // Halfway through its second batch; the edge took the first item.
-    expect(extractor.production.progress).toBe(10);
+    // Into its second batch; the edge took the first item.
+    expect(extractor.production.progress).toBe(13);
     // An item waiting to leave, as behind a full edge.
     extractor.production.output = 1;
     run(new RemoveNode(2 as NodeId));
@@ -312,7 +312,7 @@ describe("determinism", () => {
     const restored = deserializeState(
       JSON.parse(JSON.stringify(serializeState(state))),
     );
-    // The power meshes are a cache that the first tick rebuilds.
+    // The power grid is a cache that the first tick recomputes.
     expect({ ...restored, power: null }).toEqual({ ...state, power: null });
     expect(hashState(restored)).toBe(hashState(state));
   });

@@ -189,7 +189,7 @@ function advance(
 }
 
 /**
- * Advances `node` by one tick at its mesh's `satisfaction` and reports a
+ * Advances `node` by one tick at the grid's `satisfaction` and reports a
  * change of status (FR23).
  */
 export function stepProduction(

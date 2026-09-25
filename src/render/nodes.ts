@@ -2,6 +2,7 @@ import { Container, Graphics, type Text } from "pixi.js";
 import type { Lod } from "../input/camera";
 import type { ItemId } from "../data/items";
 import { NODES, type NodeKind } from "../data/nodes";
+import { POWER_DEMAND } from "../data/power";
 import { RECIPES } from "../data/recipes";
 import type { FactoryNode } from "../sim/state/gameState";
 import type { NodeId } from "../sim/state/ids";
@@ -177,11 +178,21 @@ export function drawGhostOutline(g: Graphics, kind: NodeKind, valid: boolean) {
 
 type NodeView = DeepReadonly<FactoryNode>;
 
-/** What `node` is doing, when it makes items and is not working. */
-export function flaggedStatus(node: NodeView): FlaggedStatus | null {
+/**
+ * What `node` is doing, when it makes items and is not working at full
+ * speed: its status, or low power while it works on a grid whose
+ * `satisfaction` is below 1 (FR64).
+ */
+export function flaggedStatus(
+  node: NodeView,
+  satisfaction: number,
+): FlaggedStatus | null {
   if (!("production" in node)) return null;
   const { status } = node.production;
-  return status === "working" ? null : status;
+  if (status !== "working") return status;
+  return satisfaction < 1 && (POWER_DEMAND[node.kind] ?? 0) > 0
+    ? "low_power"
+    : null;
 }
 
 /**
@@ -233,11 +244,13 @@ export class NodeViews {
   constructor(private readonly layer: Container) {}
 
   /**
-   * `faded` names the node being moved, drawn faint, or none with `null`.
-   * Returns true when a card was added or dropped.
+   * `satisfaction` is the power grid's. `faded` names the node being moved,
+   * drawn faint, or none with `null`. Returns true when a card was added or
+   * dropped.
    */
   sync(
     nodes: ReadonlyMap<NodeId, NodeView>,
+    satisfaction: number,
     faded: NodeId | null = null,
     lod: Lod = "icons",
   ): boolean {
@@ -270,7 +283,7 @@ export class NodeViews {
     for (const [id, view] of this.views) {
       view.card.alpha = id === faded ? MOVING_ALPHA : 1;
       if (view.name) view.name.visible = named;
-      const status = flaggedStatus(view.node);
+      const status = flaggedStatus(view.node, satisfaction);
       if (status === view.status) continue;
       const { badges } = view;
       if (view.status) badges[view.status]!.visible = false;

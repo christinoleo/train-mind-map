@@ -39,7 +39,7 @@ interface NodeBase {
 
 /**
  * What a producing node is doing (FR23): making a batch, waiting for inputs,
- * holding a full output buffer, or stalled by a mesh with no power at all.
+ * holding a full output buffer, or stalled by a grid with no power at all.
  */
 export type NodeStatus = "working" | "starved" | "blocked" | "no_power";
 
@@ -52,7 +52,7 @@ export interface Production {
   output: number;
   /**
    * Ticks of work on the current batch, or `null` between batches. A short
-   * mesh adds a fraction of a tick per tick (FR64).
+   * grid adds a fraction of a tick per tick (FR64).
    */
   progress: number | null;
 }
@@ -334,7 +334,7 @@ export interface GameState {
    * cache, recomputed at the end of each tick and never saved.
    */
   stock: ItemCounts;
-  /** The power meshes. A derived cache, rebuilt when the topology changes. */
+  /** The power grid. A derived cache, recomputed each tick. */
   power: Power;
 }
 

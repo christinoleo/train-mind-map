@@ -1,7 +1,6 @@
 import { LAB, RESEARCH, type ResearchId } from "../../data/research";
 import type { Emit } from "../events";
 import type { GameState, LabNode, NodeStatus } from "../state/gameState";
-import { satisfactionOf } from "../state/power";
 import { secondsToTicks, setStatus, work } from "../state/production";
 import { creditPack, packsLeft } from "../state/research";
 import type { System } from "../tick";
@@ -60,7 +59,7 @@ function advance(
 export const research: System = (state, { emit }) => {
   for (const node of state.nodes.values()) {
     if (node.kind !== "lab") continue;
-    const sat = satisfactionOf(state, node.id);
+    const sat = state.power.satisfaction;
     setStatus(node, advance(state, node, sat, emit), emit);
   }
 };

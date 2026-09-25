@@ -19,7 +19,6 @@ import { DebugPanel } from "./DebugPanel";
 import {
   drawCoreRings,
   drawHashBuckets,
-  drawPowerMeshes,
   drawReservations,
   OverlayManager,
 } from "./overlays";
@@ -107,12 +106,6 @@ export function installDebugTools(debug: DebugGame) {
     id: "hash-buckets",
     label: strings.debug.hashBuckets,
     draw: drawHashBuckets,
-    live: true,
-  });
-  overlays.register({
-    id: "power-meshes",
-    label: strings.debug.powerMeshes,
-    draw: drawPowerMeshes,
     live: true,
   });
   overlays.register({

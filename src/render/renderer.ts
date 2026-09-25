@@ -1,11 +1,11 @@
 import { Container, Graphics, type Application } from "pixi.js";
 import type { SimEventOf } from "../sim/events";
 import type { Rect } from "../sim/geometry/rect";
-import type { Edge, GameState } from "../sim/state/gameState";
+import type { GameState } from "../sim/state/gameState";
 import type { EdgeId, NodeId, RailId } from "../sim/state/ids";
 import { nodeRect } from "../sim/state/nodes";
 import type { Deposit } from "../sim/state/map";
-import { isShort, meshOfEdge } from "../sim/state/power";
+import { isShort } from "../sim/state/power";
 import type { Camera } from "../input/camera";
 import type { EdgePreview } from "../input/tools/connect";
 import type { Ghost } from "../input/tools/place";
@@ -173,12 +173,6 @@ export function createRenderer(
     drawnCard = null;
   });
 
-  /** True when the mesh an edge conducts power in is short (FR65). */
-  const isEdgeShort = (edge: DeepReadonly<Edge>) => {
-    const mesh = meshOfEdge(state.power, edge);
-    return mesh !== undefined && isShort(mesh);
-  };
-
   /** The centre of a rect of cells, in world units. */
   const rectCenter = (cells: Rect) => {
     const { x, y, w, h } = toWorld(cells);
@@ -200,7 +194,7 @@ export function createRenderer(
       camera.setViewport(width, height);
       if (drawnMap !== map || drawnRing !== map.revealedRing) rebuildMap();
       const { lod } = camera;
-      if (nodeViews.sync(state.nodes, moving, lod)) {
+      if (nodeViews.sync(state.nodes, state.power.satisfaction, moving, lod)) {
         depositLabels?.hideCovered(state);
       }
       if (depositLabels) depositLabels.container.visible = lod === "icons";
@@ -213,7 +207,7 @@ export function createRenderer(
         state.edges,
         state.nodes,
         selectedEdge,
-        isEdgeShort,
+        isShort(state.power),
         moving,
         lod,
       );

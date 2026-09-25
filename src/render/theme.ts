@@ -48,7 +48,7 @@ export const PALETTE = {
   /** An edge's stroke before any item has run along it. */
   edge: 0xcfd5e2,
   edgeAlpha: 0.4,
-  /** An edge glows dimmer while its mesh is short of power (FR65). */
+  /** An edge glows dimmer while the grid is short of power (FR65). */
   edgeShortAlpha: 0.15,
 } as const;
 
@@ -83,17 +83,21 @@ export const MOVING_ALPHA = 0.3;
 /** Opacity of the layer out of focus: the factory or the rails (FR78). */
 export const UNFOCUSED_ALPHA = 0.3;
 
-/** A status a card flags: every one but working. */
-export type FlaggedStatus = Exclude<NodeStatus, "working">;
+/**
+ * A status a card flags: every one but working, and low power for a node
+ * working slowly on a short grid.
+ */
+export type FlaggedStatus = Exclude<NodeStatus, "working"> | "low_power";
 
 /**
  * Colour of a node's state pill and outline (FR149): red for blocked or
- * starved, yellow for no power. A working node shows neither.
+ * starved, yellow for low or no power. A working node shows neither.
  */
 export const STATE_COLOR: Record<FlaggedStatus, number> = {
   blocked: 0xf87171,
   starved: 0xf87171,
   no_power: 0xfacc15,
+  low_power: 0xfacc15,
 };
 
 export type GlyphShape =

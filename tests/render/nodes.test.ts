@@ -42,14 +42,23 @@ describe("flaggedStatus", () => {
     assert("production" in node);
     for (const status of ["blocked", "starved", "no_power"] as const) {
       node.production.status = status;
-      expect(flaggedStatus(node)).toBe(status);
+      expect(flaggedStatus(node, 1)).toBe(status);
     }
     node.production.status = "working";
-    expect(flaggedStatus(node)).toBeNull();
+    expect(flaggedStatus(node, 1)).toBeNull();
+  });
+
+  it("flags low power on a working node while the grid is short (FR64)", () => {
+    const node = createNode(1 as NodeId, "furnace", 0, 0);
+    assert("production" in node);
+    node.production.status = "working";
+    expect(flaggedStatus(node, 0.75)).toBe("low_power");
+    node.production.status = "starved";
+    expect(flaggedStatus(node, 0.75)).toBe("starved");
   });
 
   it("flags nothing on a node that makes no items", () => {
-    expect(flaggedStatus(createNode(1 as NodeId, "box", 0, 0))).toBeNull();
+    expect(flaggedStatus(createNode(1 as NodeId, "box", 0, 0), 0.5)).toBeNull();
   });
 });
 

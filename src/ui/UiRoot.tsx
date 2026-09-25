@@ -43,7 +43,7 @@ type Props = ComponentProps<typeof Palette> & {
   stock: ReadonlySignal<ItemCounts>;
   /** The stamina points left. */
   stamina: ReadonlySignal<number>;
-  /** The ⚡ supplied and drawn, over every mesh. */
+  /** The ⚡ supplied and drawn, over the grid. */
   power: ReadonlySignal<PowerSummary>;
 };
 

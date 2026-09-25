@@ -53,6 +53,7 @@ export const strings = {
     blocked: "Bloqueado",
     starved: "Sem insumos",
     no_power: "Sem energia",
+    low_power: "Pouca energia",
   },
   // Short item names, for costs.
   items: {
@@ -301,12 +302,12 @@ export const strings = {
     overlays: "Overlays",
     coreRings: "Anéis de depósito e raios de garantia",
     hashBuckets: "Baldes do hash espacial",
-    powerMeshes: "Malhas de energia",
     reservations: "Reservas de trilho",
     nodes: "nós",
     edges: "arestas",
     items: "itens",
     trains: "trens",
+    power: "energia",
     tick: "tick",
     render: "render",
     heap: "heap",

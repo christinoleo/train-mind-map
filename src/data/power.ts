@@ -1,11 +1,11 @@
 import type { RawResource } from "./items";
 import type { NodeKind } from "./nodes";
 
-/** The ⚡ the Core gives its mesh for free, from the start (FR28, FR67). */
+/** The ⚡ the Core gives the grid for free, from the start (FR28, FR67). */
 export const CORE_POWER = 3;
 
 /**
- * The Generator burns one `fuel` item every `seconds` and gives its mesh
+ * The Generator burns one `fuel` item every `seconds` and gives the grid
  * `power` ⚡ while it burns (FR32). Its buffer holds `buffer` fuel items.
  */
 export const GENERATOR: Readonly<{
