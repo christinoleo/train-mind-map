@@ -15,7 +15,7 @@ import { ItemViews } from "./items";
 import { applyFocus, createLayers, type Focus, type Layers } from "./layers";
 import { applyLod } from "./lod";
 import {
-  drawDepositLabels,
+  DepositLabels,
   drawDeposits,
   drawTerrain,
   revealedBounds,
@@ -101,7 +101,7 @@ export function createRenderer(
   const ghostOutline = ghostLayer.addChild(new Graphics());
   let ghost: Ghost | null = null;
   const flights = new Flights(layers.overlays);
-  let depositLabels: Container | null = null;
+  let depositLabels: DepositLabels | null = null;
   let namedDeposit: DeepReadonly<Deposit> | null = null;
   const depositName = layers.overlays.addChild(screenText("", 14));
   depositName.anchor.set(0.5, 1);
@@ -145,7 +145,9 @@ export function createRenderer(
     }
     layers.terrain.addChild(drawTerrain(map, bounds));
     layers.deposits.addChild(drawDeposits(map, bounds));
-    depositLabels = layers.deposits.addChild(drawDepositLabels(map, bounds));
+    depositLabels = new DepositLabels(map, bounds);
+    depositLabels.hideCovered(state);
+    layers.deposits.addChild(depositLabels.container);
     // A new map starts fitted on screen; a grown one keeps the view.
     camera.setBounds(toWorld(bounds), fittedMap !== map);
     fittedMap = map;
@@ -198,8 +200,10 @@ export function createRenderer(
       camera.setViewport(width, height);
       if (drawnMap !== map || drawnRing !== map.revealedRing) rebuildMap();
       const { lod } = camera;
-      nodeViews.sync(state.nodes, moving, lod);
-      if (depositLabels) depositLabels.visible = lod === "icons";
+      if (nodeViews.sync(state.nodes, moving, lod)) {
+        depositLabels?.hideCovered(state);
+      }
+      if (depositLabels) depositLabels.container.visible = lod === "icons";
       depositName.visible = namedDeposit !== null && lod !== "icons";
       if (depositName.visible) depositName.scale.set(1 / camera.scale);
       railPortViews.sync(state.nodes, moving);
