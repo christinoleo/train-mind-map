@@ -1,13 +1,15 @@
-import { Container, Graphics, Text } from "pixi.js";
-import { MAX_ZOOM_SCALE } from "../config/constants";
-import type { RawResource } from "../data/items";
+import { Container, Graphics, type Text } from "pixi.js";
+import type { Lod } from "../input/camera";
+import type { ItemId } from "../data/items";
 import { NODES, type NodeKind } from "../data/nodes";
+import { RECIPES } from "../data/recipes";
 import type { FactoryNode } from "../sim/state/gameState";
 import type { NodeId } from "../sim/state/ids";
 import { strings } from "../ui/strings";
 import { connectorPoints } from "./connectors";
 import { drawGlyph } from "./mapView";
 import type { DeepReadonly } from "./readonly";
+import { worldText } from "./text";
 import {
   CATEGORY_COLOR,
   CELL_PX,
@@ -36,12 +38,10 @@ function cardSide(kind: NodeKind): number {
  * A node card drawn at its container's origin (GDD §Arte, FR149): a rounded
  * body with a soft shadow, a header in the category's colour with the name,
  * a recipe icon slot, hollow input circles on the left and amber output dots
- * on the right. An Extractor shows its resource's glyph in the slot.
+ * on the right. The slot shows `item`'s glyph, with its name under the card
+ * (FR150), labelled `item-name` so the level of detail can hide it.
  */
-export function drawNodeCard(
-  kind: NodeKind,
-  resource?: RawResource,
-): Container {
+export function drawNodeCard(kind: NodeKind, item?: ItemId): Container {
   const side = cardSide(kind);
   const card = new Container({ label: kind });
   const g = card.addChild(new Graphics());
@@ -55,7 +55,7 @@ export function drawNodeCard(
   const cx = side / 2;
   const cy = HEADER + (side - HEADER) / 2;
   const r = (side - HEADER) * 0.28;
-  drawIconSlot(g, kind, cx, cy, r, resource);
+  drawIconSlot(g, kind, cx, cy, r, item);
 
   const { inputs, outputs } = connectorPoints(kind);
   for (const p of inputs) {
@@ -66,13 +66,39 @@ export function drawNodeCard(
   for (const p of outputs) g.circle(p.x, p.y, CONNECTOR_R).fill(PALETTE.output);
 
   card.addChild(headerLabel(strings.nodes[kind], side));
+  if (item) card.addChild(itemLabel(item, side));
   return card;
 }
 
 /**
- * The recipe icon slot. Recipes arrive with production (Epic 3); until then
- * the Core shows a hexagon, an Extractor its resource and the rest an empty
- * slot.
+ * The item a node's slot shows: an Extractor's resource, or what a crafter's
+ * recipe makes.
+ */
+export function iconItem(node: NodeView): ItemId | undefined {
+  if (node.kind === "extractor") return node.resource;
+  if ("recipe" in node && node.recipe) return RECIPES[node.recipe].output;
+  return undefined;
+}
+
+/** The slot item's name, centred under the card, below the state pill. */
+function itemLabel(item: ItemId, side: number) {
+  const text = worldText(strings.items[item], CELL_PX * 0.32, {
+    fill: PALETTE.text,
+    maxWidth: side + CELL_PX,
+    outline: true,
+  });
+  text.label = ITEM_NAME;
+  text.anchor.set(0.5, 0);
+  text.position.set(side / 2, side + PILL_HEIGHT / 2 + 1);
+  return text;
+}
+
+/** The label of a card's item name. */
+const ITEM_NAME = "item-name";
+
+/**
+ * The recipe icon slot: a hexagon on the Core, else a frame round `item`'s
+ * glyph, empty while there is no item.
  */
 function drawIconSlot(
   g: Graphics,
@@ -80,7 +106,7 @@ function drawIconSlot(
   cx: number,
   cy: number,
   r: number,
-  resource?: RawResource,
+  item?: ItemId,
 ) {
   if (kind === "core") {
     const hex: number[] = [];
@@ -96,8 +122,8 @@ function drawIconSlot(
     alpha: 0.5,
     width: 1,
   });
-  if (resource) {
-    const { color, shape } = ITEM_STYLE[resource];
+  if (item) {
+    const { color, shape } = ITEM_STYLE[item];
     drawGlyph(g, shape, cx, cy, r * 0.55).fill(color);
   }
 }
@@ -117,32 +143,12 @@ function drawShadow(g: Graphics, side: number): void {
 }
 
 /**
- * Bold card text of `fontSize` world units, rasterised at the largest zoom so
- * it stays sharp when the camera zooms in, and shrunk to fit `maxWidth`.
- */
-function cardText(label: string, fontSize: number, maxWidth: number): Text {
-  const scale = MAX_ZOOM_SCALE;
-  const text = new Text({
-    text: label,
-    style: {
-      fontFamily: "system-ui, sans-serif",
-      fontWeight: "700",
-      fontSize: fontSize * scale,
-      fill: PALETTE.headerText,
-    },
-  });
-  const fit = Math.min(1, maxWidth / (text.width / scale));
-  text.scale.set(fit / scale);
-  return text;
-}
-
-/**
  * The name in the header, rasterised at the largest zoom so it stays sharp
  * when the camera zooms in, and shrunk to fit the card.
  */
 function headerLabel(label: string, side: number): Text {
   const pad = CELL_PX * 0.2;
-  const text = cardText(label, HEADER * 0.6, side - 2 * pad);
+  const text = worldText(label, HEADER * 0.6, { maxWidth: side - 2 * pad });
   text.anchor.set(0, 0.5);
   text.position.set(pad, HEADER / 2);
   return text;
@@ -185,7 +191,9 @@ function drawStatusBadge(kind: NodeKind, status: FlaggedStatus) {
   g.roundRect(0, 0, side, side, CARD_RADIUS).stroke({ color, width: 2 });
 
   const h = PILL_HEIGHT;
-  const text = cardText(strings.nodeStatus[status], h * 0.62, side - h);
+  const text = worldText(strings.nodeStatus[status], h * 0.62, {
+    maxWidth: side - h,
+  });
   text.anchor.set(0.5);
   text.position.set(side / 2, side);
   const w = text.width + h;
@@ -196,8 +204,9 @@ function drawStatusBadge(kind: NodeKind, status: FlaggedStatus) {
 
 /**
  * Keeps one card per node in `layer`, diffing the state's nodes against the
- * drawn ones each frame. A node object that changes identity is redrawn; a
- * change of status only shows another badge, each built once and kept.
+ * drawn ones each frame. A node object that changes identity or slot item is
+ * redrawn; a change of status only shows another badge, each built once and
+ * kept. Item names show at the closest level of detail only.
  */
 export class NodeViews {
   private readonly views = new Map<
@@ -205,6 +214,9 @@ export class NodeViews {
     {
       node: NodeView;
       card: Container;
+      item: ItemId | undefined;
+      /** The item's name under the card, if it has an item. */
+      name: Container | null;
       status: FlaggedStatus | null;
       /** Each status's badge, built the first time the node shows it. */
       badges: Partial<Record<FlaggedStatus, Container>>;
@@ -214,25 +226,37 @@ export class NodeViews {
   constructor(private readonly layer: Container) {}
 
   /** `faded` names the node being moved, drawn faint, or none with `null`. */
-  sync(nodes: ReadonlyMap<NodeId, NodeView>, faded: NodeId | null = null) {
+  sync(
+    nodes: ReadonlyMap<NodeId, NodeView>,
+    faded: NodeId | null = null,
+    lod: Lod = "icons",
+  ) {
     for (const [id, view] of this.views) {
-      if (nodes.get(id) !== view.node) {
+      const node = nodes.get(id);
+      if (node !== view.node || iconItem(node) !== view.item) {
         view.card.destroy({ children: true });
         this.views.delete(id);
       }
     }
     for (const [id, node] of nodes) {
       if (this.views.has(id)) continue;
-      const card = drawNodeCard(
-        node.kind,
-        node.kind === "extractor" ? node.resource : undefined,
-      );
+      const item = iconItem(node);
+      const card = drawNodeCard(node.kind, item);
       card.position.set(node.x * CELL_PX, node.y * CELL_PX);
       this.layer.addChild(card);
-      this.views.set(id, { node, card, status: null, badges: {} });
+      this.views.set(id, {
+        node,
+        card,
+        item,
+        name: card.getChildByLabel(ITEM_NAME),
+        status: null,
+        badges: {},
+      });
     }
+    const named = lod === "icons";
     for (const [id, view] of this.views) {
       view.card.alpha = id === faded ? MOVING_ALPHA : 1;
+      if (view.name) view.name.visible = named;
       const status = flaggedStatus(view.node);
       if (status === view.status) continue;
       const { badges } = view;

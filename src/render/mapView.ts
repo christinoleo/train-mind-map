@@ -1,4 +1,4 @@
-import { Graphics } from "pixi.js";
+import { Container, Graphics } from "pixi.js";
 import { MAP_SIZE } from "../config/constants";
 import type { Rect } from "../sim/geometry/rect";
 import {
@@ -8,7 +8,9 @@ import {
   waterRuns,
   type GameMap,
 } from "../sim/state/map";
+import { strings } from "../ui/strings";
 import type { DeepReadonly } from "./readonly";
+import { worldText } from "./text";
 import {
   CELL_PX,
   PALETTE,
@@ -171,6 +173,28 @@ export function drawDeposits(map: MapView, bounds: Rect): Graphics {
     g.fill(color).stroke({ color: PALETTE.shadow, alpha: 0.45, width: 1 });
   }
   return g;
+}
+
+/**
+ * Each revealed deposit's resource name, centred on it (FR150). The level of
+ * detail shows these at the closest zoom only.
+ */
+export function drawDepositLabels(map: MapView, bounds: Rect): Container {
+  const labels = new Container({ label: "deposit-labels" });
+  for (const deposit of map.deposits) {
+    if (!isInside(deposit, bounds)) continue;
+    const { x, y, w, h } = toWorld(deposit);
+    const text = labels.addChild(
+      worldText(strings.items[deposit.resource], CELL_PX * 0.4, {
+        fill: PALETTE.text,
+        maxWidth: w,
+        outline: true,
+      }),
+    );
+    text.anchor.set(0.5);
+    text.position.set(x + w / 2, y + h / 2);
+  }
+  return labels;
 }
 
 /** Adds the path of an item glyph of radius `r`. */

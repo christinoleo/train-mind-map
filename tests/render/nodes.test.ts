@@ -1,7 +1,7 @@
 import { assert, describe, expect, it } from "vitest";
 import { NODE_KINDS, NODES } from "../../src/data/nodes";
 import { connectorPoints } from "../../src/render/connectors";
-import { flaggedStatus } from "../../src/render/nodes";
+import { flaggedStatus, iconItem } from "../../src/render/nodes";
 import type { NodeId } from "../../src/sim/state/ids";
 import { createNode } from "../../src/sim/state/nodes";
 import { CELL_PX } from "../../src/render/theme";
@@ -50,5 +50,26 @@ describe("flaggedStatus", () => {
 
   it("flags nothing on a node that makes no items", () => {
     expect(flaggedStatus(createNode(1 as NodeId, "box", 0, 0))).toBeNull();
+  });
+});
+
+describe("iconItem", () => {
+  it("shows an Extractor's resource", () => {
+    const node = createNode(1 as NodeId, "extractor", 0, 0, {
+      resource: "stone",
+    });
+    expect(iconItem(node)).toBe("stone");
+  });
+
+  it("shows what a crafter's recipe makes, and nothing without one", () => {
+    const node = createNode(1 as NodeId, "assembler-1", 0, 0);
+    assert("recipe" in node);
+    expect(iconItem(node)).toBeUndefined();
+    node.recipe = "gear";
+    expect(iconItem(node)).toBe("gear");
+  });
+
+  it("shows nothing on a node without a recipe slot", () => {
+    expect(iconItem(createNode(1 as NodeId, "core", 0, 0))).toBeUndefined();
   });
 });

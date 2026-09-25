@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCount, formatDuration } from "../../src/ui/format";
+import { formatCount, formatDuration, formatGain } from "../../src/ui/format";
 
 describe("formatCount", () => {
   it.each([
@@ -27,5 +27,12 @@ describe("formatDuration", () => {
     [2 * 3_600_000 + 15 * 60_000, "2 h 15 min"],
   ])("shows %i ms as %s", (ms, text) => {
     expect(formatDuration(ms)).toBe(text);
+  });
+});
+
+describe("formatGain", () => {
+  it("names the item gained, in pt-BR (FR150)", () => {
+    expect(formatGain(1, "stone")).toBe("+1 pedra");
+    expect(formatGain(3, "iron-ore")).toBe("+3 minério de ferro");
   });
 });

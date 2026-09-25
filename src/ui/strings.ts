@@ -68,6 +68,22 @@ export const strings = {
     rail: "trilho",
     "red-science": "ciência vermelha",
   },
+  // Abbreviated item names, for the stock chips on narrow screens.
+  itemsShort: {
+    "iron-ore": "min. ferro",
+    "copper-ore": "min. cobre",
+    coal: "carvão",
+    stone: "pedra",
+    "crude-oil": "petróleo",
+    "iron-plate": "pl. ferro",
+    "copper-plate": "pl. cobre",
+    brick: "tijolo",
+    gear: "engren.",
+    "copper-cable": "fio",
+    circuit: "circuito",
+    rail: "trilho",
+    "red-science": "ciên. verm.",
+  },
   // The HUD capsule at the top of the screen.
   hud: {
     stock: "Estoque",

@@ -167,7 +167,36 @@ canvas {
   display: flex;
   align-items: center;
   gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
   font-weight: 600;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.stock-name,
+.stock-abbr {
+  color: #b8c0d0;
+  font-weight: 500;
+}
+
+.stock-abbr {
+  display: none;
+}
+
+/* On a narrow screen the name shrinks to an abbreviation; a tap on the chip
+   shows it in full. */
+@media (max-width: 480px) {
+  .stock-chip:not([data-open="true"]) .stock-name {
+    display: none;
+  }
+
+  .stock-chip:not([data-open="true"]) .stock-abbr {
+    display: inline;
+  }
 }
 
 .stock-swatch {

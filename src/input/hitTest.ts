@@ -2,6 +2,7 @@ import { CELL_PX, MIN_TOUCH_PX } from "../config/constants";
 import type { Point } from "../sim/geometry/planar";
 import { containsCell, type Rect } from "../sim/geometry/rect";
 import type { FactoryNode, GameState } from "../sim/state/gameState";
+import { depositUnder, isRevealed, type Deposit } from "../sim/state/map";
 import { nodeRect } from "../sim/state/nodes";
 
 /**
@@ -66,4 +67,14 @@ export function nodeAt(
     if (containsCell(nodeRect(node), x, y)) return node;
   }
   return undefined;
+}
+
+/** The revealed deposit covering world point `world`, if any. */
+export function depositAt(
+  state: Readonly<GameState>,
+  world: Point,
+): Deposit | undefined {
+  const { x, y } = worldToCell(world);
+  if (!isRevealed(state.map, x, y)) return undefined;
+  return depositUnder(state.map, { x, y, w: 1, h: 1 });
 }

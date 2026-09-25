@@ -14,7 +14,7 @@ import { FINAL_RESEARCH, type ResearchId } from "./data/research";
 import { MVP_SCENARIO } from "./data/scenarios/mvp";
 import { Camera } from "./input/camera";
 import { Controls, type Tool } from "./input/controls";
-import { nodeAt } from "./input/hitTest";
+import { depositAt, nodeAt } from "./input/hitTest";
 import { ConnectTool } from "./input/tools/connect";
 import { MoveTool } from "./input/tools/move";
 import { PlaceTool } from "./input/tools/place";
@@ -240,11 +240,19 @@ const railTool = new RailTool({
 events.on("LineCreated", ({ line }) => (selectedLine.value = line));
 // With nothing to place, a long press on a node and a drag move it, a drag
 // from an output connector connects, a tap on a node or an edge opens its
-// menu, and any other tap mines by hand.
+// menu, and any other tap mines by hand. A deposit under the mouse or the
+// last tap shows its resource's name (FR150).
 const buildTool: Tool = {
+  hover(p) {
+    const world = camera.toWorld(p.x, p.y);
+    const onNode = nodeAt(state, world) !== undefined;
+    renderer.showDepositName(onNode ? null : (depositAt(state, world) ?? null));
+  },
   tap(p) {
-    const node = nodeAt(state, camera.toWorld(p.x, p.y));
+    const world = camera.toWorld(p.x, p.y);
+    const node = nodeAt(state, world);
     selectedNode.value = node?.id ?? null;
+    renderer.showDepositName(node ? null : (depositAt(state, world) ?? null));
     if (node) selectedEdge.value = null;
     else if (!connectTool.tap(p)) tapTool.tap(p);
   },
@@ -274,6 +282,7 @@ const buildTool: Tool = {
     connectTool.refresh();
   },
   cancel() {
+    renderer.showDepositName(null);
     tapTool.cancel();
     moveTool.cancel();
     connectTool.cancel();
