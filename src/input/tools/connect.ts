@@ -106,17 +106,13 @@ export class ConnectTool implements Tool {
   dragStart(p: GesturePoint, from: GesturePoint): boolean {
     // On a node's body only a connector close by counts, since the rest of
     // the body is for moving the node, however far the camera zooms out.
-    const onBody = nodeAt(
-      this.deps.state,
-      this.deps.camera.toWorld(from.x, from.y),
-    );
-    const output = this.connectorAt(
-      from,
-      "output",
-      onBody ? CONNECTOR_REACH : undefined,
-    );
+    const { state, camera } = this.deps;
+    const onBody = nodeAt(state, camera.toWorld(from.x, from.y)) !== null;
+    const reach = onBody
+      ? CONNECTOR_REACH
+      : touchReach(camera.scale, CONNECTOR_REACH);
+    const output = this.connectorAt(from, "output", reach);
     if (!output) return false;
-    const { state } = this.deps;
     const node = state.nodes.get(output.node)!;
     const start = connectorsOf(node, "output")[output.port];
     this.drag = {

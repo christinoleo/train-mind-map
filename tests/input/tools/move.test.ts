@@ -100,7 +100,9 @@ describe("MoveTool (FR20)", () => {
     expect(t.tool.dragStart(cell(41, 41), cell(40, 40))).toBe(false);
     expect(t.moving()).toBeNull();
     expect(t.tool.dragStart(cell(61, 61), cell(60, 60))).toBe(false);
-    expect(t.hints).toEqual(["immovable"]);
+    expect(t.moving()).toBeNull();
+    // Pans start on the Core often, so it refuses without a hint.
+    expect(t.hints).toEqual([]);
   });
 
   it("drops the grab when cancelled", () => {

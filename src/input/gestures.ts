@@ -46,6 +46,7 @@ export class GestureTracker {
   private readonly pointers = new Map<number, GesturePoint>();
   private phase: Phase = "idle";
   private origin: GesturePoint = { x: 0, y: 0 };
+
   constructor(private readonly handlers: GestureHandlers) {}
 
   down(id: number, x: number, y: number) {

@@ -61,16 +61,12 @@ export class MoveTool implements Tool {
 
   constructor(private readonly deps: MoveToolDeps) {}
 
-  /** Takes a drag that starts on a node; the Core refuses with a reason. */
+  /** Takes a drag that starts on a node; a drag from the Core pans instead. */
   dragStart(p: GesturePoint, from: GesturePoint): boolean {
     const { state, camera } = this.deps;
     const world = camera.toWorld(from.x, from.y);
     const node = nodeAt(state, world);
-    if (!node) return false;
-    if (node.kind === "core") {
-      this.deps.showHint("immovable");
-      return false;
-    }
+    if (!node || node.kind === "core") return false;
     this.grab = {
       id: node.id,
       offset: {

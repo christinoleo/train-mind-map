@@ -239,9 +239,9 @@ const railTool = new RailTool({
 // A Line just created opens its panel.
 events.on("LineCreated", ({ line }) => (selectedLine.value = line));
 // With nothing to place, a drag from an output connector connects, a drag
-// from a node's body moves it, any other drag pans, a tap on a node or an edge opens its
-// menu, and any other tap mines by hand. A deposit under the mouse or the
-// last tap shows its resource's name (FR150).
+// from a node's body moves it, any other drag pans, a tap on a node or an
+// edge opens its menu, and any other tap mines by hand. A deposit under the
+// mouse or the last tap shows its resource's name (FR150).
 /** Names the deposit at `world` unless a node covers it; returns the node. */
 function nameDepositAt(world: { x: number; y: number }) {
   const node = nodeAt(state, world);
