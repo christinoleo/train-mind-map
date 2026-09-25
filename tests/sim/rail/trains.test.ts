@@ -68,6 +68,7 @@ function setup() {
   const seen: SimEvent[] = [];
   events.on("TrainArrived", (e) => seen.push(e));
   events.on("TrainStateChanged", (e) => seen.push(e));
+  events.on("TrainDeadlock", (e) => seen.push(e));
   const step = () => {
     tick(state, commands, events.emit);
     events.drain();
@@ -436,13 +437,7 @@ describe("deadlock (FR87)", () => {
    */
   function crossed() {
     const s = setup();
-    const events = new EventQueue();
-    const deadlocks: SimEvent[] = [];
-    events.on("TrainDeadlock", (e) => deadlocks.push(e));
-    const step = () => {
-      tick(s.state, new CommandQueue(), events.emit);
-      events.drain();
-    };
+    const deadlocks = () => s.seen.filter((e) => e.type === "TrainDeadlock");
     const [a, b] = s.stations;
     s.rail(a, b);
     const t1 = s.train([a, b]);
@@ -461,7 +456,7 @@ describe("deadlock (FR87)", () => {
       0,
       2,
     );
-    return { ...s, step, deadlocks, a, b, t1, t2 };
+    return { ...s, deadlocks, a, b, t1, t2 };
   }
 
   it("refuses the second of two Lines over the same two Stations", () => {
@@ -477,9 +472,9 @@ describe("deadlock (FR87)", () => {
       "waiting_reservation",
       "waiting_reservation",
     ]);
-    expect(deadlocks).toEqual([]);
-    for (let i = 0; i < 30 && deadlocks.length === 0; i++) step();
-    expect(deadlocks).toEqual([
+    expect(deadlocks()).toEqual([]);
+    for (let i = 0; i < 30 && deadlocks().length === 0; i++) step();
+    expect(deadlocks()).toEqual([
       { type: "TrainDeadlock", trains: [t1.id, t2.id], released: t1.id },
     ]);
     expect(state.reservations.get(platformKey(a))).toBeUndefined();

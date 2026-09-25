@@ -9,7 +9,7 @@ import type { Emit } from "../events";
 import type { GameState, Train } from "../state/gameState";
 import type { TrainId } from "../state/ids";
 import { secondsToTicks } from "../state/production";
-import { releaseWhere } from "./reservation";
+import { releaseWhere, tripKeys } from "./reservation";
 import { platformKey } from "./segments";
 import { nextTrip } from "./trains";
 
@@ -18,11 +18,9 @@ function waitsOn(state: Readonly<GameState>, train: Readonly<Train>) {
   const holders = new Set<TrainId>();
   if (train.station === null) return holders;
   const trip = nextTrip(state, train, train.station);
-  for (const leg of trip?.legs ?? []) {
-    for (const key of [leg.segment, leg.platform]) {
-      const holder = state.reservations.get(key);
-      if (holder !== undefined && holder !== train.id) holders.add(holder);
-    }
+  for (const key of trip ? tripKeys(trip) : []) {
+    const holder = state.reservations.get(key);
+    if (holder !== undefined && holder !== train.id) holders.add(holder);
   }
   return holders;
 }
@@ -60,6 +58,8 @@ export function breakDeadlocks(state: GameState, emit: Emit): void {
   for (const train of state.trains.values()) {
     if (train.blocked >= limit) graph.set(train.id, waitsOn(state, train));
   }
+  // A cycle takes two trains: a train never waits on itself.
+  if (graph.size < 2) return;
   for (const id of [...graph.keys()].sort((a, b) => a - b)) {
     const cycle = cycleThrough(id, graph);
     if (!cycle) continue;

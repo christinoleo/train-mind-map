@@ -1,16 +1,11 @@
 import { MVP_WAGONS } from "../../data/rail";
 import type { Emit } from "../events";
 import { fail, ok, type Result } from "../result";
-import { sharedNetwork } from "../rail/lines";
+import { networkFull } from "../rail/lines";
 import { platformKey } from "../rail/segments";
 import { createTrain, trainCost } from "../rail/trains";
 import type { GameState } from "../state/gameState";
-import {
-  allocateId,
-  type LineId,
-  type NodeId,
-  type TrainId,
-} from "../state/ids";
+import { allocateId, type LineId, type TrainId } from "../state/ids";
 import { nodeRect } from "../state/nodes";
 import { canAfford, debit } from "../state/stock";
 import type { Command } from "./command";
@@ -22,19 +17,6 @@ function freeStop(state: Readonly<GameState>, line: LineId): number {
   return stops.findIndex(
     (s) => !state.reservations.has(platformKey(s.station)),
   );
-}
-
-/**
- * True when one more train on Lines over `stations` would leave no Station
- * of their shared network free: trains standing in each other's next stops
- * would wait for each other for good.
- */
-export function networkFull(
-  state: Readonly<GameState>,
-  stations: readonly NodeId[],
-): boolean {
-  const network = sharedNetwork(state, stations);
-  return network.trains >= network.stations.size - 1;
 }
 
 /**

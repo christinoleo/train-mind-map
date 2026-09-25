@@ -35,15 +35,16 @@ export function lineTrains(state: Readonly<GameState>, line: LineId): Train[] {
 }
 
 /**
- * The Stations Lines share with `stations`, and the trains that run on
- * them: `stations` and every stop of a Line that stops at one, and so on
- * through the Lines those reach. A Station has one platform, so these
- * trains need one Station more than they are to keep moving.
+ * True when one more train on Lines over `stations` would leave no Station
+ * of their shared network free. That network is `stations` and every stop
+ * of a Line that stops at one, and so on through the Lines those reach. A
+ * Station has one platform, so its trains need one Station more than they
+ * are: trains standing in each other's next stops would wait for good.
  */
-export function sharedNetwork(
+export function networkFull(
   state: Readonly<GameState>,
   stations: readonly NodeId[],
-): { stations: Set<NodeId>; trains: number } {
+): boolean {
   const reached = new Set(stations);
   const joined = new Set<LineId>();
   for (let grew = true; grew;) {
@@ -60,7 +61,7 @@ export function sharedNetwork(
   for (const train of state.trains.values()) {
     if (joined.has(train.line)) trains++;
   }
-  return { stations: reached, trains };
+  return trains >= reached.size - 1;
 }
 
 /** The Line `train` follows. */
@@ -86,18 +87,6 @@ export function stationRole(
     if (edge.to === station) feeds = true;
   }
   return feeds ? "load" : null;
-}
-
-/**
- * True when "cheio" at `station` never happens: the Station only unloads,
- * so its trains leave there on `FULL_IDLE_SECONDS` of inactivity alone.
- */
-export function neverFills(
-  state: Readonly<GameState>,
-  station: NodeId,
-  condition: DepartureCondition,
-): boolean {
-  return condition.kind === "full" && stationRole(state, station) === "unload";
 }
 
 /** Loads `wagons` from `station`'s buffer, and returns the items moved. */

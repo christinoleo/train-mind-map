@@ -1,13 +1,14 @@
 import { DEFAULT_DEPARTURE, MVP_WAGONS } from "../../data/rail";
 import type { Emit } from "../events";
 import { fail, ok, type Result } from "../result";
+import { networkFull } from "../rail/lines";
 import { findRoute, platformKey } from "../rail/segments";
 import { trainCost } from "../rail/trains";
 import type { GameState } from "../state/gameState";
 import { allocateId, type LineId, type NodeId } from "../state/ids";
 import { canAfford } from "../state/stock";
 import type { Command } from "./command";
-import { networkFull, PlaceTrain } from "./placeTrain";
+import { PlaceTrain } from "./placeTrain";
 import { RemoveLine } from "./removeLine";
 
 /**

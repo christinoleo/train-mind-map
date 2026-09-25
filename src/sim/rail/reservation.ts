@@ -31,17 +31,18 @@ export function canHold(
   });
 }
 
+/** Every Segment and platform `trip` runs through. */
+export function tripKeys(trip: Trip): string[] {
+  return trip.legs.flatMap((leg) => [leg.segment, leg.platform]);
+}
+
 /** True when `train` may reserve all of `trip`: every Segment and platform. */
 export function canReserveTrip(
   state: Readonly<GameState>,
   train: TrainId,
   trip: Trip,
 ): boolean {
-  return canHold(
-    state,
-    train,
-    trip.legs.flatMap((leg) => [leg.segment, leg.platform]),
-  );
+  return canHold(state, train, tripKeys(trip));
 }
 
 /** Records that `train` holds `next`. */

@@ -13,7 +13,6 @@ import { PlaceTrain } from "../sim/commands/placeTrain";
 import {
   lineThroughput,
   lineTrains,
-  neverFills,
   stationRole,
   type LineThroughput,
 } from "../sim/rail/lines";
@@ -57,12 +56,11 @@ export function linePanelInfo(
   }
   return {
     id,
-    stops: line.stops.map(({ station, condition }) => ({
-      station,
-      role: stationRole(state, station),
-      condition,
-      neverFills: neverFills(state, station, condition),
-    })),
+    stops: line.stops.map(({ station, condition }) => {
+      const role = stationRole(state, station);
+      const neverFills = condition.kind === "full" && role === "unload";
+      return { station, role, condition, neverFills };
+    }),
     throughput,
     addTrain: {
       cost: trainCost(MVP_WAGONS),

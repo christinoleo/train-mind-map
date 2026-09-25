@@ -82,6 +82,8 @@ export function createTrain(
 }
 
 function setState(train: Train, next: TrainState, emit: Emit): void {
+  // `blocked` counts an unbroken run of waiting for a reservation.
+  if (next !== "waiting_reservation") train.blocked = 0;
   if (train.state === next) return;
   train.state = next;
   emit({ type: "TrainStateChanged", train: train.id, state: next });
@@ -112,9 +114,13 @@ function atStop(
   if (mayDepart(train, condition)) {
     depart(state, train, station, emit);
   } else {
-    train.blocked = 0;
     setState(train, role === "unload" ? "unloading" : "loading", emit);
   }
+}
+
+/** The index in its Line of the stop `train` heads for next. */
+function nextStop(state: Readonly<GameState>, train: Readonly<Train>): number {
+  return (train.stop + 1) % lineOf(state, train).stops.length;
 }
 
 /**
@@ -128,8 +134,7 @@ export function nextTrip(
   train: Readonly<Train>,
   station: NodeId,
 ): Trip | null {
-  const { stops } = lineOf(state, train);
-  const target = stops[(train.stop + 1) % stops.length].station;
+  const target = lineOf(state, train).stops[nextStop(state, train)].station;
   const taken = (id: NodeId) => {
     const holder = state.reservations.get(platformKey(id));
     return holder !== undefined && holder !== train.id;
@@ -156,7 +161,6 @@ function depart(
     setState(train, "waiting_reservation", emit);
     return;
   }
-  train.blocked = 0;
   // The platform it stands on frees once its tail is out of the Station.
   for (const h of train.holds) h.release = trip.exit;
   reserveTrip(state, train, trip);
@@ -166,7 +170,7 @@ function depart(
     train.lapStart = state.tick;
   }
   train.trip = trip;
-  train.stop = (train.stop + 1) % lineOf(state, train).stops.length;
+  train.stop = nextStop(state, train);
   train.station = null;
   train.pos = 0;
   train.prevPos = 0;
