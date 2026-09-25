@@ -194,3 +194,7 @@
 - **Drag = move:** once the finger passes 8 px, the node lifts (bigger shadow, scale 1.05), the bubble hides, the original position stays as a ghost, the grid shows, and the attached edges preview their new routes live. The node turns red where the drop is invalid, and it snaps back on release.
 - **Remove:** a single tap, then an "Removido · Desfazer" toast.
 - **Edges:** tapping an edge opens the same bubble at the tap point (Upgrade, Remover).
+
+## 2026-09-25 — v1.17 (Typed connectors)
+
+- **Decision (user), inspired by Factorio fluids:** each node that requests something marks what it requests. Production nodes get **typed connectors**: one input per ingredient and one output per product, marked with the item's icon and colour, with the count set by the recipe. Edges attach only when the item matches, and compatible connectors light up while dragging. Changing a recipe disconnects the incompatible edges (refunded, with a warning before confirming). Core, Box, Station, Splitter and Merger stay generic. See ADR-0008; FR25 and CONTEXT.md (Connector) are updated.

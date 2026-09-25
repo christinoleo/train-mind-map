@@ -15,7 +15,7 @@ A directed, automatically routed polyline from one node's output connector to an
 _Avoid_: belt, wire, link, connection
 
 **Connector**:
-An input or output port on a node where an edge attaches.
+An input or output port on a node where an edge attaches. On production nodes each connector is **typed**: it carries exactly one item, the ingredient or product it is marked with. Storage and logistics nodes have generic connectors.
 _Avoid_: socket, pin, port
 
 **Bend**:
