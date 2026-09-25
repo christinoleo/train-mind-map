@@ -77,7 +77,7 @@ function drag(
   from: { x: number; y: number },
   to: { x: number; y: number },
 ) {
-  const took = tool.dragStart(to, from, false);
+  const took = tool.dragStart(to, from);
   if (!took) return false;
   tool.dragMove(to);
   tool.frame(16);
@@ -100,14 +100,17 @@ describe("ConnectTool", () => {
 
   it("leaves a drag from open ground to the camera", () => {
     const { tool } = setup();
-    expect(tool.dragStart({ x: 0, y: 0 }, { x: 40, y: 40 }, false)).toBe(false);
+    expect(tool.dragStart({ x: 0, y: 0 }, { x: 40, y: 40 })).toBe(false);
   });
 
-  it("leaves a long press to the node move", () => {
+  it("leaves a drag from a node's body, away from its connectors, to the move", () => {
     const { state, tool, put } = setup();
     const a = put("box", 50, 50);
-    const from = connector(state, a, "output");
-    expect(tool.dragStart(from, from, true)).toBe(false);
+    const body = { x: 51 * CELL_PX, y: 51 * CELL_PX };
+    expect(tool.dragStart(body, body)).toBe(false);
+    const output = connector(state, a, "output");
+    const inside = { x: output.x - CELL_PX * 0.4, y: output.y };
+    expect(drag(tool, inside, { x: 60 * CELL_PX, y: 51 * CELL_PX })).toBe(true);
   });
 
   it("snaps to a free input when released on the node's body", () => {
@@ -124,7 +127,7 @@ describe("ConnectTool", () => {
     const a = put("box", 50, 50);
     const far = put("box", 66, 50);
     const to = connector(state, far, "input");
-    tool.dragStart(to, connector(state, a, "output"), false);
+    tool.dragStart(to, connector(state, a, "output"));
     tool.dragMove(to);
     tool.frame(16);
     expect(preview()).toMatchObject({
@@ -141,7 +144,7 @@ describe("ConnectTool", () => {
     const { state, tool, put, dispatched, preview } = setup();
     const a = put("box", 50, 50);
     const ground = { x: 54.5 * CELL_PX, y: 54.5 * CELL_PX };
-    tool.dragStart(ground, connector(state, a, "output"), false);
+    tool.dragStart(ground, connector(state, a, "output"));
     tool.dragMove(ground);
     tool.frame(16);
     expect(preview()).toMatchObject({ reason: "no_target" });
@@ -152,7 +155,7 @@ describe("ConnectTool", () => {
   it("routes at most once per frame, and only on a new cell", () => {
     const { state, tool, put, preview } = setup();
     const a = put("box", 50, 50);
-    tool.dragStart({ x: 900, y: 810 }, connector(state, a, "output"), false);
+    tool.dragStart({ x: 900, y: 810 }, connector(state, a, "output"));
     tool.frame(16);
     const first = preview();
     tool.dragMove({ x: 901, y: 811 });

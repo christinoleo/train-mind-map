@@ -103,12 +103,16 @@ export class ConnectTool implements Tool {
     return id !== null;
   }
 
-  dragStart(p: GesturePoint, from: GesturePoint, held: boolean): boolean {
-    // A long press is the node move's gesture, not a connection.
-    if (held) return false;
-    const output = this.connectorAt(from, "output");
+  dragStart(p: GesturePoint, from: GesturePoint): boolean {
+    // On a node's body only a connector close by counts, since the rest of
+    // the body is for moving the node, however far the camera zooms out.
+    const { state, camera } = this.deps;
+    const onBody = nodeAt(state, camera.toWorld(from.x, from.y)) !== null;
+    const reach = onBody
+      ? CONNECTOR_REACH
+      : touchReach(camera.scale, CONNECTOR_REACH);
+    const output = this.connectorAt(from, "output", reach);
     if (!output) return false;
-    const { state } = this.deps;
     const node = state.nodes.get(output.node)!;
     const start = connectorsOf(node, "output")[output.port];
     this.drag = {
@@ -219,12 +223,19 @@ export class ConnectTool implements Tool {
     });
   }
 
-  /** The connector on `side` nearest screen point `p`, within touch reach. */
-  private connectorAt(p: GesturePoint, side: ConnectorSide): Connector | null {
+  /**
+   * The connector on `side` nearest screen point `p`, within `reach` world
+   * units, or touch reach by default.
+   */
+  private connectorAt(
+    p: GesturePoint,
+    side: ConnectorSide,
+    reach = touchReach(this.deps.camera.scale, CONNECTOR_REACH),
+  ): Connector | null {
     const { state, camera } = this.deps;
     const world = camera.toWorld(p.x, p.y);
     let best: Connector | null = null;
-    let bestDistance = touchReach(camera.scale, CONNECTOR_REACH);
+    let bestDistance = reach;
     for (const node of state.nodes.values()) {
       connectorsOf(node, side).forEach((c, port) => {
         const d = Math.hypot(c.x - world.x, c.y - world.y);

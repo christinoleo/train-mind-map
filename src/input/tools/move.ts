@@ -40,23 +40,20 @@ interface Grab {
   id: NodeId;
   /** Where on the node it was grabbed, in cells from its top-left corner. */
   offset: Point;
-  /** Set once the grab turns into a drag. */
-  drag: {
-    pointer: GesturePoint;
-    /** The map without the node and its edges, built once per drag. */
-    index: PlanarIndex;
-    /** The move planned for cell (x, y); it re-plans only on a change. */
-    plan: MovePlan | null;
-    x: number;
-    y: number;
-  } | null;
+  pointer: GesturePoint;
+  /** The map without the node and its edges, built once per drag. */
+  index: PlanarIndex;
+  /** The move planned for cell (x, y); it re-plans only on a change. */
+  plan: MovePlan | null;
+  x: number;
+  y: number;
 }
 
 /**
- * Moves a node (FR20): a long press on it grabs it, and a drag carries it,
- * snapped to the cells. Every attached edge re-routes live, green while the
- * move fits and red with the reason when it does not; the camera pans while
- * the pointer sits at the screen's edge (FR14). Releasing where the move is
+ * Moves a node (FR20): a drag that starts on its body carries it, snapped to
+ * the cells. Every attached edge re-routes live, green while the move fits
+ * and red with the reason when it does not; the camera pans while the
+ * pointer sits at the screen's edge (FR14). Releasing where the move is
  * refused leaves the node where it was and tells why.
  */
 export class MoveTool implements Tool {
@@ -64,67 +61,46 @@ export class MoveTool implements Tool {
 
   constructor(private readonly deps: MoveToolDeps) {}
 
-  longPress(p: GesturePoint) {
+  /** Takes a drag that starts on a node; a drag from the Core pans instead. */
+  dragStart(p: GesturePoint, from: GesturePoint): boolean {
     const { state, camera } = this.deps;
-    const world = camera.toWorld(p.x, p.y);
+    const world = camera.toWorld(from.x, from.y);
     const node = nodeAt(state, world);
-    if (!node) return;
-    if (node.kind === "core") {
-      this.deps.showHint("immovable");
-      return;
-    }
+    if (!node || node.kind === "core") return false;
     this.grab = {
       id: node.id,
       offset: {
         x: world.x / CELL_PX - node.x,
         y: world.y / CELL_PX - node.y,
       },
-      drag: null,
-    };
-    this.deps.showMoving(node.id);
-  }
-
-  /** A grab that lifts without dragging drops the node where it is. */
-  holdEnd() {
-    this.cancel();
-  }
-
-  dragStart(p: GesturePoint, _from: GesturePoint, held: boolean): boolean {
-    const { grab } = this;
-    if (!held || !grab) return false;
-    const node = this.deps.state.nodes.get(grab.id);
-    if (!node) {
-      this.cancel();
-      return false;
-    }
-    grab.drag = {
       pointer: p,
-      index: moveIndex(this.deps.state, grab.id),
+      index: moveIndex(state, node.id),
       plan: null,
       x: node.x,
       y: node.y,
     };
+    this.deps.showMoving(node.id);
     return true;
   }
 
   dragMove(p: GesturePoint) {
-    if (this.grab?.drag) this.grab.drag.pointer = p;
+    if (this.grab) this.grab.pointer = p;
   }
 
   /** Pans at the screen's edge, then re-plans the move if the cell changed. */
   frame(dtMs: number) {
-    const drag = this.grab?.drag;
-    if (!drag) return;
-    panAtEdge(this.deps.camera, drag.pointer, this.deps.viewport(), dtMs);
+    const { grab } = this;
+    if (!grab) return;
+    panAtEdge(this.deps.camera, grab.pointer, this.deps.viewport(), dtMs);
     this.plan();
   }
 
   dragEnd(p: GesturePoint) {
     const { grab } = this;
-    if (!grab?.drag) return;
-    grab.drag.pointer = p;
+    if (!grab) return;
+    grab.pointer = p;
     this.plan();
-    const { plan, x, y } = grab.drag;
+    const { plan, x, y } = grab;
     const node = this.deps.state.nodes.get(grab.id);
     this.cancel();
     if (!plan || !node || (node.x === x && node.y === y)) return;
@@ -139,14 +115,14 @@ export class MoveTool implements Tool {
    * move is planned again only when its price may pass or fail differently.
    */
   refresh() {
-    const drag = this.grab?.drag;
-    const check = drag?.plan?.check;
-    if (!drag || !check) return;
+    const { grab } = this;
+    const check = grab?.plan?.check;
+    if (!grab || !check) return;
     const flips = check.ok
       ? !canAfford(this.deps.state, check.value.pay)
       : check.reason === "no_stock";
     if (!flips) return;
-    drag.plan = null;
+    grab.plan = null;
     this.plan();
   }
 
@@ -160,17 +136,16 @@ export class MoveTool implements Tool {
 
   private plan() {
     const { grab } = this;
-    const drag = grab?.drag;
-    if (!grab || !drag) return;
+    if (!grab) return;
     const { state, camera } = this.deps;
-    const world = camera.toWorld(drag.pointer.x, drag.pointer.y);
+    const world = camera.toWorld(grab.pointer.x, grab.pointer.y);
     const x = Math.round(world.x / CELL_PX - grab.offset.x);
     const y = Math.round(world.y / CELL_PX - grab.offset.y);
-    if (drag.plan && x === drag.x && y === drag.y) return;
-    drag.x = x;
-    drag.y = y;
-    const plan = planMove(state, grab.id, x, y, drag.index);
-    drag.plan = plan;
+    if (grab.plan && x === grab.x && y === grab.y) return;
+    grab.x = x;
+    grab.y = y;
+    const plan = planMove(state, grab.id, x, y, grab.index);
+    grab.plan = plan;
     this.show(plan);
   }
 

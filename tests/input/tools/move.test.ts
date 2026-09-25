@@ -67,11 +67,10 @@ const cell = (x: number, y: number) => ({
 });
 
 describe("MoveTool (FR20)", () => {
-  it("grabs a node on a long press and moves it where the drag ends", () => {
+  it("grabs a node with a drag from its body and moves it where the drag ends", () => {
     const t = setup();
-    t.tool.longPress(cell(56, 50));
+    expect(t.tool.dragStart(cell(57, 51), cell(56, 50))).toBe(true);
     expect(t.moving()).toBe(t.b);
-    expect(t.tool.dragStart(cell(57, 51), cell(56, 50), true)).toBe(true);
     t.tool.frame(16);
     expect(t.ghost()).toMatchObject({ kind: "box", x: 57, y: 51, valid: true });
     expect(t.preview()?.reason).toBeNull();
@@ -86,8 +85,7 @@ describe("MoveTool (FR20)", () => {
 
   it("leaves the node where it was when the move is refused, and tells why", () => {
     const t = setup();
-    t.tool.longPress(cell(56, 50));
-    t.tool.dragStart(cell(70, 50), cell(56, 50), true);
+    t.tool.dragStart(cell(70, 50), cell(56, 50));
     t.tool.frame(16);
     expect(t.ghost()?.valid).toBe(false);
     expect(t.preview()).toMatchObject({ reason: "out_of_range", length: 18 });
@@ -97,19 +95,23 @@ describe("MoveTool (FR20)", () => {
     expect(t.hints).toEqual(["out_of_range"]);
   });
 
-  it("takes no drag without a long press, and never the Core", () => {
+  it("takes no drag from open ground, and never the Core", () => {
     const t = setup();
-    expect(t.tool.dragStart(cell(57, 51), cell(56, 50), false)).toBe(false);
-    t.tool.longPress(cell(60, 60));
-    expect(t.hints).toEqual(["immovable"]);
-    expect(t.tool.dragStart(cell(61, 61), cell(60, 60), true)).toBe(false);
+    expect(t.tool.dragStart(cell(41, 41), cell(40, 40))).toBe(false);
+    expect(t.moving()).toBeNull();
+    expect(t.tool.dragStart(cell(61, 61), cell(60, 60))).toBe(false);
+    expect(t.moving()).toBeNull();
+    // Pans start on the Core often, so it refuses without a hint.
+    expect(t.hints).toEqual([]);
   });
 
-  it("drops the grab when the long press lifts without a drag", () => {
+  it("drops the grab when cancelled", () => {
     const t = setup();
-    t.tool.longPress(cell(56, 50));
-    t.tool.holdEnd();
+    t.tool.dragStart(cell(57, 51), cell(56, 50));
+    t.tool.cancel();
     expect(t.moving()).toBeNull();
-    expect(t.tool.dragStart(cell(57, 51), cell(56, 50), true)).toBe(false);
+    t.tool.dragEnd(cell(58, 52));
+    t.step();
+    expect(t.state.nodes.get(t.b)).toMatchObject({ x: 56, y: 50 });
   });
 });

@@ -203,7 +203,7 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 - **FR132** [MVP] Paleta de nós acessível pelo botão "+", mostrando só os tipos liberados e o custo de cada um.
 - **FR133** [MVP] Toda área tocável tem ≥ 44×44 px na tela, qualquer que seja o zoom; conectores têm área de toque ampliada.
 - **FR134** [MVP] Toque vs. arraste: movimento > 8 px conta como arraste; toque simples no vazio só seleciona ou desseleciona.
-- **FR135** [MVP] Pressão longa = 500 ms sem mover mais de 8 px; sobre um nó ativa Mover nó e o arraste seguinte não move a câmera.
+- **FR135** [MVP] Arrastar a partir do corpo de um nó ativa Mover nó na hora e não move a câmera (substitui a pressão longa de 500 ms, playtest de 2026-09-25).
 - **FR136** [MVP] Dois dedos sempre cancelam a ferramenta em curso e fazem pinça e pan.
 - **FR137** [MVP] Desfazer: botão ↶ desfaz as últimas 20 ações de construção; um desfazer pode falhar (ex.: posição agora ocupada) e mostra o motivo.
 - **FR138** [MVP] Desktop: arrastar com o mouse e roda para zoom; arrastar no vazio, botão do meio ou espaço + arrastar = pan; teclas 1–9 = paleta; T = alternar camada; Ctrl+Z = desfazer; Esc = cancelar a ferramenta.
@@ -301,7 +301,7 @@ mkdir -p .claude/skills && cp -r node_modules/pixi.js/skills/* .claude/skills/
 - **AR22** Semântica de E/S dos nós conforme a arquitetura (buffers de entrada 2× a receita, buffer de saída 1 lote, rodízio de Divisor e Mesclador, bloqueio do Filtro).
 - **AR23** Render: um único `Application` do Pixi com 8 camadas (terreno e grade, jazidas, arestas, itens, nós, trilhos, trens, sobreposições). Itens num `ParticleContainer` com uma textura por item no atlas e culling por AABB do viewport. LOD por zoom (traço colorido / pontos / ícones). Pool para sprites de itens e trens; views criadas e descartadas por diff estado × views, uma por ID.
 - **AR24** Tratamento de `webglcontextlost` com recriação dos recursos (mitigação de pixijs#12224).
-- **AR25** Câmera e gestos próprios (sem `pixi-viewport`); regras de gesto: 8 px, 500 ms, dois dedos cancelam, conector vs. vazio.
+- **AR25** Câmera e gestos próprios (sem `pixi-viewport`); regras de gesto: 8 px, dois dedos cancelam, conector vs. corpo do nó vs. vazio.
 - **AR26** Áudio com Web Audio API nativa (sem `@pixi/sound`): formato único AAC `.m4a`, desbloqueio no 1º gesto, máximo de 8 vozes, agregação de SFX iguais em < 50 ms.
 - **AR27** Assets: ícones SVG no repositório (`kebab-case`) empacotados num atlas PNG no build; pré-carregamento de tudo no boot (≤ 1 MB).
 - **AR28** PWA com `vite-plugin-pwa` (`generateSW`), pré-cache do shell e dos assets de boot, aviso de nova versão, manifest com `orientation: any`.

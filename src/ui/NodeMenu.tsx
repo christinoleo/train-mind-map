@@ -87,8 +87,8 @@ interface Props {
  * Furnace or Assembler, which loses the items inside when changed, an
  * upgrade in place, which pays the difference, and removal, which refunds
  * the whole cost. The Core, a Box and a Station show how full they are, and
- * a Box has its "não usar em construção" option (FR71). A long press on the
- * node moves it instead.
+ * a Box has its "não usar em construção" option (FR71). A drag on the node
+ * moves it instead.
  */
 export function NodeMenu({
   node,
