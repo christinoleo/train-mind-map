@@ -1,50 +1,55 @@
 // Where connectors and edges sit in the world, in world units. It has no
 // Pixi in it, so input hit tests share it with the renderer.
 
-import { NODES, type NodeKind } from "../data/nodes";
+import { NODES } from "../data/nodes";
 import type { Point } from "../sim/geometry/planar";
-import { connectorRows, type ConnectorSide } from "../sim/state/edges";
+import {
+  connectorCount,
+  connectorRows,
+  type ConnectorSide,
+} from "../sim/state/edges";
 import type { Edge, FactoryNode } from "../sim/state/gameState";
 import type { EdgeId, NodeId } from "../sim/state/ids";
+import type { Typed } from "../sim/state/production";
 import { CELL_PX } from "./theme";
 
-type Placed = Pick<FactoryNode, "kind" | "x" | "y">;
+type Placed = Typed & Pick<FactoryNode, "x" | "y">;
 
 interface ConnectorPoints {
   inputs: readonly Point[];
   outputs: readonly Point[];
 }
 
-const pointsByKind = new Map<NodeKind, ConnectorPoints>();
+/** Worked-out points, by kind and input count. */
+const pointsByShape = new Map<string, ConnectorPoints>();
 
 /**
  * Where a card's connectors sit, relative to its top-left corner: inputs on
  * the left edge, outputs on the right, each centred on the row its edge
- * leaves or enters by (FR15). They depend only on the kind, so each kind is
- * worked out once.
+ * leaves or enters by (FR15). They depend only on the kind and, on a
+ * production node, how many inputs its recipe gives it (FR25), so each shape
+ * is worked out once.
  */
-export function connectorPoints(kind: NodeKind): ConnectorPoints {
-  let points = pointsByKind.get(kind);
+export function connectorPoints(node: Typed): ConnectorPoints {
+  const inputs = connectorCount(node, "input");
+  const key = `${node.kind}:${inputs}`;
+  let points = pointsByShape.get(key);
   if (!points) {
-    points = computeConnectorPoints(kind);
-    pointsByKind.set(kind, points);
+    const { size, outputs } = NODES[node.kind];
+    const spread = (n: number, x: number) =>
+      connectorRows(n, size).map((row) => ({ x, y: (row + 0.5) * CELL_PX }));
+    points = {
+      inputs: spread(inputs, 0),
+      outputs: spread(outputs, size * CELL_PX),
+    };
+    pointsByShape.set(key, points);
   }
   return points;
 }
 
-function computeConnectorPoints(kind: NodeKind): ConnectorPoints {
-  const { size, inputs, outputs } = NODES[kind];
-  const spread = (n: number, x: number) =>
-    connectorRows(n, size).map((row) => ({ x, y: (row + 0.5) * CELL_PX }));
-  return {
-    inputs: spread(inputs, 0),
-    outputs: spread(outputs, size * CELL_PX),
-  };
-}
-
 /** Every connector of `node` on `side`, in the world, by port. */
 export function connectorsOf(node: Placed, side: ConnectorSide): Point[] {
-  const points = connectorPoints(node.kind);
+  const points = connectorPoints(node);
   return (side === "input" ? points.inputs : points.outputs).map((p) => ({
     x: node.x * CELL_PX + p.x,
     y: node.y * CELL_PX + p.y,

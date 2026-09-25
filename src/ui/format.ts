@@ -100,12 +100,17 @@ export function formatPerSecond(n: number): string {
  * Why a dragged edge cannot be built, for its chip: the reason, or, for an
  * edge over the length limit, its length against the limit ("Longa demais
  * 14/12"). Water gets its own wording: the shared reason speaks of nodes.
+ * A typed input names the item it `wants` (FR25).
  */
 export function edgeReasonText(
   reason: FailReason,
   length: number | null,
   max: number,
+  wants?: ItemId,
 ): string {
+  if (reason === "wrong_item" && wants) {
+    return `${strings.edge.wants} ${strings.items[wants]}`;
+  }
   if (reason === "out_of_range" && length !== null) {
     return `${strings.edge.tooLong} ${length}/${max}`;
   }

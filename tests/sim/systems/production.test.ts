@@ -13,6 +13,7 @@ import type { Coverage } from "../../../src/sim/state/map";
 import { createNode } from "../../../src/sim/state/nodes";
 import {
   acceptItem,
+  inputTypes,
   batchTicks,
   extractorCycle,
   takeOutput,
@@ -27,6 +28,11 @@ const NO_FLOW = SYSTEMS.filter((system) => system !== flow);
  * A game with one producing node, placed directly and powered by the Core,
  * and a tick driver.
  */
+/** The input `item` enters `node` by: its typed input, or the first. */
+function portFor(node: ProducerNode, item: ItemId): number {
+  return Math.max(0, inputTypes(node).indexOf(item));
+}
+
 function setup(kind: NodeKind, recipe?: RecipeId, coverage?: Coverage[]) {
   const state = createGameState("production");
   const commands = new CommandQueue();
@@ -45,7 +51,7 @@ function setup(kind: NodeKind, recipe?: RecipeId, coverage?: Coverage[]) {
    */
   const run = (n: number, feed: ItemId[] = [], drain = true) => {
     for (let t = 0; t < n; t++) {
-      for (const item of feed) acceptItem(node, item);
+      for (const item of feed) acceptItem(node, item, portFor(node, item));
       tick(state, commands, (e) => events.push(e), NO_FLOW);
       const item = drain ? takeOutput(node) : undefined;
       if (item) made.push(item);
@@ -173,43 +179,45 @@ describe("Furnace", () => {
 
   it("picks the smelting recipe of its first input", () => {
     const { node } = setup("furnace");
-    expect(acceptItem(node, "stone")).toBe(true);
-    expect(node).toMatchObject({ recipe: "brick" });
+    expect(acceptItem(node, "stone", 0)).toBe(true);
+    expect(node).toMatchObject({ recipe: null, running: "brick" });
     // Iron ore has no place while stone is inside.
-    expect(acceptItem(node, "iron-ore")).toBe(false);
+    expect(acceptItem(node, "iron-ore", 0)).toBe(false);
   });
 
-  it("switches recipe once it is empty", () => {
+  it("switches recipe once it is empty, its input staying generic", () => {
     const { node, run } = setup("furnace");
-    acceptItem(node, "copper-ore");
+    acceptItem(node, "copper-ore", 0);
     run(32);
     expect(node.production.output).toBe(0);
-    expect(acceptItem(node, "iron-ore")).toBe(true);
-    expect(node).toMatchObject({ recipe: "iron-plate" });
+    expect(inputTypes(node)).toEqual([null]);
+    expect(acceptItem(node, "iron-ore", 0)).toBe(true);
+    expect(node).toMatchObject({ recipe: null, running: "iron-plate" });
   });
 
   it("refuses items no smelting recipe takes", () => {
     const { node } = setup("furnace");
-    expect(acceptItem(node, "coal")).toBe(false);
-    expect(acceptItem(node, "iron-plate")).toBe(false);
+    expect(acceptItem(node, "coal", 0)).toBe(false);
+    expect(acceptItem(node, "iron-plate", 0)).toBe(false);
   });
 });
 
 describe("input buffers", () => {
   it("hold 2× what one batch needs, per item type", () => {
     const { node } = setup("furnace", "brick");
-    for (let i = 0; i < 4; i++) expect(acceptItem(node, "stone")).toBe(true);
-    expect(acceptItem(node, "stone")).toBe(false);
+    for (let i = 0; i < 4; i++) expect(acceptItem(node, "stone", 0)).toBe(true);
+    expect(acceptItem(node, "stone", 0)).toBe(false);
     expect(node.production.input).toEqual({ stone: 4 });
   });
 
   it("take every ingredient of the recipe, each in its own buffer", () => {
     const { node } = setup("assembler-1", "circuit");
-    for (let i = 0; i < 6; i++) acceptItem(node, "copper-cable");
-    for (let i = 0; i < 2; i++) acceptItem(node, "iron-plate");
-    expect(acceptItem(node, "iron-plate")).toBe(false);
-    expect(acceptItem(node, "copper-cable")).toBe(false);
-    expect(acceptItem(node, "gear")).toBe(false);
+    const put = (item: ItemId) => acceptItem(node, item, portFor(node, item));
+    for (let i = 0; i < 6; i++) put("copper-cable");
+    for (let i = 0; i < 2; i++) put("iron-plate");
+    expect(put("iron-plate")).toBe(false);
+    expect(put("copper-cable")).toBe(false);
+    expect(put("gear")).toBe(false);
     expect(node.production.input).toEqual({
       "copper-cable": 6,
       "iron-plate": 2,
@@ -218,7 +226,7 @@ describe("input buffers", () => {
 
   it("refuse everything in an Assembler with no recipe", () => {
     const { node, run } = setup("assembler-1");
-    expect(acceptItem(node, "iron-plate")).toBe(false);
+    expect(acceptItem(node, "iron-plate", 0)).toBe(false);
     run(10);
     expect(node.production.status).toBe("starved");
   });
@@ -262,10 +270,10 @@ describe("Assembler 1", () => {
     const { node, run, statuses } = setup("assembler-1", "gear");
     run(5);
     expect(node.production.status).toBe("starved");
-    acceptItem(node, "iron-plate");
+    acceptItem(node, "iron-plate", 0);
     run(5);
     expect(node.production.status).toBe("starved");
-    acceptItem(node, "iron-plate");
+    acceptItem(node, "iron-plate", 0);
     run(20);
     expect(node.production.status).toBe("working");
     run(1);

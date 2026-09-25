@@ -315,7 +315,7 @@ describe("items a node refuses (FR57)", () => {
     const edge = w.wire(core, 0, furnace);
     w.run(100);
     expect(furnace).toMatchObject({
-      recipe: "brick",
+      running: "brick",
       production: { input: { stone: 3 } },
     });
     expect(storedItems(core)).toEqual({ "copper-ore": 1 });
@@ -371,13 +371,14 @@ describe("items a node refuses (FR57)", () => {
     expect(storedItems(core)).toEqual({ stone: 10 });
   });
 
-  it("feeds an Assembler every input, whichever the Core holds first", () => {
+  it("feeds each typed input of an Assembler its own item from the Core", () => {
     const w = world();
     const core = coreNode(w.state);
     store(core, "iron-plate", 50);
     store(core, "stone", 50);
     const assembler = w.put("assembler-1", { recipe: "rail" });
-    w.wire(core, 0, assembler);
+    w.wire(core, 0, assembler, 0);
+    w.wire(core, 1, assembler, 1);
     expect(railBatches(w, assembler)).toBeGreaterThanOrEqual(20);
   });
 
@@ -404,7 +405,7 @@ describe("items a node refuses (FR57)", () => {
     expect(storedItems(source)["copper-ore"]).toBe(5);
   });
 
-  it("merges Boxes into an Assembler without jamming on either input", () => {
+  it("merges Boxes into a typed input without jamming on either input", () => {
     const w = world();
     const plates = w.box(["iron-plate", 20]);
     const mixed = w.box(["iron-plate", 20], ["stone", 20]);
@@ -412,7 +413,8 @@ describe("items a node refuses (FR57)", () => {
     const assembler = w.put("assembler-1", { recipe: "rail" });
     w.wire(plates, 0, merger, 0);
     w.wire(mixed, 0, merger, 1);
-    w.wire(merger, 0, assembler);
+    w.wire(merger, 0, assembler, 0);
+    w.wire(mixed, 1, assembler, 1);
     expect(railBatches(w, assembler)).toBe(20);
     expect(merger.blocked).toBe(false);
   });

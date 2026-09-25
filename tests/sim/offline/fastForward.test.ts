@@ -196,8 +196,8 @@ describe("fastForward", () => {
     const lab = put("lab") as LabNode;
     wire(lab, core);
     state.research.active = "splitter-merger";
-    acceptItem(lab, "red-science");
-    acceptItem(lab, "red-science");
+    acceptItem(lab, "red-science", 0);
+    acceptItem(lab, "red-science", 0);
     const before = structuredClone(state.research);
     const report = fastForward(state, HOUR_MS, UNLIMITED);
     expect(state.research).toEqual(before);

@@ -8,14 +8,14 @@ import { AUTOSAVE_MS, STORAGE_PREFIX } from "../config/constants";
 import { fail, ok, type FailReason, type Result } from "../sim/result";
 import { DEFAULT_DEPARTURE } from "../data/rail";
 import type { NodeKind } from "../data/nodes";
-import { RemoveEdge } from "../sim/commands/removeEdge";
+import { dropEdge, RemoveEdge } from "../sim/commands/removeEdge";
 import { RemoveLine } from "../sim/commands/removeLine";
 import { RemoveNode } from "../sim/commands/removeNode";
 import { overlaps } from "../sim/geometry/rect";
 import { RemoveRail } from "../sim/commands/removeRail";
 import { lineTrains } from "../sim/rail/lines";
 import { railsOf } from "../sim/rail/rails";
-import { edgeHitsRect, edgesOf } from "../sim/state/edges";
+import { edgeHitsRect, edgesOf, matchInputPort } from "../sim/state/edges";
 import type { GameState, Rail } from "../sim/state/gameState";
 import type { NodeId } from "../sim/state/ids";
 import {
@@ -34,7 +34,7 @@ import {
 import { log, type LogEntry } from "./log";
 
 /** Bumped whenever the saved state changes shape; add a migration with it. */
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 export const SAVE_KEYS = {
   /** The latest save. */
@@ -207,7 +207,38 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
     });
     return { ...save, schemaVersion: 9, state: { ...state, nodes } };
   },
+  // Schema 10: a production node's inputs are typed, one per ingredient of
+  // its recipe (FR25), so their count and places changed.
+  9: (save) => {
+    const state = save.state as SerializedState | undefined;
+    if (!Array.isArray(state?.nodes)) return { ...save, schemaVersion: 10 };
+    const typed = deserializeState(state);
+    typeInputs(typed);
+    return { ...save, schemaVersion: 10, state: serializeState(typed) };
+  },
 };
+
+/**
+ * Moves each edge onto the typed input that takes what its source sends and
+ * sits where its route ends (FR25). An edge with no such input is taken out,
+ * refunding its cost and the items on it, as a change of recipe would.
+ */
+function typeInputs(state: GameState): void {
+  const taken = new Map<NodeId, Set<number>>();
+  for (const edge of [...state.edges.values()]) {
+    const into = state.nodes.get(edge.to)!;
+    let ports = taken.get(into.id);
+    if (!ports) taken.set(into.id, (ports = new Set()));
+    const end = edge.path[edge.path.length - 1];
+    const port = matchInputPort(into, state.nodes.get(edge.from)!, end, ports);
+    if (port === -1) {
+      dropEdge(state, edge);
+      continue;
+    }
+    ports.add(port);
+    state.edges.set(edge.id, { ...edge, toPort: port });
+  }
+}
 
 /** The node sizes of schema 7 that schema 8 changed. */
 const SCHEMA_7_SIZES: Partial<Record<NodeKind, number>> = {

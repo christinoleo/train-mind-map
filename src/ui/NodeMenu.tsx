@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import type { ReadonlySignal } from "@preact/signals";
 import { NODES, type Cost, type NodeKind } from "../data/nodes";
 import { RECIPE_IDS, RECIPES, type RecipeId } from "../data/recipes";
+import { recipeChange } from "../sim/commands/setRecipe";
 import { UpgradeNode, nodeUpgradeCost } from "../sim/commands/upgradeNode";
 import type { FailReason } from "../sim/result";
 import type { GameState } from "../sim/state/gameState";
@@ -16,11 +17,23 @@ import { ItemIcon } from "./InventoryPanel";
 import { strings } from "./strings";
 
 /** What the node's action bubble shows of the selected node, published by the UI bridge. */
+/** A recipe the node may run, and how many edges picking it disconnects. */
+export interface RecipeOption {
+  recipe: RecipeId | null;
+  drops: number;
+}
+
 export interface NodeMenuInfo {
   id: NodeId;
   kind: NodeKind;
-  /** The recipe it runs and those it may run; `null` for kinds without one. */
-  recipes: { current: RecipeId | null; options: (RecipeId | null)[] } | null;
+  /**
+   * The recipe it runs, those it may run and how many edges each would
+   * disconnect (FR25); `null` for kinds without one.
+   */
+  recipes: {
+    current: RecipeId | null;
+    options: RecipeOption[];
+  } | null;
   /** The next kind, what it costs and why it is refused; `null` at the top. */
   upgrade: { kind: NodeKind; cost: Cost; refused: FailReason | null } | null;
   /** What removing it gives back; `null` for the Core, which stays. */
@@ -49,7 +62,14 @@ export function nodeMenuInfo(
   if (isCrafter(node)) {
     const runs = RECIPE_IDS.filter((recipe) => canRun(kind, recipe));
     // A Furnace may also pick its recipe from its first input.
-    const options = kind === "furnace" ? [null, ...runs] : runs;
+    const picks = kind === "furnace" ? [null, ...runs] : runs;
+    const options = picks.map((recipe) => ({
+      recipe,
+      drops:
+        recipe === node.recipe
+          ? 0
+          : recipeChange(state, node, recipe).dropped.length,
+    }));
     recipes = { current: node.recipe, options };
   }
   const next = NODES[kind].upgrade;
@@ -113,12 +133,25 @@ export function NodeMenu({
 }: Props) {
   /** The node whose recipe picker is open, in place of its actions. */
   const [picking, setPicking] = useState<NodeId | null>(null);
+  /**
+   * The node and the recipe picked for it that waits for the player to
+   * confirm its disconnections.
+   */
+  const [pending, setPending] = useState<{
+    id: NodeId;
+    option: RecipeOption;
+  } | null>(null);
   const info = node.value;
   // A bubble closed on its picker opens on its actions next time.
   useEffect(() => {
-    if (!info) setPicking(null);
+    if (!info) {
+      setPicking(null);
+      setPending(null);
+    }
   }, [info === null]);
   if (!info) return null;
+  // Another node's pending pick never shows here.
+  const confirming = pending?.id === info.id ? pending.option : null;
   const text = strings.node;
   const glyphs = strings.bubble;
   const { recipes, upgrade, refund, storage } = info;
@@ -145,35 +178,69 @@ export function NodeMenu({
             type="button"
             class="bubble-back"
             aria-label={glyphs.back}
-            onClick={() => setPicking(null)}
+            onClick={() => (confirming ? setPending(null) : setPicking(null))}
           >
             {glyphs.backGlyph}
           </button>
           <span>{text.recipe}</span>
         </div>
-        <div class="bubble-recipes">
-          {recipes.options.map((recipe) => (
-            <button
-              type="button"
-              key={recipe ?? "auto"}
-              class="bubble-recipe"
-              aria-pressed={recipe === recipes.current}
-              onClick={() => {
-                if (recipe !== recipes.current) onRecipe(recipe);
-                setPicking(null);
-              }}
-            >
-              {recipe ? (
-                <ItemIcon item={RECIPES[recipe].output} />
-              ) : (
-                <span class="bubble-glyph" aria-hidden="true">
-                  {glyphs.autoGlyph}
-                </span>
-              )}
-              <span>{recipe ? strings.items[recipe] : text.autoRecipe}</span>
-            </button>
-          ))}
-        </div>
+        {confirming ? (
+          <>
+            <p class="bubble-warning">
+              {confirming.drops}{" "}
+              {confirming.drops === 1
+                ? text.disconnectsOne
+                : text.disconnectsMany}
+            </p>
+            <p class="bubble-note">{text.disconnectRefund}</p>
+            <div class="bubble-actions">
+              <BubbleAction
+                glyph={glyphs.recipeGlyph}
+                label={text.confirmRecipe}
+                detail={
+                  confirming.recipe
+                    ? strings.items[confirming.recipe]
+                    : text.autoRecipe
+                }
+                danger
+                onClick={() => {
+                  onRecipe(confirming.recipe);
+                  setPending(null);
+                  setPicking(null);
+                }}
+              />
+            </div>
+          </>
+        ) : (
+          <div class="bubble-recipes">
+            {recipes.options.map(({ recipe, drops }) => (
+              <button
+                type="button"
+                key={recipe ?? "auto"}
+                class="bubble-recipe"
+                aria-pressed={recipe === recipes.current}
+                onClick={() => {
+                  if (recipe === recipes.current) setPicking(null);
+                  else if (drops > 0)
+                    setPending({ id: info.id, option: { recipe, drops } });
+                  else {
+                    onRecipe(recipe);
+                    setPicking(null);
+                  }
+                }}
+              >
+                {recipe ? (
+                  <ItemIcon item={RECIPES[recipe].output} />
+                ) : (
+                  <span class="bubble-glyph" aria-hidden="true">
+                    {glyphs.autoGlyph}
+                  </span>
+                )}
+                <span>{recipe ? strings.items[recipe] : text.autoRecipe}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <p class="bubble-note">{text.recipeLoses}</p>
       </ActionBubble>
     );
@@ -187,7 +254,11 @@ export function NodeMenu({
             glyph={glyphs.recipeGlyph}
             label={text.recipe}
             detail={
-              recipes.current ? strings.items[recipes.current] : text.autoRecipe
+              recipes.current
+                ? strings.items[recipes.current]
+                : info.kind === "furnace"
+                  ? text.autoRecipe
+                  : text.chooseRecipe
             }
             onClick={() => setPicking(info.id)}
           />

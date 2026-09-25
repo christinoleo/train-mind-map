@@ -175,6 +175,7 @@ export class MoveTool implements Tool {
       // A refused move has not worked out the cells under the new spot.
       coverage:
         check.ok && node.kind === "extractor" ? node.coverage : undefined,
+      recipe: "recipe" in node ? node.recipe : undefined,
     });
     const nodes = new Map(state.nodes).set(node.id, node);
     const lines: Point[][] = [];

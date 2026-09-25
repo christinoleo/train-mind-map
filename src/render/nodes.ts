@@ -7,6 +7,7 @@ import type { FactoryNode } from "../sim/state/gameState";
 import type { NodeId } from "../sim/state/ids";
 import type { Coverage } from "../sim/state/map";
 import { drawsPower } from "../sim/state/power";
+import { inputTypes, type Typed } from "../sim/state/production";
 import { coverageText } from "../ui/format";
 import { strings } from "../ui/strings";
 import { connectorPoints } from "./connectors";
@@ -35,6 +36,10 @@ const PILL_HEIGHT = CELL_PX * 0.55;
 const PILL_GAP = CELL_PX * 0.12;
 /** Radius of a connector's circle, in world units. */
 const CONNECTOR_R = CELL_PX * 0.16;
+/** Radius of a typed input's circle, large enough to show its glyph. */
+const TYPED_R = CELL_PX * 0.22;
+/** Height of a typed input's item name, in world units. */
+const INPUT_NAME = CELL_PX * 0.2;
 const CARD_RADIUS = PALETTE.cardRadius * CELL_PX;
 
 /** Side of a `kind` card, in world units. */
@@ -46,16 +51,19 @@ export function cardSide(kind: NodeKind): number {
  * A node card drawn at its container's origin (GDD §Arte, FR149): a rounded
  * body with a soft shadow, a header in the category's colour with the name,
  * a recipe icon slot, hollow input circles on the left and amber output dots
- * on the right. The slot shows `item`'s glyph, with its name in a band at the
+ * on the right. A typed input (FR25) holds its item's glyph in the item's
+ * colour, with the item's name beside it, labelled `item-name` like the
+ * slot's. The slot shows `item`'s glyph, with its name in a band at the
  * bottom of the body (FR150), labelled `item-name` so the level of detail can
  * hide it; `name` replaces the item's name there. An Extractor's item is its
  * main resource, and its name gives each resource's share (FR30).
  */
 export function drawNodeCard(
-  kind: NodeKind,
+  node: Typed,
   item?: ItemId,
   name: string | undefined = item && strings.items[item],
 ): Container {
+  const { kind } = node;
   const side = cardSide(kind);
   const card = new Container({ label: kind });
   const g = card.addChild(new Graphics());
@@ -72,12 +80,23 @@ export function drawNodeCard(
   const r = body * 0.36;
   drawIconSlot(g, kind, cx, cy, r, item);
 
-  const { inputs, outputs } = connectorPoints(kind);
-  for (const p of inputs) {
-    g.circle(p.x, p.y, CONNECTOR_R)
+  const { inputs, outputs } = connectorPoints(node);
+  const types = inputTypes(node);
+  inputs.forEach((p, port) => {
+    const type = types[port];
+    if (type === null) {
+      g.circle(p.x, p.y, CONNECTOR_R)
+        .fill(PALETTE.ground)
+        .stroke({ color: PALETTE.inputRing, width: 1.4 });
+      return;
+    }
+    const { color, shape } = ITEM_STYLE[type];
+    g.circle(p.x, p.y, TYPED_R)
       .fill(PALETTE.ground)
-      .stroke({ color: PALETTE.inputRing, width: 1.4 });
-  }
+      .stroke({ color, width: 1.4 });
+    drawGlyph(g, shape, p.x, p.y, TYPED_R * 0.62).fill(color);
+    card.addChild(inputLabel(type, p, side));
+  });
   for (const p of outputs) g.circle(p.x, p.y, CONNECTOR_R).fill(PALETTE.output);
 
   card.addChild(headerLabel(strings.nodes[kind], side));
@@ -91,7 +110,10 @@ export function drawNodeCard(
  */
 export function iconItem(node: NodeView): ItemId | undefined {
   if (node.kind === "extractor") return mainResource(node.coverage);
-  if ("recipe" in node && node.recipe) return RECIPES[node.recipe].output;
+  if ("recipe" in node) {
+    const recipe = node.recipe ?? node.running;
+    if (recipe) return RECIPES[recipe].output;
+  }
   return undefined;
 }
 
@@ -109,6 +131,21 @@ function itemLabel(name: string, side: number) {
   text.label = ITEM_NAME;
   text.anchor.set(0.5);
   text.position.set(side / 2, side - NAME_BAND / 2);
+  return text;
+}
+
+/**
+ * A typed input's item name, just inside the card, right of its connector,
+ * shrunk to end before the card's middle so it clears the outputs.
+ */
+function inputLabel(item: ItemId, at: { x: number; y: number }, side: number) {
+  const text = worldText(strings.items[item], INPUT_NAME, {
+    fill: PALETTE.dimText,
+    maxWidth: side / 2 - TYPED_R,
+  });
+  text.label = ITEM_NAME;
+  text.anchor.set(0, 0.5);
+  text.position.set(at.x + TYPED_R + CELL_PX * 0.05, at.y);
   return text;
 }
 
@@ -304,8 +341,8 @@ export class NodeViews {
       node: NodeView;
       card: Container;
       item: ItemId | undefined;
-      /** The item's name under the card, if it has an item. */
-      name: Container | null;
+      /** The item names on the card: its item's and its typed inputs'. */
+      names: Container[];
       status: FlaggedStatus | null;
       /** Each status's badge, built the first time the node shows it. */
       badges: Partial<Record<FlaggedStatus, Container>>;
@@ -340,14 +377,14 @@ export class NodeViews {
       const item = iconItem(node);
       const name =
         node.kind === "extractor" ? coverageText(node.coverage) : undefined;
-      const card = drawNodeCard(node.kind, item, name);
+      const card = drawNodeCard(node, item, name);
       card.position.set(node.x * CELL_PX, node.y * CELL_PX);
       this.layer.addChild(card);
       this.views.set(id, {
         node,
         card,
         item,
-        name: card.getChildByLabel(ITEM_NAME),
+        names: card.getChildrenByLabel(ITEM_NAME),
         status: null,
         badges: {},
       });
@@ -355,7 +392,7 @@ export class NodeViews {
     const named = lod === "icons";
     for (const [id, view] of this.views) {
       view.card.visible = id !== lifted;
-      if (view.name) view.name.visible = named;
+      for (const name of view.names) name.visible = named;
       const status = flaggedStatus(view.node, satisfaction);
       if (status === view.status) continue;
       const { badges } = view;

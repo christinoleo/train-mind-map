@@ -21,6 +21,8 @@ import {
 
 /** Width of an edge's stroke, in world units. */
 const EDGE_WIDTH = CELL_PX * 0.28;
+/** Radius of the ring or veil over an input while an edge is dragged. */
+const INPUT_MARK_R = CELL_PX * 0.3;
 /** How far above its anchor the reason chip floats, in screen pixels. */
 const CHIP_LIFT_PX = 36;
 /** The least gap between the chip and the screen's side, in screen pixels. */
@@ -217,6 +219,7 @@ export class EdgeViews {
  */
 export class EdgePreviewView {
   private readonly line = new Graphics({ label: "edge-preview" });
+  private readonly marks = new Graphics({ label: "edge-inputs" });
   private readonly chip = new Container({ label: "edge-chip" });
   private readonly chipBg = new Graphics();
   private readonly chipText = new Text({
@@ -230,12 +233,15 @@ export class EdgePreviewView {
     },
   });
   private drawn: EdgePreview | null = null;
+  /** The input marks drawn, the same list for a whole drag. */
+  private drawnInputs: EdgePreview["inputs"];
 
   constructor(layer: Container) {
-    layer.addChild(this.line, this.chip);
+    layer.addChild(this.marks, this.line, this.chip);
     this.chip.addChild(this.chipBg, this.chipText);
     this.chipText.anchor.set(0.5);
     this.line.visible = false;
+    this.marks.visible = false;
     this.chip.visible = false;
   }
 
@@ -258,8 +264,33 @@ export class EdgePreviewView {
     );
   }
 
+  /**
+   * Lights the input connectors the dragged edge can attach to with a ring,
+   * and dims the others under a veil of the card's colour (FR25).
+   */
+  private drawInputs(inputs: EdgePreview["inputs"]) {
+    this.marks.visible = inputs !== undefined;
+    if (inputs === this.drawnInputs) return;
+    this.drawnInputs = inputs;
+    const g = this.marks.clear();
+    for (const { at, fits } of inputs ?? []) {
+      if (fits) {
+        g.circle(at.x, at.y, INPUT_MARK_R).stroke({
+          color: GHOST_COLOR.valid,
+          width: 2.5,
+        });
+      } else {
+        g.circle(at.x, at.y, INPUT_MARK_R).fill({
+          color: PALETTE.card,
+          alpha: 0.7,
+        });
+      }
+    }
+  }
+
   private redraw(preview: EdgePreview | null) {
     this.line.visible = preview !== null;
+    this.drawInputs(preview?.inputs);
     const slowed = preview?.slowed ?? [];
     this.chip.visible =
       preview?.reason != null || preview?.stats != null || slowed.length > 0;
@@ -274,7 +305,9 @@ export class EdgePreviewView {
     if (!this.chip.visible) return;
     const { reason, length, stats } = preview;
     const parts: string[] = [];
-    if (reason) parts.push(edgeReasonText(reason, length, preview.max));
+    if (reason) {
+      parts.push(edgeReasonText(reason, length, preview.max, preview.wants));
+    }
     if (stats && length !== null) {
       parts.push(edgeStatsText(length, stats.cost, stats.throughput));
     }

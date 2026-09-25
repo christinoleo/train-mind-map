@@ -10,6 +10,7 @@ import {
   heldInput,
   inputLimit,
   inputNeeds,
+  inputTakes,
   takeOutput,
 } from "../state/production";
 import { bufferRoom, isBuffer, store, takeOldest } from "../state/stock";
@@ -210,16 +211,18 @@ function acceptor(
     visit(id);
     return counts;
   };
-  const takes = (id: NodeId, item: ItemId, seen: Set<NodeId>): boolean => {
+  const takes = (into: Edge, item: ItemId, seen: Set<NodeId>): boolean => {
+    const id = into.to;
     const node = state.nodes.get(id);
     if (!node) return false;
     if (isRouter(node)) {
       if (seen.has(id)) return false;
       seen.add(id);
       const outputs = links.outputs.get(id) ?? [];
-      return outputs.some((edge) => edge && takes(edge.to, item, seen));
+      return outputs.some((edge) => edge && takes(edge, item, seen));
     }
     if (!isBuffer(node)) {
+      if (!inputTakes(node, into.toPort, item)) return false;
       const coming = pendingOf(id);
       const needs = inputNeeds(node, item, coming);
       const need = needs[item];
@@ -236,7 +239,7 @@ function acceptor(
     }
     return has;
   };
-  return (item) => takes(edge.to, item, new Set());
+  return (item) => takes(edge, item, new Set());
 }
 
 /**
@@ -298,9 +301,14 @@ function take(state: GameState, node: FactoryNode, edge: Edge, links: Links) {
   return takeOutput(node);
 }
 
-/** Hands `item` to `node`; returns whether it entered. */
-function deliver(state: GameState, node: FactoryNode, item: ItemId): boolean {
-  if (!isBuffer(node)) return acceptItem(node, item);
+/** Hands `item` to `node` through input `port`; returns whether it entered. */
+function deliver(
+  state: GameState,
+  node: FactoryNode,
+  item: ItemId,
+  port: number,
+): boolean {
+  if (!isBuffer(node)) return acceptItem(node, item, port);
   if (bufferRoom(state, node) < 1) return false;
   store(node, item, 1);
   return true;
@@ -357,7 +365,7 @@ export const flow: System = (state, { emit }) => {
     stepEdge(
       edge,
       () => take(state, from, edge, links),
-      (item) => deliver(state, to, item),
+      (item) => deliver(state, to, item, edge.toPort),
     );
   }
   for (const node of state.nodes.values()) {

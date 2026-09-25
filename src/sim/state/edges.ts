@@ -13,7 +13,7 @@ import {
   itemEntries,
   type ItemCounts,
 } from "../../data/items";
-import { NODES, type Cost, type NodeKind } from "../../data/nodes";
+import { NODES, type Cost } from "../../data/nodes";
 import {
   joins,
   segmentHitsRect,
@@ -27,6 +27,7 @@ import { fail, ok, type Result } from "../result";
 import type { Edge, FactoryNode, GameState } from "./gameState";
 import type { NodeId } from "./ids";
 import { ringRect } from "./map";
+import { canFeed, inputTypes, isCrafter, type Typed } from "./production";
 import { canAfford } from "./stock";
 
 export type ConnectorSide = "input" | "output";
@@ -59,9 +60,12 @@ export function spreadRows(count: number, size: number): number[] {
   );
 }
 
-/** How many connectors `kind` has on `side`. */
-export function connectorCount(kind: NodeKind, side: ConnectorSide): number {
-  return side === "input" ? NODES[kind].inputs : NODES[kind].outputs;
+/**
+ * How many connectors `node` has on `side`. A production node's inputs come
+ * from its recipe (FR25); every other count comes from its kind.
+ */
+export function connectorCount(node: Typed, side: ConnectorSide): number {
+  return side === "input" ? inputTypes(node).length : NODES[node.kind].outputs;
 }
 
 /**
@@ -69,12 +73,12 @@ export function connectorCount(kind: NodeKind, side: ConnectorSide): number {
  * output, on the node's right) or ends (an input, on its left).
  */
 export function connectorCell(
-  node: Pick<FactoryNode, "kind" | "x" | "y">,
+  node: Typed & Pick<FactoryNode, "x" | "y">,
   side: ConnectorSide,
   port: number,
 ): Point {
   const { size } = NODES[node.kind];
-  const row = connectorRows(connectorCount(node.kind, side), size)[port];
+  const row = connectorRows(connectorCount(node, side), size)[port];
   return {
     x: side === "output" ? node.x + size : node.x - 1,
     y: node.y + row,
@@ -190,8 +194,10 @@ export function isConnected(
 /**
  * The cells in front of every free connector (FR52), which other edges' routes
  * leave open so no route runs flush against a connector an edge may still
- * use. A connector that has an edge releases its cell. `moved` stands in for
- * the node of the same id, at the place it is moving to.
+ * use. A connector that has an edge releases its cell. A crafter keeps free
+ * the cells of every input any recipe may give it (FR25), so a change of
+ * recipe never puts an input under an edge. `moved` stands in for the node
+ * of the same id, at the place it is moving to.
  */
 export function reservedCells(
   state: Readonly<GameState>,
@@ -200,19 +206,39 @@ export function reservedCells(
   const taken = new Set<string>();
   for (const e of state.edges.values()) {
     taken.add(`output:${e.from}:${e.fromPort}`);
-    taken.add(`input:${e.to}:${e.toPort}`);
+    const end = e.path[e.path.length - 1];
+    taken.add(`input:${e.to}:${end.x},${end.y}`);
   }
   const cells: Point[] = [];
   for (const stored of state.nodes.values()) {
     const node = stored.id === moved?.id ? moved : stored;
-    for (const side of ["output", "input"] as const) {
-      for (let port = 0; port < connectorCount(node.kind, side); port++) {
-        if (taken.has(`${side}:${node.id}:${port}`)) continue;
-        cells.push(connectorCell(node, side, port));
-      }
+    for (let port = 0; port < connectorCount(node, "output"); port++) {
+      if (taken.has(`output:${node.id}:${port}`)) continue;
+      cells.push(connectorCell(node, "output", port));
+    }
+    for (const cell of inputCells(node)) {
+      if (!taken.has(`input:${node.id}:${cell.x},${cell.y}`)) cells.push(cell);
     }
   }
   return cells;
+}
+
+/**
+ * The cells in front of `node`'s inputs: on a crafter, those of every count
+ * of inputs a recipe may give it, up to its kind's most.
+ */
+function inputCells(node: FactoryNode): Point[] {
+  if (!isCrafter(node)) {
+    return Array.from({ length: connectorCount(node, "input") }, (_, port) =>
+      connectorCell(node, "input", port),
+    );
+  }
+  const { size, inputs } = NODES[node.kind];
+  const rows = new Set<number>();
+  for (let count = 1; count <= inputs; count++) {
+    for (const row of connectorRows(count, size)) rows.add(row);
+  }
+  return [...rows].map((row) => ({ x: node.x - 1, y: node.y + row }));
 }
 
 /** An edge route checked against a level: what it costs, or why it fails. */
@@ -297,9 +323,28 @@ function blockedEnd(index: PlanarIndex, cell: Point) {
 }
 
 /**
+ * The input port of `node` an edge from `source` ending at `cell` would sit
+ * on: the first one not in `taken` that takes what the source sends and
+ * whose connector is `cell`, or -1 when none does (FR25).
+ */
+export function matchInputPort(
+  node: Typed & Pick<FactoryNode, "x" | "y">,
+  source: FactoryNode,
+  cell: Point,
+  taken: ReadonlySet<number>,
+): number {
+  return inputTypes(node).findIndex((type, port) => {
+    if (taken.has(port) || !canFeed(source, type)) return false;
+    const at = connectorCell(node, "input", port);
+    return at.x === cell.x && at.y === cell.y;
+  });
+}
+
+/**
  * Checks an edge between two connectors, before routing it: both exist, they
- * belong to different nodes, neither is taken, and research has unlocked
- * `level`. On success it returns the cells the route runs between.
+ * belong to different nodes, neither is taken, the source can send what the
+ * input takes (FR25), and research has unlocked `level`. On success it
+ * returns the cells the route runs between.
  */
 export function checkConnectors(
   state: Readonly<GameState>,
@@ -317,6 +362,7 @@ export function checkConnectors(
   if (isConnected(state, "output", from) || isConnected(state, "input", to)) {
     return fail("connector_taken");
   }
+  if (!canFeed(out, inputTypes(into)[to.port])) return fail("wrong_item");
   if (level > state.edgeLevel) return fail("locked");
   return ok({
     from: connectorCell(out, "output", from.port),
@@ -326,9 +372,7 @@ export function checkConnectors(
 
 function hasPort(node: FactoryNode, side: ConnectorSide, port: number) {
   return (
-    Number.isInteger(port) &&
-    port >= 0 &&
-    port < connectorCount(node.kind, side)
+    Number.isInteger(port) && port >= 0 && port < connectorCount(node, side)
   );
 }
 

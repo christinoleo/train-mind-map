@@ -48,7 +48,10 @@ describe("nodeMenuInfo", () => {
     const info = nodeMenuInfo(state, put("furnace"));
     expect(info?.recipes).toEqual({
       current: null,
-      options: [null, "iron-plate", "copper-plate", "brick"],
+      options: [null, "iron-plate", "copper-plate", "brick"].map((recipe) => ({
+        recipe,
+        drops: 0,
+      })),
     });
     expect(info?.upgrade).toBeNull();
     expect(info?.refund).toEqual({ stone: 10 });

@@ -213,7 +213,7 @@ describe("the flow system", () => {
   it("carries an Extractor's output into a Furnace", () => {
     const { run, furnace } = chain();
     run(100);
-    expect(furnace.recipe).toBe("iron-plate");
+    expect(furnace).toMatchObject({ recipe: null, running: "iron-plate" });
     // Nothing takes the plates, so the first one is still there.
     expect(furnace.production.output).toBe(1);
   });

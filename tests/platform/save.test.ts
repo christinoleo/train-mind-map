@@ -8,6 +8,7 @@ import {
   importText,
   loadState,
   migrate,
+  MIGRATIONS,
   SAVE_KEYS,
   SaveSlots,
   SCHEMA_VERSION,
@@ -224,7 +225,7 @@ describe("migrations", () => {
         ],
       },
     };
-    const migrated = migrate(v8);
+    const migrated = migrate(v8, MIGRATIONS, 9);
     if (!migrated.ok) throw new Error(migrated.reason);
     expect(migrated.value.state).toEqual({
       nodes: [

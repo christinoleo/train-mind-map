@@ -135,6 +135,8 @@ export const strings = {
     // A re-routed edge that gets slower: "aresta 3: 2/s → 1/s".
     slowed: "aresta",
     slowedArrow: "→",
+    // A typed input the dragged edge cannot feed: "esta entrada pede Coal".
+    wants: "esta entrada pede",
   },
   // The rail layer: its toggle, the rail menu and the dragged rail's chip.
   rail: {
@@ -198,6 +200,12 @@ export const strings = {
     recipe: "Receita",
     autoRecipe: "Automática",
     recipeLoses: "Trocar a receita perde os itens dentro do nó",
+    chooseRecipe: "escolha a receita",
+    // A recipe change that disconnects edges: "2 arestas serão desligadas".
+    disconnectsOne: "aresta será desligada",
+    disconnectsMany: "arestas serão desligadas",
+    disconnectRefund: "O custo e os itens na aresta voltam ao estoque",
+    confirmRecipe: "Trocar",
     full: "lotado",
     noConstruction: "Não usar em construção",
   },
@@ -292,6 +300,7 @@ export const strings = {
     out_of_range: "Fora do limite",
     researched: "Já pesquisado",
     same_node: "Ligue a outro nó",
+    wrong_item: "Esta entrada pede outro item",
     wrong_recipe: "Esta receita não roda neste nó",
   },
   // The rendering stress-test page (stress.html), used on real phones.

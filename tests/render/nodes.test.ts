@@ -1,20 +1,27 @@
 import { assert, describe, expect, it } from "vitest";
-import { NODE_KINDS, NODES } from "../../src/data/nodes";
+import { NODE_KINDS, NODES, type NodeKind } from "../../src/data/nodes";
+import { RECIPE_IDS, type RecipeId } from "../../src/data/recipes";
 import { connectorPoints } from "../../src/render/connectors";
 import { flaggedStatus, iconItem } from "../../src/render/nodes";
 import type { NodeId } from "../../src/sim/state/ids";
-import { createNode } from "../../src/sim/state/nodes";
+import { canRun, createNode } from "../../src/sim/state/nodes";
 import { CELL_PX } from "../../src/render/theme";
-import { connectorRows } from "../../src/sim/state/edges";
+import { connectorCount, connectorRows } from "../../src/sim/state/edges";
+
+/** The first recipe `kind` runs, if it runs any. */
+function firstRecipe(kind: NodeKind): RecipeId | undefined {
+  return RECIPE_IDS.find((recipe) => canRun(kind, recipe));
+}
 
 describe("connectorPoints", () => {
   it.each(NODE_KINDS)(
     "puts %s's inputs on the left edge and outputs on the right",
     (kind) => {
-      const { size, inputs, outputs } = NODES[kind];
+      const { size, outputs } = NODES[kind];
       const side = size * CELL_PX;
-      const points = connectorPoints(kind);
-      expect(points.inputs).toHaveLength(inputs);
+      const node = { kind, recipe: firstRecipe(kind) };
+      const points = connectorPoints(node);
+      expect(points.inputs).toHaveLength(connectorCount(node, "input"));
       expect(points.outputs).toHaveLength(outputs);
       expect(points.inputs.every((p) => p.x === 0)).toBe(true);
       expect(points.outputs.every((p) => p.x === side)).toBe(true);
@@ -28,9 +35,10 @@ describe("connectorPoints", () => {
 
 describe("connector rows", () => {
   it.each(NODE_KINDS)("centres %s's connectors on their edge rows", (kind) => {
-    const { size, inputs } = NODES[kind];
-    const rows = connectorRows(inputs, size);
-    connectorPoints(kind).inputs.forEach((p, i) => {
+    const { size } = NODES[kind];
+    const node = { kind, recipe: firstRecipe(kind) };
+    const rows = connectorRows(connectorCount(node, "input"), size);
+    connectorPoints(node).inputs.forEach((p, i) => {
       expect(Math.floor(p.y / CELL_PX)).toBe(rows[i]);
     });
   });

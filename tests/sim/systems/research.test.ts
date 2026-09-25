@@ -47,7 +47,7 @@ function setup(labs = 1, powered = true) {
   /** Runs `n` ticks, topping each Lab up with red science first. */
   const run = (n: number, feed = true) => {
     for (let t = 0; t < n; t++) {
-      if (feed) for (const lab of nodes) acceptItem(lab, "red-science");
+      if (feed) for (const lab of nodes) acceptItem(lab, "red-science", 0);
       tick(state, commands, (e) => events.push(e), NO_FLOW);
     }
   };
@@ -70,10 +70,10 @@ describe("Lab", () => {
   it("takes up to 2 science packs and nothing else", () => {
     const { labs } = setup();
     const [lab] = labs;
-    expect(acceptItem(lab, "iron-plate")).toBe(false);
-    expect(acceptItem(lab, "red-science")).toBe(true);
-    expect(acceptItem(lab, "red-science")).toBe(true);
-    expect(acceptItem(lab, "red-science")).toBe(false);
+    expect(acceptItem(lab, "iron-plate", 0)).toBe(false);
+    expect(acceptItem(lab, "red-science", 0)).toBe(true);
+    expect(acceptItem(lab, "red-science", 0)).toBe(true);
+    expect(acceptItem(lab, "red-science", 0)).toBe(false);
   });
 
   it("consumes 1 pack every 5 s for the active research", () => {

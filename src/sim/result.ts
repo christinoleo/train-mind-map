@@ -33,6 +33,7 @@ export type FailReason =
   | "out_of_range"
   | "researched"
   | "same_node"
+  | "wrong_item"
   | "wrong_recipe";
 
 export type Result<T = void> =
