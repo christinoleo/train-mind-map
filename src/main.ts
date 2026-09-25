@@ -1,4 +1,4 @@
-import { computed, effect, signal, type Signal } from "@preact/signals";
+import { batch, computed, effect, signal, type Signal } from "@preact/signals";
 import {
   HINT_HALF_WIDTH_PX,
   HINT_MS,
@@ -14,7 +14,7 @@ import { FINAL_RESEARCH, type ResearchId } from "./data/research";
 import { MVP_SCENARIO } from "./data/scenarios/mvp";
 import { Camera } from "./input/camera";
 import { Controls, type Tool } from "./input/controls";
-import { depositAt, nodeAt } from "./input/hitTest";
+import { BuildTool } from "./input/tools/build";
 import { ConnectTool } from "./input/tools/connect";
 import { MoveTool } from "./input/tools/move";
 import { PlaceTool } from "./input/tools/place";
@@ -73,6 +73,11 @@ import { inventoryInfo, type InventoryInfo } from "./ui/InventoryPanel";
 import { researchInfo, type ResearchInfo } from "./ui/ResearchPanel";
 import { showOverlay } from "./ui/overlay";
 import { UiRoot } from "./ui/UiRoot";
+import type { ScreenRect } from "./ui/bubblePlacement";
+import { RemovalUndo } from "./ui/removalUndo";
+import type { Point } from "./sim/geometry/planar";
+import { nodeRect } from "./sim/state/nodes";
+import { toWorld } from "./render/theme";
 
 // Installed first so boot failures, map generation included, show the crash
 // screen too. The loop starts only after boot, so a crash during boot is
@@ -144,6 +149,13 @@ const stock = signal<ItemCounts>(state.stock);
 const stamina = signal(state.stamina.points);
 const power = signal<PowerSummary>(powerSummary(state.power));
 const selectedEdge = signal<EdgeId | null>(null);
+/** Where the selected edge was tapped, in world units: its bubble points there. */
+let edgeAnchor: Point | null = null;
+/** Where the open action bubble points, on the screen, published each frame. */
+const bubbleAnchor = signal<ScreenRect | null>(null);
+/** True while the "Removido · Desfazer" toast shows. */
+const removedToast = signal(false);
+const removal = new RemovalUndo(commands, removedToast);
 const edgeMenu = signal<EdgeMenuInfo | null>(null);
 const selectedNode = signal<NodeId | null>(null);
 const nodeMenu = signal<NodeMenuInfo | null>(null);
@@ -222,7 +234,13 @@ const connectTool = new ConnectTool({
   viewport: () => app.screen,
   dispatch: (command) => commands.dispatch(state, command),
   showPreview: renderer.setEdgePreview,
-  selectEdge: (id) => (selectedEdge.value = id),
+  selectEdge(id, at) {
+    batch(() => {
+      if (id !== null) selectedNode.value = null;
+      selectedEdge.value = id;
+      edgeAnchor = at ?? null;
+    });
+  },
 });
 /** Shows why an action was refused for a moment. */
 const flashHint = flasher(flash);
@@ -234,6 +252,7 @@ const moveTool = new MoveTool({
   showGhost: renderer.setGhost,
   showPreview: renderer.setEdgePreview,
   showMoving: renderer.setMoving,
+  showDrop: renderer.dropGhost,
   showHint: flashHint,
 });
 const railTool = new RailTool({
@@ -249,69 +268,34 @@ const railTool = new RailTool({
 });
 // A Line just created opens its panel.
 events.on("LineCreated", ({ line }) => (selectedLine.value = line));
-// With nothing to place, a drag from an output connector connects, a drag
-// from a node's body moves it, any other drag pans, a tap on a node or an
-// edge opens its menu, and a tap on an Extractor whose menu is open, or any
-// other tap, mines by hand. A deposit under the mouse or the last tap shows
-// its resource's name (FR150).
-/** Names the deposit at `world` unless a node covers it; returns the node. */
-function nameDepositAt(world: { x: number; y: number }) {
-  const node = nodeAt(state, world);
-  renderer.showDepositName(node ? null : (depositAt(state, world) ?? null));
-  return node;
-}
 // A hover name goes when the mouse leaves the map.
 app.canvas.addEventListener("pointerleave", (e) => {
   if (e.pointerType === "mouse") renderer.showDepositName(null);
 });
-const buildTool: Tool = {
-  hover(p) {
-    nameDepositAt(camera.toWorld(p.x, p.y));
-  },
-  tap(p) {
-    const node = nameDepositAt(camera.toWorld(p.x, p.y));
-    // Extractors can cover a whole deposit: a tap on one whose menu is
-    // open already mines the deposit under it.
-    if (node?.kind === "extractor" && node.id === selectedNode.peek()) {
-      tapTool.tap(p);
-      return;
-    }
-    selectedNode.value = node?.id ?? null;
-    if (node) selectedEdge.value = null;
-    else if (!connectTool.tap(p)) tapTool.tap(p);
-  },
-  dragStart(p, from) {
-    // The connector comes first: it sits on the edge of the node's body.
-    if (connectTool.dragStart(p, from)) return true;
-    if (!moveTool.dragStart(p, from)) return false;
+/** Closes the node and edge action bubbles. */
+function deselect() {
+  batch(() => {
     selectedNode.value = null;
     selectedEdge.value = null;
-    return true;
+  });
+}
+const buildTool = new BuildTool({
+  state,
+  camera,
+  tapTool,
+  connectTool,
+  moveTool,
+  selectedNode: () => selectedNode.peek(),
+  selectNode(id) {
+    batch(() => {
+      selectedEdge.value = null;
+      selectedNode.value = id;
+    });
   },
-  dragMove(p) {
-    moveTool.dragMove(p);
-    connectTool.dragMove(p);
-  },
-  dragEnd(p) {
-    moveTool.dragEnd(p);
-    connectTool.dragEnd(p);
-  },
-  frame(dtMs) {
-    moveTool.frame(dtMs);
-    connectTool.frame(dtMs);
-  },
-  refresh() {
-    tapTool.refresh();
-    moveTool.refresh();
-    connectTool.refresh();
-  },
-  cancel() {
-    renderer.showDepositName(null);
-    tapTool.cancel();
-    moveTool.cancel();
-    connectTool.cancel();
-  },
-};
+  deselect,
+  showDepositName: renderer.showDepositName,
+});
+controls.shortcuts.set("Escape", deselect);
 events.on("CommandRejected", ({ command, reason }) => {
   if (command === "ManualTap") tapTool.rejected(reason);
   // Dispatch checks against the state before the commands queued ahead.
@@ -405,8 +389,7 @@ effect(() => {
   publishMenu(selectedEdge, edgeMenu, edgeMenuInfo);
 });
 effect(() => {
-  // Read to subscribe: publishMenu only peeks.
-  void selectedNode.value;
+  renderer.setSelectedNode(selectedNode.value);
   publishMenu(selectedNode, nodeMenu, nodeMenuInfo);
 });
 effect(() => {
@@ -544,6 +527,36 @@ function showNode(id: NodeId) {
   if (renderer.centerOnNode(id)) selectedNode.value = id;
 }
 
+/** Removes a node or an edge from its bubble, offering to undo it for a moment. */
+function remove(command: RemoveNode | RemoveEdge) {
+  const result = commands.dispatch(state, command);
+  if (result.ok) removal.removed(command, performance.now());
+  else flashHint(result.reason);
+}
+
+/**
+ * Where the open action bubble points, on the screen: the selected node's
+ * card, or the point where the selected edge was tapped.
+ */
+function bubbleRect(): ScreenRect | null {
+  const id = selectedNode.peek();
+  const node = id === null ? undefined : state.nodes.get(id);
+  if (node) {
+    const { x, y, w, h } = toWorld(nodeRect(node));
+    const a = camera.toScreen(x, y);
+    const b = camera.toScreen(x + w, y + h);
+    return {
+      x: Math.round(a.x),
+      y: Math.round(a.y),
+      w: Math.round(b.x - a.x),
+      h: Math.round(b.y - a.y),
+    };
+  }
+  if (selectedEdge.peek() === null || !edgeAnchor) return null;
+  const p = camera.toScreen(edgeAnchor.x, edgeAnchor.y);
+  return { x: Math.round(p.x), y: Math.round(p.y), w: 0, h: 0 };
+}
+
 function undo() {
   const result = commands.undo(state);
   if (!result.ok) flashHint(result.reason);
@@ -559,6 +572,7 @@ loop = createLoop({
     }
     controls.tool?.refresh?.();
     publishMenus();
+    removal.update(performance.now());
     canUndo.value = commands.undoDepth > 0;
     // Stamina drains per tap, so the bar follows it every tick.
     stamina.value = state.stamina.points;
@@ -573,6 +587,8 @@ loop = createLoop({
     renderer.frame(alpha);
     // A world hint follows the camera.
     publishIfChanged(onboardingHint, hintView(hintTarget));
+    // The action bubble follows its node or edge as the camera moves.
+    publishIfChanged(bubbleAnchor, bubbleRect());
     // The stock changes most ticks once the factory runs; the HUD follows
     // it at a readable rate.
     if (now - published >= UI_PUBLISH_MS) {
@@ -599,6 +615,7 @@ render(
     power,
     edgeMenu: {
       edge: edgeMenu,
+      anchor: bubbleAnchor,
       onUpgrade() {
         const id = selectedEdge.value;
         const next = edgeMenu.value?.upgrade?.level;
@@ -608,13 +625,14 @@ render(
       },
       onRemove() {
         const id = selectedEdge.value;
-        if (id !== null) commands.dispatch(state, new RemoveEdge(id));
+        if (id !== null) remove(new RemoveEdge(id));
         selectedEdge.value = null;
       },
       onClose: () => (selectedEdge.value = null),
     },
     nodeMenu: {
       node: nodeMenu,
+      anchor: bubbleAnchor,
       onRecipe(recipe) {
         const id = selectedNode.value;
         if (id !== null) commands.dispatch(state, new SetRecipe(id, recipe));
@@ -631,10 +649,24 @@ render(
       },
       onRemove() {
         const id = selectedNode.value;
-        if (id !== null) commands.dispatch(state, new RemoveNode(id));
+        if (id !== null) remove(new RemoveNode(id));
         selectedNode.value = null;
       },
+      onLine() {
+        const id = selectedNode.value;
+        if (id === null) return;
+        // Bringing the rail layer into focus closes the bubble and drops any pick.
+        focus.value = "rails";
+        railTool.pickStation(id);
+      },
       onClose: () => (selectedNode.value = null),
+    },
+    removedToast: {
+      shown: removedToast,
+      onUndo() {
+        const result = removal.undo(state);
+        if (result && !result.ok) flashHint(result.reason);
+      },
     },
     railMenu: {
       rail: railMenu,

@@ -31,13 +31,19 @@ function connected() {
 }
 
 describe("edgeMenuInfo", () => {
-  it("shows the refund and the next level, refused until researched", () => {
+  it("shows the items/s, the refund and the next level, refused until researched", () => {
     const { state, id } = connected();
     expect(edgeMenuInfo(state, id)).toEqual({
       level: 1,
       length: 4,
+      throughput: 2,
       refund: { "iron-ore": 4 },
-      upgrade: { level: 2, cost: { gear: 4 }, refused: "locked" },
+      upgrade: {
+        level: 2,
+        cost: { gear: 4 },
+        throughput: 4,
+        refused: "locked",
+      },
     });
     state.edgeLevel = 2;
     expect(edgeMenuInfo(state, id)?.upgrade?.refused).toBeNull();

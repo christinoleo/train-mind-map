@@ -12,16 +12,19 @@ import { OfflineReport } from "./OfflineReport";
 import { Palette } from "./Palette";
 import { RailMenu } from "./RailMenu";
 import { RailToggle } from "./RailToggle";
+import { RemovedToast } from "./RemovedToast";
 import { ResearchNotice, ResearchPanel } from "./ResearchPanel";
 import { SettingsMenu } from "./SettingsMenu";
 import { StockHud } from "./StockHud";
 import { UndoButton } from "./UndoButton";
 
 type Props = ComponentProps<typeof Palette> & {
-  /** The edge menu, open while an edge is selected. */
+  /** The edge's action bubble, open while an edge is selected. */
   edgeMenu: ComponentProps<typeof EdgeMenu>;
-  /** The node menu, open while a node is selected. */
+  /** The node's action bubble, open while a node is selected. */
   nodeMenu: ComponentProps<typeof NodeMenu>;
+  /** "Removido · Desfazer", after a removal from a bubble. */
+  removedToast: ComponentProps<typeof RemovedToast>;
   /** The rail menu, open while a rail is selected. */
   railMenu: ComponentProps<typeof RailMenu>;
   /** The Line panel, open while a Line is selected. */
@@ -48,7 +51,7 @@ type Props = ComponentProps<typeof Palette> & {
 };
 
 // The DOM overlay layer above the canvas: the HUD capsule, the inventory,
-// the menus, the Line panel and its pick prompt, the undo, research, settings
+// the action bubbles and their removal toast, the menus, the Line panel and its pick prompt, the undo, research, settings
 // and rail layer buttons, the palette, the onboarding hint, the research and export notices
 // and the offline report.
 export function UiRoot({
@@ -57,6 +60,7 @@ export function UiRoot({
   power,
   edgeMenu,
   nodeMenu,
+  removedToast,
   railMenu,
   linePanel,
   linePick,
@@ -91,6 +95,7 @@ export function UiRoot({
       <RailToggle {...railToggle} />
       <Palette {...palette} />
       <Hint hint={onboardingHint} />
+      <RemovedToast {...removedToast} />
       <ResearchNotice {...researchNotice} />
       <ExportNotice {...exportNotice} />
       <OfflineReport {...offlineReport} />

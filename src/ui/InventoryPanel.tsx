@@ -180,7 +180,7 @@ function InventoryBody({ inventory, open, onShowStorage }: Props) {
 }
 
 /** An item's glyph in its colour, as on the map (FR150). */
-function ItemIcon({ item }: { item: ItemId }) {
+export function ItemIcon({ item }: { item: ItemId }) {
   const { color, shape } = ITEM_STYLE[item];
   const props = {
     fill: cssColor(color),

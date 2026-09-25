@@ -116,22 +116,20 @@ export const strings = {
     close: "Fechar paleta",
     free: "grátis",
   },
-  // What the node and edge menus share.
+  // What the menus and the action bubbles share.
   menu: {
-    maxLevel: "Nível máximo",
     remove: "Remover",
     refund: "devolve",
     close: "Fechar",
     closeGlyph: "×",
     separator: " · ",
   },
-  // The edge menu, opened by tapping an edge, and the dragged edge's chip.
+  // The edge action bubble, opened by tapping an edge, and the dragged edge's chip.
   edge: {
     title: "Aresta",
     level: "Nível",
     length: "células",
     perSecond: "/s",
-    upgrade: "Melhorar para nível",
     tooLong: "Longa demais",
     onWater: "Cruza a água",
     // A re-routed edge that gets slower: "aresta 3: 2/s → 1/s".
@@ -179,12 +177,27 @@ export const strings = {
     cancel: "Cancelar",
   },
   // The node menu, opened by tapping a node.
+  // The action bubble over a tapped node or edge (FR19, FR59), and the
+  // toast after a removal from it.
+  bubble: {
+    recipeGlyph: "⚙",
+    upgradeGlyph: "⬆",
+    removeGlyph: "🗑",
+    keepGlyph: "📦",
+    lineGlyph: "🚆",
+    autoGlyph: "✱",
+    backGlyph: "‹",
+    upgrade: "Upgrade",
+    line: "Linha",
+    back: "Voltar",
+    removed: "Removido",
+    undo: "Desfazer",
+  },
   node: {
     title: "Nó",
     recipe: "Receita",
     autoRecipe: "Automática",
     recipeLoses: "Trocar a receita perde os itens dentro do nó",
-    upgrade: "Melhorar para",
     full: "lotado",
     noConstruction: "Não usar em construção",
     used: "Desligado: a construção pode usar estes itens",

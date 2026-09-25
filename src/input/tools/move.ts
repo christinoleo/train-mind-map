@@ -7,7 +7,7 @@ import {
   type MovePlan,
 } from "../../sim/commands/moveNode";
 import type { PlanarIndex, Point } from "../../sim/geometry/planar";
-import type { FailReason, Result } from "../../sim/result";
+import { ok, type FailReason, type Result } from "../../sim/result";
 import type { GameState } from "../../sim/state/gameState";
 import type { NodeId } from "../../sim/state/ids";
 import { slowedEdges } from "../../sim/state/reroute";
@@ -31,8 +31,16 @@ export interface MoveToolDeps {
   showGhost(ghost: Ghost | null): void;
   /** Shows the re-routed edges, or hides them with `null`. */
   showPreview(preview: EdgePreview | null): void;
-  /** Fades the node being moved and its edges, or none with `null`. */
+  /**
+   * Lifts the node being moved off its cell, leaving an outline there and
+   * fading its edges, or sets it down with `null`.
+   */
   showMoving(id: NodeId | null): void;
+  /**
+   * The lifted node was released: it settles where it is, or, with `back`,
+   * flies back to its cell. Comes just before the ghost goes.
+   */
+  showDrop(back: boolean): void;
   /** Tells why the move was refused. */
   showHint(reason: FailReason): void;
 }
@@ -51,11 +59,12 @@ interface Grab {
 }
 
 /**
- * Moves a node (FR20): a drag that starts on its body carries it, snapped to
- * the cells. Every attached edge re-routes live, green while the move fits
- * and red with the reason when it does not; the camera pans while the
- * pointer sits at the screen's edge (FR14). Releasing where the move is
- * refused leaves the node where it was and tells why.
+ * Moves a node (FR20, FR134): a drag that starts on its body lifts it and
+ * carries it, snapped to the cells, leaving an outline on the cell it left.
+ * Every attached edge re-routes live, green while the move fits and red with
+ * the reason when it does not; the camera pans while the pointer sits at the
+ * screen's edge (FR14). Releasing where the move is refused sends the node
+ * back where it was and tells why.
  */
 export class MoveTool implements Tool {
   private grab: Grab | null = null;
@@ -103,11 +112,14 @@ export class MoveTool implements Tool {
     this.plan();
     const { plan, x, y } = grab;
     const node = this.deps.state.nodes.get(grab.id);
+    const stays = !plan || !node || (node.x === x && node.y === y);
+    const result = stays
+      ? ok()
+      : plan.check.ok
+        ? this.deps.dispatch(new MoveNode(grab.id, x, y))
+        : plan.check;
+    this.deps.showDrop(!result.ok);
     this.cancel();
-    if (!plan || !node || (node.x === x && node.y === y)) return;
-    const result = plan.check.ok
-      ? this.deps.dispatch(new MoveNode(grab.id, x, y))
-      : plan.check;
     if (!result.ok) this.deps.showHint(result.reason);
   }
 
@@ -158,6 +170,7 @@ export class MoveTool implements Tool {
       x: node.x,
       y: node.y,
       valid: check.ok,
+      lifted: true,
       // A refused move has not worked out the cells under the new spot.
       coverage:
         check.ok && node.kind === "extractor" ? node.coverage : undefined,

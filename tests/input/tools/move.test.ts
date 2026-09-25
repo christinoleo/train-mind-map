@@ -38,6 +38,7 @@ function setup() {
   let preview: EdgePreview | null = null;
   let moving: NodeId | null = null;
   const hints: FailReason[] = [];
+  const drops: boolean[] = [];
   const tool = new MoveTool({
     state,
     camera: new Camera(),
@@ -46,6 +47,7 @@ function setup() {
     showGhost: (g) => (ghost = g),
     showPreview: (p) => (preview = p),
     showMoving: (id) => (moving = id),
+    showDrop: (back) => drops.push(back),
     showHint: (reason) => hints.push(reason),
   });
   return {
@@ -54,6 +56,7 @@ function setup() {
     step,
     b,
     hints,
+    drops,
     ghost: () => ghost,
     preview: () => preview,
     moving: () => moving,
@@ -72,13 +75,21 @@ describe("MoveTool (FR20)", () => {
     expect(t.tool.dragStart(cell(57, 51), cell(56, 50))).toBe(true);
     expect(t.moving()).toBe(t.b);
     t.tool.frame(16);
-    expect(t.ghost()).toMatchObject({ kind: "box", x: 57, y: 51, valid: true });
+    expect(t.ghost()).toMatchObject({
+      kind: "box",
+      x: 57,
+      y: 51,
+      valid: true,
+      lifted: true,
+    });
     expect(t.preview()?.reason).toBeNull();
     expect(t.preview()?.lines).toHaveLength(1);
 
     t.tool.dragEnd(cell(58, 52));
     expect(t.moving()).toBeNull();
     expect(t.ghost()).toBeNull();
+    // It settles where it was dropped.
+    expect(t.drops).toEqual([false]);
     t.step();
     expect(t.state.nodes.get(t.b)).toMatchObject({ x: 58, y: 52 });
   });
@@ -93,6 +104,17 @@ describe("MoveTool (FR20)", () => {
     t.step();
     expect(t.state.nodes.get(t.b)).toMatchObject({ x: 56, y: 50 });
     expect(t.hints).toEqual(["occupied"]);
+    // It flies back to its cell.
+    expect(t.drops).toEqual([true]);
+  });
+
+  it("settles a node dropped back on its own cell, with no command", () => {
+    const t = setup();
+    t.tool.dragStart(cell(57, 51), cell(56, 50));
+    t.tool.frame(16);
+    t.tool.dragEnd(cell(56, 50));
+    expect(t.drops).toEqual([false]);
+    expect(t.hints).toEqual([]);
   });
 
   it("takes no drag from open ground, and never the Core", () => {

@@ -17,9 +17,10 @@ import {
   CATEGORY_COLOR,
   CELL_PX,
   GHOST_COLOR,
+  LIFT,
   PALETTE,
+  SELECTED_COLOR,
   ITEM_STYLE,
-  MOVING_ALPHA,
   STATE_COLOR,
   type FlaggedStatus,
 } from "./theme";
@@ -188,6 +189,66 @@ export function drawGhostOutline(g: Graphics, kind: NodeKind, valid: boolean) {
     });
 }
 
+/**
+ * Draws into `g` the outline of the node whose action bubble is open (FR19):
+ * an amber stroke round its card with a soft glow outside it.
+ */
+export function drawSelection(g: Graphics, kind: NodeKind) {
+  const side = cardSide(kind);
+  g.clear();
+  for (let i = 3; i >= 1; i--) {
+    const spread = i * 2.5;
+    g.roundRect(
+      -spread,
+      -spread,
+      side + 2 * spread,
+      side + 2 * spread,
+      CARD_RADIUS + spread,
+    ).stroke({ color: SELECTED_COLOR, alpha: 0.1, width: 3 });
+  }
+  return g
+    .roundRect(0, 0, side, side, CARD_RADIUS)
+    .stroke({ color: SELECTED_COLOR, width: 2.5 });
+}
+
+/**
+ * Draws into `g` the dashed outline a lifted node leaves on its cell
+ * (FR134): where it goes back to if the drop is refused.
+ */
+export function drawLiftOrigin(g: Graphics, kind: NodeKind) {
+  const side = cardSide(kind);
+  const dash = CELL_PX * 0.3;
+  g.clear();
+  for (let at = 0; at < side; at += 2 * dash) {
+    const end = Math.min(at + dash, side);
+    g.moveTo(at, 0).lineTo(end, 0);
+    g.moveTo(at, side).lineTo(end, side);
+    g.moveTo(0, at).lineTo(0, end);
+    g.moveTo(side, at).lineTo(side, end);
+  }
+  return g.stroke({ color: PALETTE.dimText, width: 2 });
+}
+
+/**
+ * Draws into `g` the deeper shadow under a lifted card (FR134), so it reads
+ * as held above the map.
+ */
+export function drawLiftShadow(g: Graphics, kind: NodeKind) {
+  const side = cardSide(kind);
+  g.clear();
+  for (let i = 3; i >= 1; i--) {
+    const spread = i * 2;
+    g.roundRect(
+      -spread,
+      -spread + LIFT.shadowDrop,
+      side + 2 * spread,
+      side + 2 * spread,
+      CARD_RADIUS + spread,
+    ).fill({ color: PALETTE.shadow, alpha: 0.12 });
+  }
+  return g;
+}
+
 type NodeView = DeepReadonly<FactoryNode>;
 
 /**
@@ -254,14 +315,14 @@ export class NodeViews {
   constructor(private readonly layer: Container) {}
 
   /**
-   * `satisfaction` is the power grid's. `faded` names the node being moved,
-   * drawn faint, or none with `null`. Returns true when a card was added or
+   * `satisfaction` is the power grid's. `lifted` names the node being moved,
+   * whose card the ghost draws instead, or none with `null`. Returns true when a card was added or
    * dropped.
    */
   sync(
     nodes: ReadonlyMap<NodeId, NodeView>,
     satisfaction: number,
-    faded: NodeId | null = null,
+    lifted: NodeId | null = null,
     lod: Lod = "icons",
   ): boolean {
     let changed = false;
@@ -293,7 +354,7 @@ export class NodeViews {
     }
     const named = lod === "icons";
     for (const [id, view] of this.views) {
-      view.card.alpha = id === faded ? MOVING_ALPHA : 1;
+      view.card.visible = id !== lifted;
       if (view.name) view.name.visible = named;
       const status = flaggedStatus(view.node, satisfaction);
       if (status === view.status) continue;

@@ -165,6 +165,11 @@ export class RailTool implements Tool {
     this.deps.showPreview(null);
   }
 
+  /** Picks `station` as a new Line's first stop, as a tap on it would. */
+  pickStation(station: NodeId) {
+    this.setPick(station);
+  }
+
   /** Lets go of the Station picked as a new Line's first stop. */
   cancelPick() {
     this.setPick(null);
