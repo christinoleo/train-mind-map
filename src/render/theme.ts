@@ -78,8 +78,24 @@ export const GHOST_COLOR = { valid: 0x4ade80, invalid: 0xf87171 } as const;
 /** Edges a preview would move out of the way, on their new routes (FR52). */
 export const REROUTE_COLOR = 0xfbbf24;
 export const GHOST_ALPHA = 0.6;
-/** A node being moved, and its edges, fade to this while its ghost is dragged. */
+/** A node being moved's edges and rail ports fade to this while it is dragged. */
 export const MOVING_ALPHA = 0.3;
+/** The outline and glow of the node whose action bubble is open (FR19). */
+export const SELECTED_COLOR = 0xf5c542;
+
+/** How a node being moved looks lifted off the map (FR134). */
+export const LIFT = {
+  scale: 1.05,
+  alpha: 0.9,
+  /** How far below the card its lifted shadow falls, in world units. */
+  shadowDrop: 8,
+  /** The grid's alpha while a node is lifted, over the usual faint one. */
+  gridAlpha: 0.12,
+  /** A drop that fits settles in this long, in ms. */
+  settleMs: 140,
+  /** A refused drop flies back to the node's cell in this long, in ms. */
+  backMs: 220,
+} as const;
 /** Opacity of the layer out of focus: the factory or the rails (FR78). */
 export const UNFOCUSED_ALPHA = 0.3;
 

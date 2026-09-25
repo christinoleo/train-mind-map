@@ -40,6 +40,9 @@ export const UI_PUBLISH_MS = 250;
 /** How long a refused action's reason stays on screen. */
 export const HINT_MS = 2500;
 
+/** How long the "Removido · Desfazer" toast offers to undo a removal. */
+export const REMOVED_TOAST_MS = 5000;
+
 /** Depth of the undo stack. */
 export const UNDO_DEPTH = 20;
 

@@ -1,7 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { itemEntries } from "../data/items";
 import type { Cost } from "../data/nodes";
-import type { FailReason } from "../sim/result";
 import { formatAmount } from "./format";
 import { strings } from "./strings";
 
@@ -51,32 +50,6 @@ export function Items({ cost }: { cost: Cost }) {
         .map(([item, count]) => `${formatAmount(count)} ${strings.items[item]}`)
         .join(", ")}
     </span>
-  );
-}
-
-/** An upgrade: what it raises to, what it costs, and why it is refused. */
-export function UpgradeAction({
-  label,
-  cost,
-  refused,
-  onClick,
-}: {
-  label: ComponentChildren;
-  cost: Cost;
-  refused: FailReason | null;
-  onClick(): void;
-}) {
-  return (
-    <button
-      type="button"
-      class="menu-action"
-      disabled={refused !== null}
-      onClick={onClick}
-    >
-      <span>{label}</span>
-      <Items cost={cost} />
-      {refused && <span class="menu-refused">{strings.reasons[refused]}</span>}
-    </button>
   );
 }
 

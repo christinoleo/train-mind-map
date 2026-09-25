@@ -433,28 +433,6 @@ canvas {
   font-size: 0.75rem;
 }
 
-.menu-recipes {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 0 4px;
-  border: 0;
-}
-
-.menu-recipes legend {
-  padding: 0;
-  margin-bottom: 4px;
-  color: #8a93a6;
-  font-size: 0.75rem;
-}
-
-.menu-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
 .menu-chip {
   min-height: 44px;
   padding: 0 12px;
@@ -469,6 +447,210 @@ canvas {
 .menu-chip[aria-pressed="true"] {
   border-color: #f5c542;
   color: #f5c542;
+}
+
+/* The action bubble (FR19, FR59): a card floating next to the tapped node
+   or edge, placed by script above it or below it, with an arrow at
+   --arrow-x pointing at it. It stacks above the palette and the hints. */
+#ui-root > .bubble {
+  position: fixed;
+  z-index: 3;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-sizing: border-box;
+  max-width: calc(100vw - 16px);
+  padding: 8px;
+  border: 1px solid rgba(245, 197, 66, 0.35);
+  border-radius: 14px;
+  background: rgba(19, 22, 28, 0.96);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  font-family: system-ui, sans-serif;
+  color: #e4e7ee;
+}
+
+/* The arrow: a rotated square half hidden under the bubble's edge. */
+#ui-root > .bubble::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--arrow-x, 50%) - 7px);
+  top: 100%;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border: solid rgba(245, 197, 66, 0.35);
+  border-width: 0 1px 1px 0;
+  background: rgb(19, 22, 28);
+  transform: rotate(45deg);
+}
+
+#ui-root > .bubble[data-below="true"]::after {
+  top: auto;
+  bottom: 100%;
+  margin: 0 0 -6px;
+  border-width: 1px 0 0 1px;
+}
+
+.bubble-title {
+  margin: 0;
+  padding: 0 4px;
+  color: #8a93a6;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bubble-title [data-full="true"] {
+  color: #f87171;
+}
+
+.bubble-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* A large icon button with a short label: at least 44 px each way. */
+.bubble-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  width: 72px;
+  min-height: 64px;
+  padding: 6px 4px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: #2b303c;
+  color: inherit;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.bubble-action:disabled {
+  opacity: 0.55;
+}
+
+.bubble-action[aria-pressed="true"] {
+  border-color: #f5c542;
+  background: rgba(245, 197, 66, 0.22);
+}
+
+.bubble-danger {
+  background: rgba(248, 113, 113, 0.18);
+}
+
+.bubble-glyph {
+  font-size: 1.3rem;
+  line-height: 1.2;
+}
+
+.bubble-detail,
+.bubble-refused {
+  font-size: 0.65rem;
+  font-weight: 400;
+}
+
+.bubble-detail {
+  color: #8a93a6;
+}
+
+.bubble-refused {
+  color: #f87171;
+}
+
+.bubble-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.bubble-back {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: #2b303c;
+  color: inherit;
+  font-size: 1.4rem;
+}
+
+/* The recipe picker, in the bubble's place: a scrolling grid of icons. */
+.bubble-recipes {
+  display: grid;
+  grid-template-columns: repeat(3, 76px);
+  gap: 6px;
+  max-height: 176px;
+  overflow-y: auto;
+  touch-action: pan-y;
+}
+
+.bubble-recipe {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 56px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: #2b303c;
+  color: inherit;
+  font: inherit;
+  font-size: 0.7rem;
+  line-height: 1.15;
+}
+
+.bubble-recipe[aria-pressed="true"] {
+  border-color: #f5c542;
+  color: #f5c542;
+}
+
+.bubble-note {
+  max-width: 240px;
+  margin: 0;
+  padding: 0 4px;
+  color: #8a93a6;
+  font-size: 0.7rem;
+}
+
+/* "Removido · Desfazer", above the palette for a few seconds. */
+#ui-root > .toast {
+  position: fixed;
+  z-index: 3;
+  left: 50%;
+  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 4px 4px 16px;
+  border-radius: 999px;
+  background: rgba(43, 48, 60, 0.96);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  color: #e4e7ee;
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+}
+
+.toast-action {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: #f5c542;
+  color: #15181f;
+  font: inherit;
+  font-weight: 700;
 }
 
 /* The Line panel (FR140): its stops with their departure conditions, the
@@ -578,14 +760,6 @@ canvas {
 
 #ui-root > .undo:disabled {
   opacity: 0.4;
-}
-
-.menu-head [data-full="true"] {
-  color: #f87171;
-}
-
-.menu-toggle[aria-checked="true"] {
-  background: rgba(245, 197, 66, 0.22);
 }
 
 /* The research button, at the bottom-right corner, mirroring undo. It glows

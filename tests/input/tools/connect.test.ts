@@ -34,6 +34,7 @@ function setup() {
   const dispatched: ConnectEdge[] = [];
   let preview: EdgePreview | null = null;
   let selected: EdgeId | null = null;
+  let anchor: { x: number; y: number } | null = null;
   const tool = new ConnectTool({
     state,
     camera,
@@ -43,7 +44,10 @@ function setup() {
       return commands.dispatch(state, command);
     },
     showPreview: (p) => (preview = p),
-    selectEdge: (id) => (selected = id),
+    selectEdge: (id, at) => {
+      selected = id;
+      anchor = at;
+    },
   });
   const put = (kind: NodeKind, x: number, y: number) => {
     const id = allocateId(state.nextIds, "node");
@@ -59,6 +63,7 @@ function setup() {
     dispatched,
     preview: () => preview,
     selected: () => selected,
+    anchor: () => anchor,
   };
 }
 
@@ -163,8 +168,8 @@ describe("ConnectTool", () => {
     expect(preview()).toBe(first);
   });
 
-  it("opens the menu of a tapped edge, and closes it on open ground", () => {
-    const { state, tool, put, step, selected } = setup();
+  it("opens the bubble of a tapped edge at the tap, and closes it on open ground", () => {
+    const { state, tool, put, step, selected, anchor } = setup();
     const a = put("box", 50, 50);
     const b = put("box", 56, 50);
     drag(tool, connector(state, a, "output"), connector(state, b, "input"));
@@ -172,6 +177,7 @@ describe("ConnectTool", () => {
     const [edge] = state.edges.values();
     expect(tool.tap({ x: 54 * CELL_PX, y: 50.5 * CELL_PX })).toBe(true);
     expect(selected()).toBe(edge.id);
+    expect(anchor()).toEqual({ x: 54 * CELL_PX, y: 50.5 * CELL_PX });
     expect(tool.tap({ x: 54 * CELL_PX, y: 56 * CELL_PX })).toBe(false);
     expect(selected()).toBeNull();
   });

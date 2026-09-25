@@ -17,12 +17,17 @@ import { applyLod } from "./lod";
 import {
   DepositLabels,
   drawDeposits,
+  drawGrid,
   drawTerrain,
   revealedBounds,
 } from "./mapView";
 import {
+  cardSide,
   drawGhostOutline,
+  drawLiftOrigin,
+  drawLiftShadow,
   drawNodeCard,
+  drawSelection,
   mainResource,
   NodeViews,
 } from "./nodes";
@@ -38,6 +43,7 @@ import {
   CELL_PX,
   GHOST_ALPHA,
   ITEM_COLOR,
+  LIFT,
   TAP_FLIGHT_MS,
   toWorld,
   UNFOCUSED_ALPHA,
@@ -61,8 +67,18 @@ export interface Renderer {
   setSelectedRail(id: RailId | null): void;
   /** Brings the factory or the rail layer into focus, dimming the other. */
   setFocus(focus: Focus): void;
-  /** Fades the node being moved and its edges, or none with `null`. */
+  /** Highlights the node whose action bubble is open, or none with `null`. */
+  setSelectedNode(id: NodeId | null): void;
+  /**
+   * Lifts the node being moved (FR134): its card leaves a dashed outline on
+   * its cell, its edges fade and the grid brightens; `null` sets it down.
+   */
   setMoving(id: NodeId | null): void;
+  /**
+   * Plays the lifted ghost's release: it settles where it is, or, with
+   * `back`, flies back to the node's cell.
+   */
+  dropGhost(back: boolean): void;
   /** Flies the items a construction took from storage to its site. */
   showConstruction(paid: SimEventOf<"ConstructionPaid">): void;
   /** Pops the tapped cell and flies its item to the Core, both labelled. */
@@ -99,12 +115,32 @@ export function createRenderer(
   let edgePreview: EdgePreview | null = null;
   let selectedEdge: EdgeId | null = null;
   let moving: NodeId | null = null;
+  let selectedNode: NodeId | null = null;
+  const selection = layers.overlays.addChild(
+    new Graphics({ label: "selection", visible: false }),
+  );
+  /** The node the selection outline was drawn for; redrawn when it changes. */
+  let drawnSelection: object | null = null;
+  const liftOrigin = layers.overlays.addChild(
+    new Graphics({ label: "lift-origin", visible: false }),
+  );
+  let drawnOrigin: object | null = null;
   const ghostLayer = layers.overlays.addChild(
     new Container({ label: "ghost", alpha: GHOST_ALPHA, visible: false }),
   );
+  const liftShadow = ghostLayer.addChild(new Graphics({ visible: false }));
   let ghostCard: Container | null = null;
   const ghostOutline = ghostLayer.addChild(new Graphics());
   let ghost: Ghost | null = null;
+  /** The released ghost's animation, which outlives the ghost itself. */
+  let drop: {
+    node: NodeId;
+    back: boolean;
+    start: number;
+    from: { x: number; y: number };
+  } | null = null;
+  /** The brighter grid over the terrain while a node is lifted. */
+  let liftGrid: Graphics | null = null;
   const flights = new Flights(layers.overlays);
   let depositLabels: DepositLabels | null = null;
   let namedDeposit: DeepReadonly<Deposit> | null = null;
@@ -126,6 +162,7 @@ export function createRenderer(
     ghostLayer.visible = ghost !== null;
     if (!ghost) return;
     const { kind, coverage, valid } = ghost;
+    const lifted = moving !== null;
     if (ghost !== drawnGhost) {
       drawnGhost = ghost;
       // An Extractor's ghost previews what it would make, and how fast (FR30).
@@ -136,8 +173,9 @@ export function createRenderer(
       if (look !== drawnCard) {
         ghostCard?.destroy({ children: true });
         const item = coverage && mainResource(coverage);
-        ghostCard = ghostLayer.addChildAt(drawNodeCard(kind, item, name), 0);
+        ghostCard = ghostLayer.addChildAt(drawNodeCard(kind, item, name), 1);
         drawRailPorts(ghostCard.addChild(new Graphics()), kind);
+        drawLiftShadow(liftShadow, kind);
         drawnCard = look;
         drawnValid = null;
       }
@@ -146,8 +184,76 @@ export function createRenderer(
       drawGhostOutline(ghostOutline, kind, valid);
       drawnValid = valid;
     }
-    ghostLayer.position.set(ghost.x * CELL_PX, ghost.y * CELL_PX);
+    // A lifted card grows about its centre and stays nearly opaque, over a
+    // deeper shadow (FR134).
+    const half = cardSide(kind) / 2;
+    liftShadow.visible = lifted;
+    ghostLayer.alpha = lifted ? LIFT.alpha : GHOST_ALPHA;
+    ghostLayer.scale.set(lifted ? LIFT.scale : 1);
+    ghostLayer.pivot.set(half);
+    ghostLayer.position.set(ghost.x * CELL_PX + half, ghost.y * CELL_PX + half);
   };
+
+  /**
+   * Plays the release of a lifted ghost: a drop that fits shrinks back to
+   * the card's size, a refused one flies back to the node's cell. The node's
+   * card stays hidden until it ends.
+   */
+  const drawDrop = (now: number) => {
+    if (!drop) return;
+    const to = centerOf(drop.node);
+    const t = (now - drop.start) / (drop.back ? LIFT.backMs : LIFT.settleMs);
+    if (!to || t >= 1) {
+      drop = null;
+      ghostLayer.visible = false;
+      return;
+    }
+    const ease = 1 - (1 - t) ** 3;
+    ghostLayer.visible = true;
+    ghostLayer.scale.set(LIFT.scale + (1 - LIFT.scale) * ease);
+    ghostLayer.alpha = LIFT.alpha + (1 - LIFT.alpha) * ease;
+    if (drop.back) {
+      ghostLayer.position.set(
+        drop.from.x + (to.x - drop.from.x) * ease,
+        drop.from.y + (to.y - drop.from.y) * ease,
+      );
+    }
+  };
+
+  /**
+   * The selected node's outline, and the dashed cell and brighter grid while
+   * node `lifted` is held or dropping.
+   */
+  const drawNodeMarks = (lifted: NodeId | null) => {
+    const selected =
+      selectedNode === null ? undefined : state.nodes.get(selectedNode);
+    selection.visible = selected !== undefined;
+    if (selected && selected !== drawnSelection) {
+      drawSelection(selection, selected.kind);
+      selection.position.set(selected.x * CELL_PX, selected.y * CELL_PX);
+      drawnSelection = selected;
+    }
+    const origin = lifted === null ? undefined : state.nodes.get(lifted);
+    liftOrigin.visible = origin !== undefined && moving !== null;
+    if (origin && origin !== drawnOrigin) {
+      drawLiftOrigin(liftOrigin, origin.kind);
+      liftOrigin.position.set(origin.x * CELL_PX, origin.y * CELL_PX);
+      drawnOrigin = origin;
+    }
+    if (lifted !== null) liftGrid ??= drawLiftGrid();
+    if (liftGrid) liftGrid.visible = lifted !== null;
+  };
+
+  /** Adds the brighter grid shown over the terrain while a node is lifted. */
+  const drawLiftGrid = () =>
+    layers.terrain.addChild(
+      drawGrid(
+        new Graphics({ label: "lift-grid" }),
+        revealedBounds(state.map),
+        LIFT.gridAlpha,
+        2 * LIFT.gridAlpha,
+      ),
+    );
 
   const rebuildMap = () => {
     const { map } = state;
@@ -158,6 +264,8 @@ export function createRenderer(
       }
     }
     layers.terrain.addChild(drawTerrain(map, bounds));
+    // Drawn on the first lift after a rebuild: most maps never need it.
+    liftGrid = null;
     layers.deposits.addChild(drawDeposits(map, bounds));
     depositLabels = new DepositLabels(map, bounds);
     depositLabels.hideCovered(state);
@@ -186,6 +294,8 @@ export function createRenderer(
     flights.clear();
     drawnGhost = null;
     drawnCard = null;
+    drawnSelection = null;
+    drawnOrigin = null;
   });
 
   /** The centre of a rect of cells, in world units. */
@@ -209,7 +319,9 @@ export function createRenderer(
       camera.setViewport(width, height);
       if (drawnMap !== map || drawnRing !== map.revealedRing) rebuildMap();
       const { lod } = camera;
-      if (nodeViews.sync(state.nodes, state.power.satisfaction, moving, lod)) {
+      const now = performance.now();
+      const lifted = moving ?? drop?.node ?? null;
+      if (nodeViews.sync(state.nodes, state.power.satisfaction, lifted, lod)) {
         depositLabels?.hideCovered(state);
       }
       if (depositLabels) depositLabels.container.visible = lod === "icons";
@@ -227,9 +339,11 @@ export function createRenderer(
         lod,
       );
       itemViews.update(state.edges, edgeViews, alpha, lod, camera.viewRect());
-      drawGhostLayer();
+      if (drop) drawDrop(now);
+      else drawGhostLayer();
+      drawNodeMarks(lifted);
       edgePreviewView.update(edgePreview, camera, width);
-      flights.update(performance.now(), camera.scale);
+      flights.update(now, camera.scale);
       world.scale.set(camera.scale);
       world.position.set(camera.x, camera.y);
       applyLod(layers, lod);
@@ -259,8 +373,24 @@ export function createRenderer(
     setFocus(focus) {
       applyFocus(layers, focus, UNFOCUSED_ALPHA);
     },
+    setSelectedNode(id) {
+      selectedNode = id;
+    },
     setMoving(id) {
       moving = id;
+      // A new lift cuts short the last drop's animation.
+      if (id !== null) drop = null;
+    },
+    dropGhost(back) {
+      if (!ghost || moving === null) return;
+      // The release may have planned a new cell since the last frame.
+      drawGhostLayer();
+      drop = {
+        node: moving,
+        back,
+        start: performance.now(),
+        from: { x: ghostLayer.position.x, y: ghostLayer.position.y },
+      };
     },
     showConstruction({ site, draws }) {
       const to = rectCenter(site);

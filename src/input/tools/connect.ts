@@ -78,8 +78,11 @@ export interface ConnectToolDeps {
   dispatch(command: ConnectEdge): Result;
   /** Shows the dragged edge, or hides it with `null`. */
   showPreview(preview: EdgePreview | null): void;
-  /** Opens the edge menu on an edge, or closes it with `null`. */
-  selectEdge(id: EdgeId | null): void;
+  /**
+   * Opens edge `id`'s action bubble at world point `at`, where it was
+   * tapped, or closes it with `null`.
+   */
+  selectEdge(id: EdgeId | null, at: Point | null): void;
 }
 
 interface Drag {
@@ -115,17 +118,18 @@ const CONNECTOR_REACH = CELL_PX * 0.5;
  * node with a free input, builds it. Routing runs at most once per frame, and
  * only when the pointer moves to another cell or connector; the camera pans
  * while the pointer sits at the screen's edge (FR14). A tap on an edge opens
- * its menu.
+ * its action bubble.
  */
 export class ConnectTool implements Tool {
   private drag: Drag | null = null;
 
   constructor(private readonly deps: ConnectToolDeps) {}
 
-  /** Opens the menu of the edge under `p`; returns false when there is none. */
+  /** Opens the bubble of the edge under `p`; returns false when there is none. */
   tap(p: GesturePoint): boolean {
-    const id = this.edgeAt(p);
-    this.deps.selectEdge(id);
+    const world = this.deps.camera.toWorld(p.x, p.y);
+    const id = this.edgeAt(world);
+    this.deps.selectEdge(id, world);
     return id !== null;
   }
 
@@ -154,7 +158,7 @@ export class ConnectTool implements Tool {
       tip: start,
       end: undefined,
     };
-    this.deps.selectEdge(null);
+    this.deps.selectEdge(null, null);
     return true;
   }
 
@@ -307,9 +311,8 @@ export class ConnectTool implements Tool {
   }
 
   /** The edge nearest screen point `p`, within touch reach. */
-  private edgeAt(p: GesturePoint): EdgeId | null {
+  private edgeAt(world: Point): EdgeId | null {
     const { state, camera } = this.deps;
-    const world = camera.toWorld(p.x, p.y);
     let best: EdgeId | null = null;
     let bestDistance = touchReach(camera.scale, EDGE_REACH);
     for (const edge of state.edges.values()) {

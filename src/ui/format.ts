@@ -66,14 +66,21 @@ export function edgeStatsText(
   cost: Readonly<ItemCounts>,
   throughput: number,
 ): string {
-  const price = itemEntries(cost)
-    .map(([item, n]) => `${formatAmount(n)} ${strings.itemsShort[item]}`)
-    .join(", ");
   return [
     `${length} ${strings.edge.length}`,
-    price,
+    shortCostText(cost),
     formatPerSecond(throughput),
   ].join(strings.menu.separator);
+}
+
+/** A cost with abbreviated item names, for a chip or a bubble: "4 pl. ferro, 2 engren.". */
+export function shortCostText(cost: Readonly<ItemCounts>): string {
+  return itemEntries(cost)
+    .map(
+      ([item, n]) =>
+        `${formatAmount(n)} ${strings.itemsShort[item] ?? strings.items[item]}`,
+    )
+    .join(", ");
 }
 
 /**
@@ -85,7 +92,7 @@ export function slowedEdgeText({ id, from, to }: SlowedEdge): string {
 }
 
 /** An edge's items/s with its unit: "0,25/s". */
-function formatPerSecond(n: number): string {
+export function formatPerSecond(n: number): string {
   return `${formatRate(n)}${strings.edge.perSecond}`;
 }
 

@@ -125,6 +125,19 @@ export function drawTerrain(map: MapView, bounds: Rect): Graphics {
     g.fill(PALETTE[fill]);
   }
 
+  return drawGrid(g, bounds, PALETTE.gridAlpha, PALETTE.majorGridAlpha);
+}
+
+/**
+ * Strokes the cell grid of `bounds` into `g`, every `PALETTE.majorEvery`th
+ * line at `majorAlpha` and the rest at `alpha`.
+ */
+export function drawGrid(
+  g: Graphics,
+  bounds: Rect,
+  alpha: number,
+  majorAlpha: number,
+): Graphics {
   const world = toWorld(bounds);
   const x0 = world.x;
   const y0 = world.y;
@@ -144,7 +157,7 @@ export function drawTerrain(map: MapView, bounds: Rect): Graphics {
     }
     g.stroke({
       color: PALETTE.grid,
-      alpha: major ? PALETTE.majorGridAlpha : PALETTE.gridAlpha,
+      alpha: major ? majorAlpha : alpha,
       pixelLine: true,
     });
   }
