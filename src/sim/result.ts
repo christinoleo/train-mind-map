@@ -18,6 +18,7 @@ export type FailReason =
   | "max_level"
   | "needs_deposit"
   | "newer_save"
+  | "no_backup"
   | "no_route"
   | "no_stamina"
   | "no_stock"

@@ -4,17 +4,18 @@ import type { Emit } from "../events";
 import { fail, ok, type Result } from "../result";
 import type { GameState } from "../state/gameState";
 import { depositUnder, isRevealedRect } from "../state/map";
-import { isOccupied } from "../state/nodes";
+import { overlaps, type Rect } from "../geometry/rect";
+import { nodeRect } from "../state/nodes";
 import { tapYield } from "../state/stamina";
 import { coreNode, store } from "../state/stock";
-import type { Rect } from "../geometry/rect";
 import type { Command } from "./command";
 
 /**
  * A manual tap on cell (x, y) of a deposit: it spends 1 point of stamina
  * and sends the tap's yield of the deposit's resource to the Core (FR74,
- * FR75). Crude oil cannot be tapped, nor a deposit under a node. A tap is
- * not undoable.
+ * FR75). Crude oil cannot be tapped, nor a deposit under a node other than
+ * an Extractor: Extractors can cover a whole deposit, which must stay
+ * tappable. A tap is not undoable.
  */
 export class ManualTap implements Command {
   readonly type = "ManualTap";
@@ -50,7 +51,11 @@ export class ManualTap implements Command {
       ? depositUnder(map, cell)
       : undefined;
     if (!deposit) return fail("needs_deposit");
-    if (isOccupied(state, cell)) return fail("occupied");
+    for (const node of state.nodes.values()) {
+      if (node.kind !== "extractor" && overlaps(cell, nodeRect(node))) {
+        return fail("occupied");
+      }
+    }
     if (!TAPPABLE.includes(deposit.resource)) return fail("not_tappable");
     return ok(deposit.resource);
   }

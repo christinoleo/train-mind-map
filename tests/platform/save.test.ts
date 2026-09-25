@@ -472,6 +472,59 @@ describe("save slots", () => {
     expect(store.data.has(SAVE_KEYS.backup)).toBe(false);
   });
 
+  it("restores the backup as the latest save and keeps it", async () => {
+    const store = memoryStore();
+    const good = encodeSave(createGameState("good"), 0);
+    store.data.set(SAVE_KEYS.auto, encodeSave(createGameState("bad"), 1));
+    store.data.set(SAVE_KEYS.backup, good);
+    const slots = new SaveSlots(store);
+    await slots.load();
+
+    const restored = await slots.restoreBackup();
+    expect(restored).toMatchObject({ ok: true, value: { seed: "good" } });
+    expect(store.data.get(SAVE_KEYS.auto)).toBe(good);
+    expect(store.data.get(SAVE_KEYS.backup)).toBe(good);
+    // The next save rotates the backup, not the game it replaced.
+    const state = createGameState("good");
+    state.tick = 3;
+    await slots.save(state);
+    expect(store.data.get(SAVE_KEYS.backup)).toBe(good);
+  });
+
+  it("says when there is no backup to restore", async () => {
+    const store = memoryStore();
+    const slots = new SaveSlots(store);
+    expect(await slots.restoreBackup()).toEqual({
+      ok: false,
+      reason: "no_backup",
+    });
+    store.data.set(SAVE_KEYS.backup, "{broken");
+    expect(await slots.restoreBackup()).toEqual({
+      ok: false,
+      reason: "bad_save",
+    });
+    expect(store.data.has(SAVE_KEYS.auto)).toBe(false);
+  });
+
+  it("starts a new game over a running one and keeps the settings", async () => {
+    const store = memoryStore();
+    const settingsKey = "train-mind-map:settings";
+    store.data.set(settingsKey, { hintsSeen: 3 });
+    const { state } = factory();
+    const slots = new SaveSlots(store);
+    await slots.save(state);
+    const played = store.data.get(SAVE_KEYS.auto);
+
+    await slots.save(createGameState(MVP_SCENARIO));
+    const booted = await new SaveSlots(store).load();
+    if (booted.kind !== "loaded") throw new Error(booted.kind);
+    expect(hashState(loadState(booted.save))).toBe(
+      hashState(createGameState(MVP_SCENARIO)),
+    );
+    expect(store.data.get(SAVE_KEYS.backup)).toBe(played);
+    expect(store.data.get(settingsKey)).toEqual({ hintsSeen: 3 });
+  });
+
   it("writes the crash save with the log", async () => {
     const store = memoryStore();
     const entry = {

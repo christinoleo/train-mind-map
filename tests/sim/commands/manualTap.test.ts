@@ -89,14 +89,39 @@ describe("ManualTap", () => {
     expect(state.stamina.points).toBe(STAMINA.max);
   });
 
-  it("refuses bare ground and a deposit under a node", () => {
-    const { state, commands, step, tap } = setup();
+  it("refuses bare ground and a deposit under a node other than an Extractor", () => {
+    const { state, tap } = setup();
     expect(tap(46, 46)).toEqual(fail("needs_deposit"));
+    state.nodes.set(9 as NodeId, createNode(9 as NodeId, "box", 69, 61));
+    expect(tap(69, 62)).toEqual(fail("occupied"));
+    expect(tap(65, 58)).toEqual(ok());
+  });
+
+  it("still taps stone and coal with Extractors over the whole deposit", () => {
+    // The playtest softlock (#100): 4 Extractors over a 4×4 deposit left no
+    // cell to tap.
+    const { state, commands, step, tap } = setup();
     fillCore(state);
-    commands.dispatch(state, new PlaceNode("extractor", 65, 58));
+    const covered = MVP_SCENARIO.deposits.filter(
+      (d) => d.resource === "stone" || d.resource === "coal",
+    );
+    for (const { x, y } of covered) {
+      for (const [dx, dy] of [
+        [0, 0],
+        [2, 0],
+        [0, 2],
+        [2, 2],
+      ]) {
+        commands.dispatch(state, new PlaceNode("extractor", x + dx, y + dy));
+      }
+    }
     step();
-    expect(tap(65, 58)).toEqual(fail("occupied"));
-    expect(tap(69, 62)).toEqual(ok());
+    expect(state.nodes.size).toBe(1 + 4 * covered.length);
+    const before = { ...storedItems(coreNode(state)) };
+    for (const { x, y } of covered) expect(tap(x + 3, y + 3)).toEqual(ok());
+    const after = storedItems(coreNode(state));
+    expect(after.stone).toBe((before.stone ?? 0) + 1);
+    expect(after.coal).toBe((before.coal ?? 0) + 1);
   });
 
   it("still sends iron to a Core holding a million stone", () => {

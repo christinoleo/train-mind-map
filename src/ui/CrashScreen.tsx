@@ -1,13 +1,18 @@
 import { ExportStatus, useExportSave } from "./ExportSave";
+import { StartOver, type StartOverProps } from "./StartOver";
 import { strings } from "./strings";
 
-interface Props {
+interface Props extends StartOverProps {
   onReload: () => void;
   /** The save and the log buffer, as export text. */
   onExport: () => Promise<string>;
 }
 
-export function CrashScreen({ onReload, onExport }: Props) {
+/**
+ * "Algo deu errado" (FR144). A save that crashes on every load must not trap
+ * the player, so the backup and a new game are offered too.
+ */
+export function CrashScreen({ onReload, onExport, ...startOver }: Props) {
   const { status, run } = useExportSave(onExport);
   const text = strings.crash;
 
@@ -22,6 +27,7 @@ export function CrashScreen({ onReload, onExport }: Props) {
         <button type="button" onClick={run}>
           {strings.save.export}
         </button>
+        <StartOver {...startOver} />
       </div>
       <ExportStatus status={status} />
     </div>

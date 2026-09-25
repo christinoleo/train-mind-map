@@ -55,7 +55,7 @@ import { UpgradeNode } from "./sim/commands/upgradeNode";
 import { EventQueue } from "./sim/events";
 import { clamp } from "./sim/math";
 import { fastForward, type OfflineReport } from "./sim/offline/fastForward";
-import { ok, type FailReason, type Result } from "./sim/result";
+import { fail, ok, type FailReason, type Result } from "./sim/result";
 import { lineTrains } from "./sim/rail/lines";
 import { createGameState, type GameState } from "./sim/state/gameState";
 import type { EdgeId, LineId, NodeId, RailId } from "./sim/state/ids";
@@ -99,6 +99,14 @@ installErrorHandler({
       );
   },
   exportSave: () => game && exportGame(game, log.entries()),
+  // The crash screen reloads after either, so the live game is left alone.
+  newGame: () =>
+    slots
+      .save(createGameState(MVP_SCENARIO))
+      .catch((error: unknown) =>
+        log.error("save", "new game not saved", String(error)),
+      ),
+  loadBackup: restoreBackup,
 });
 
 const booted = await slots.load().catch((error: unknown): BootSave => {
@@ -242,8 +250,9 @@ const railTool = new RailTool({
 events.on("LineCreated", ({ line }) => (selectedLine.value = line));
 // With nothing to place, a drag from an output connector connects, a drag
 // from a node's body moves it, any other drag pans, a tap on a node or an
-// edge opens its menu, and any other tap mines by hand. A deposit under the
-// mouse or the last tap shows its resource's name (FR150).
+// edge opens its menu, and a tap on an Extractor whose menu is open, or any
+// other tap, mines by hand. A deposit under the mouse or the last tap shows
+// its resource's name (FR150).
 /** Names the deposit at `world` unless a node covers it; returns the node. */
 function nameDepositAt(world: { x: number; y: number }) {
   const node = nodeAt(state, world);
@@ -260,6 +269,12 @@ const buildTool: Tool = {
   },
   tap(p) {
     const node = nameDepositAt(camera.toWorld(p.x, p.y));
+    // Extractors can cover a whole deposit: a tap on one whose menu is
+    // open already mines the deposit under it.
+    if (node?.kind === "extractor" && node.id === selectedNode.peek()) {
+      tapTool.tap(p);
+      return;
+    }
     selectedNode.value = node?.id ?? null;
     if (node) selectedEdge.value = null;
     else if (!connectTool.tap(p)) tapTool.tap(p);
@@ -429,8 +444,8 @@ function publishIfChanged<T>(target: Signal<T>, value: T) {
   }
 }
 
-/** Replaces the game with a loaded one, dropping what referred to the old. */
-function loadGame(save: SaveFile) {
+/** Replaces the game with another, dropping what referred to the old. */
+function replaceGame(next: GameState) {
   commands.clear();
   buildTool.cancel();
   selected.value = null;
@@ -440,7 +455,8 @@ function loadGame(save: SaveFile) {
   selectedLine.value = null;
   railTool.cancelPick();
   focus.value = "factory";
-  Object.assign(state, loadState(save));
+  offlineReport.value = null;
+  Object.assign(state, next);
 }
 
 /** The game as export text, with the log buffer in a crash export. */
@@ -454,13 +470,31 @@ function exportGame(
 async function importSave(text: string): Promise<Result> {
   const save = await importText(text);
   if (!save.ok) return save;
-  loadGame(save.value);
+  replaceGame(loadState(save.value));
   // The game is loaded either way; without storage it just is not kept.
   slots
     .save(state)
     .catch((error: unknown) =>
       log.error("save", "imported save not written", String(error)),
     );
+  return ok();
+}
+
+/** Starts over from the settings menu; the settings, hints seen included, stay. */
+async function newGame(): Promise<void> {
+  replaceGame(createGameState(MVP_SCENARIO));
+  await slots
+    .save(state)
+    .catch((error: unknown) =>
+      log.error("save", "new game not saved", String(error)),
+    );
+}
+
+/** Loads the backup over the current game from the settings menu. */
+async function loadBackup(): Promise<Result> {
+  const backup = await restoreBackup();
+  if (!backup.ok) return backup;
+  replaceGame(loadState(backup.value));
   return ok();
 }
 
@@ -655,6 +689,8 @@ render(
       onReviewHints: () => onboarding?.reset(),
       exportSave: () => exportGame(state),
       importSave,
+      newGame,
+      loadBackup,
     },
     exportNotice: {
       show: exportNotice,
@@ -713,6 +749,14 @@ function hintView(target: HintTarget | null): HintView | null {
     ),
     y: Math.round(clamp(y, HINT_TOP_PX, height)),
   };
+}
+
+/** Makes the backup the latest save, or says why it cannot. */
+function restoreBackup(): Promise<Result<SaveFile>> {
+  return slots.restoreBackup().catch((error: unknown) => {
+    log.error("save", "backup not restored", String(error));
+    return fail("no_backup");
+  });
 }
 
 /**
