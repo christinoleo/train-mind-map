@@ -50,7 +50,7 @@ describe("research", () => {
 
   it("has the Lab consume 1 pack every 5 s (FR40)", () => {
     expect(LAB.seconds).toBe(5);
-    expect(NODES.lab.inputs).toBe(3);
+    expect(NODES.lab.inputs).toBe(1);
     expect(NODES.lab.outputs).toBe(0);
   });
 });

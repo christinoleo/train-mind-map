@@ -161,7 +161,7 @@ export function createRenderer(
   const drawGhostLayer = () => {
     ghostLayer.visible = ghost !== null;
     if (!ghost) return;
-    const { kind, coverage, valid } = ghost;
+    const { kind, coverage, recipe, valid } = ghost;
     const lifted = moving !== null;
     if (ghost !== drawnGhost) {
       drawnGhost = ghost;
@@ -169,11 +169,14 @@ export function createRenderer(
       const name = coverage
         ? `${coverageText(coverage)}${strings.menu.separator}${extractorRateText(coverage)}`
         : undefined;
-      const look = `${kind}|${name ?? ""}`;
+      const look = `${kind}|${recipe ?? ""}|${name ?? ""}`;
       if (look !== drawnCard) {
         ghostCard?.destroy({ children: true });
         const item = coverage && mainResource(coverage);
-        ghostCard = ghostLayer.addChildAt(drawNodeCard(kind, item, name), 1);
+        ghostCard = ghostLayer.addChildAt(
+          drawNodeCard({ kind, recipe }, item, name),
+          1,
+        );
         drawRailPorts(ghostCard.addChild(new Graphics()), kind);
         drawLiftShadow(liftShadow, kind);
         drawnCard = look;

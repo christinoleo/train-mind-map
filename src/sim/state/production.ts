@@ -5,7 +5,12 @@ import {
   type ItemId,
   type RawResource,
 } from "../../data/items";
-import { EXTRACTOR_CELLS } from "../../data/nodes";
+import {
+  EXTRACTOR_CELLS,
+  NODE_KINDS,
+  NODES,
+  type NodeKind,
+} from "../../data/nodes";
 import {
   CRAFTERS,
   EXTRACTOR_SECONDS,
@@ -121,14 +126,6 @@ export function batchTicks(node: ProducerNode): number | undefined {
   return batchOf(node)?.ticks;
 }
 
-function isEmpty({ input, output, progress }: Production): boolean {
-  return (
-    output === 0 &&
-    progress === null &&
-    Object.values(input).every((n) => n === 0)
-  );
-}
-
 /** The smelting recipe that consumes `item`, if any. */
 function smeltingFor(item: ItemId): RecipeId | undefined {
   return RECIPE_IDS.find(
@@ -138,7 +135,7 @@ function smeltingFor(item: ItemId): RecipeId | undefined {
 
 /**
  * The recipe a crafter would run on `item` arriving after `pending`, the
- * items already on their way to it: an empty Furnace switches to the
+ * items already on their way to it: a Furnace without a recipe takes the
  * smelting recipe of whatever reaches it first.
  */
 function recipeOn(
@@ -146,12 +143,94 @@ function recipeOn(
   item: ItemId,
   pending: Readonly<ItemCounts> = {},
 ): RecipeId | null {
-  if (node.kind !== "furnace" || !isEmpty(node.production)) return node.recipe;
+  if (node.kind !== "furnace" || node.recipe !== null) return node.recipe;
   for (const [coming] of itemEntries(pending)) {
     const recipe = smeltingFor(coming);
     if (recipe) return recipe;
   }
-  return smeltingFor(item) ?? node.recipe;
+  return smeltingFor(item) ?? null;
+}
+
+/** What `inputTypes` needs of a node: its kind and, on a crafter, its recipe. */
+export type Typed = { kind: NodeKind; recipe?: RecipeId | null };
+
+/** The typed inputs of each recipe, one per ingredient (FR25). */
+const RECIPE_INPUTS = new Map<RecipeId, readonly ItemId[]>(
+  RECIPE_IDS.map((id) => [
+    id,
+    itemEntries(RECIPES[id].inputs).map(([item]) => item),
+  ]),
+);
+
+/** The generic inputs of each kind that has them, all `null`. */
+const GENERIC_INPUTS = new Map<NodeKind, readonly null[]>(
+  NODE_KINDS.map((kind) => [
+    kind,
+    Array.from({ length: NODES[kind].inputs }, () => null),
+  ]),
+);
+
+const FURNACE_AUTO: readonly null[] = [null];
+const NO_INPUTS: readonly null[] = [];
+const GENERATOR_INPUTS: readonly ItemId[] = [GENERATOR.fuel];
+
+/** The items some smelting recipe makes: what a Furnace without one may send. */
+const SMELTED = new Set(
+  RECIPE_IDS.filter((id) => RECIPES[id].category === "smelting").map(
+    (id) => RECIPES[id].output,
+  ),
+);
+
+/**
+ * The item each input connector of `node` takes, by port: `null` on a
+ * generic connector, which takes any item (FR25). A production node's inputs
+ * are typed, one per ingredient of its recipe, a Generator's fuel or a Lab's
+ * science packs. An Assembler without a recipe has none; a Furnace without
+ * one has a single generic input and takes the recipe of the first ore in.
+ * Storage and logistics nodes keep generic connectors. The arrays are shared
+ * and worked out once, since the flow asks on every delivery.
+ */
+export function inputTypes(node: Typed): readonly (ItemId | null)[] {
+  switch (node.kind) {
+    case "furnace":
+    case "assembler-1":
+    case "assembler-2":
+      if (node.recipe) return RECIPE_INPUTS.get(node.recipe)!;
+      return node.kind === "furnace" ? FURNACE_AUTO : NO_INPUTS;
+    case "generator":
+      return GENERATOR_INPUTS;
+    case "lab":
+      return SCIENCE_PACKS;
+    default:
+      return GENERIC_INPUTS.get(node.kind)!;
+  }
+}
+
+/**
+ * True when input `port` of `node` exists and takes `item`: a generic input
+ * takes any item, a typed one only its own (FR25).
+ */
+export function inputTakes(node: Typed, port: number, item: ItemId): boolean {
+  const type = inputTypes(node)[port];
+  return type === null || type === item;
+}
+
+/**
+ * True when `source` can send `item` out of its outputs: a producer that
+ * makes it, or a storage or logistics node, which sends any item it holds.
+ * `null`, a generic input, takes anything.
+ */
+export function canFeed(source: FactoryNode, item: ItemId | null): boolean {
+  if (item === null) return true;
+  if (source.kind === "extractor") {
+    return source.coverage.some((part) => part.resource === item);
+  }
+  if (isCrafter(source)) {
+    if (source.recipe !== null) return RECIPES[source.recipe].output === item;
+    // A Furnace without a recipe smelts whatever ore reaches it.
+    return source.kind === "furnace" && SMELTED.has(item);
+  }
+  return true;
 }
 
 /**
@@ -190,19 +269,28 @@ export function inputLimit(node: FactoryNode, need: number): number {
   return 2 * need;
 }
 
-/** True when `node` takes `item` now: it needs it and its buffer has room. */
-function wouldAccept(node: FactoryNode, item: ItemId): boolean {
+/**
+ * True when `node` takes `item` through input `port` now: the connector
+ * takes that item, the node needs it and its buffer has room.
+ */
+function wouldAccept(node: FactoryNode, item: ItemId, port: number): boolean {
+  if (!inputTakes(node, port, item)) return false;
   const need = inputNeeds(node, item)[item];
   return !!need && heldInput(node, item) < inputLimit(node, need);
 }
 
 /**
- * Hands `item` to `node`'s input buffers, from any input connector (FR25),
- * when `wouldAccept` says it takes it. An empty Furnace switches to the
- * smelting recipe of whatever arrives. Returns whether the item entered.
+ * Hands `item` to `node`'s input buffers through input `port`, when
+ * `wouldAccept` says it takes it: a typed input takes only its own item
+ * (FR25). A Furnace without a recipe takes the smelting recipe of whatever
+ * arrives. Returns whether the item entered.
  */
-export function acceptItem(node: FactoryNode, item: ItemId): boolean {
-  if (!wouldAccept(node, item)) return false;
+export function acceptItem(
+  node: FactoryNode,
+  item: ItemId,
+  port: number,
+): boolean {
+  if (!wouldAccept(node, item, port)) return false;
   if (node.kind === "generator") {
     node.fuel++;
     return true;

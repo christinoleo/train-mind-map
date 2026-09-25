@@ -1,4 +1,4 @@
-import type { ItemCounts } from "../../data/items";
+import { addCounts, type ItemCounts } from "../../data/items";
 import type { Emit } from "../events";
 import { buildPlanarIndex } from "../geometry/planar";
 import { fail, ok, type Result } from "../result";
@@ -17,6 +17,17 @@ export function takeOutEdge(state: GameState, edge: Edge): ItemCounts {
   state.edges.delete(edge.id);
   const cost = edgeCost(pathLength(edge.path), edge.level);
   return deposit(state, cost, pathBounds(edge.path));
+}
+
+/**
+ * Takes an edge out, refunding its cost and the items on it, as a change of
+ * recipe that disconnects it does (FR25), and returns what went back into storage.
+ */
+export function dropEdge(state: GameState, edge: Edge): ItemCounts {
+  state.edges.delete(edge.id);
+  const back = addCounts({}, edgeCost(pathLength(edge.path), edge.level));
+  for (const { item } of edge.items) back[item] = (back[item] ?? 0) + 1;
+  return deposit(state, back, pathBounds(edge.path));
 }
 
 /**

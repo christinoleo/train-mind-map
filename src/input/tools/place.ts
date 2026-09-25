@@ -7,6 +7,7 @@ import type { Coverage } from "../../sim/state/map";
 import { footprint } from "../../sim/state/nodes";
 import { toWorld } from "../../render/theme";
 import type { Camera } from "../camera";
+import type { RecipeId } from "../../data/recipes";
 import type { GesturePoint } from "../gestures";
 import { hitsRect } from "../hitTest";
 import type { Tool } from "../controls";
@@ -19,6 +20,8 @@ export interface Ghost {
   valid: boolean;
   /** The deposit cells an Extractor would draw from, when it may sit here. */
   coverage?: Coverage[];
+  /** A moved crafter's recipe, which sets its typed inputs (FR25). */
+  recipe?: RecipeId | null;
 }
 
 export interface PlaceToolDeps {

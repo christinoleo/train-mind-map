@@ -95,7 +95,7 @@ describe("connector layout", () => {
       const node = { kind, x: 50, y: 50 };
       for (const side of ["input", "output"] as const) {
         const cells = Array.from(
-          { length: connectorCount(kind, side) },
+          { length: connectorCount(node, side) },
           (_, port) => connectorCell(node, side, port),
         ).map((c) => `${c.x},${c.y}`);
         expect(new Set(cells).size).toBe(cells.length);

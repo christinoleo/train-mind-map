@@ -13,6 +13,7 @@ import {
 import type { Route } from "../../sim/geometry/route";
 import { fail, type FailReason, type Result } from "../../sim/result";
 import {
+  checkConnectors,
   connectorCell,
   edgeCost,
   edgeThroughput,
@@ -22,9 +23,10 @@ import {
   type ConnectorSide,
   type EdgePlan,
 } from "../../sim/state/edges";
-import { addCounts } from "../../data/items";
+import { addCounts, type ItemId } from "../../data/items";
 import type { Cost } from "../../data/nodes";
 import type { GameState } from "../../sim/state/gameState";
+import { inputTypes } from "../../sim/state/production";
 import type { EdgeId } from "../../sim/state/ids";
 import {
   rerouteCost,
@@ -67,6 +69,13 @@ export interface EdgePreview {
   stats?: EdgeStats;
   /** Where the reason chip sits, in world units. */
   tip: Point;
+  /**
+   * While an edge is dragged, every input connector: lit where the edge can
+   * attach, dimmed where it is taken or wants another item (FR25).
+   */
+  inputs?: { at: Point; fits: boolean }[];
+  /** The item the typed input under the pointer wants, when it is refused for it. */
+  wants?: ItemId;
 }
 
 export interface ConnectToolDeps {
@@ -104,6 +113,10 @@ interface Drag {
   /** Where the dragged end sits, and the input connector it snaps to. */
   tip: Point;
   end: Point | undefined;
+  /** Every input connector, and whether the edge can attach there. */
+  inputs: { at: Point; fits: boolean }[];
+  /** The `node:port` keys of the inputs the edge can attach to. */
+  fitting: Set<string>;
 }
 
 /** Nearest edge a tap still hits, at least this far, in world units. */
@@ -145,6 +158,16 @@ export class ConnectTool implements Tool {
     if (!output) return false;
     const node = state.nodes.get(output.node)!;
     const start = connectorsOf(node, "output")[output.port];
+    // Which inputs the edge can attach to stays the same for the whole drag.
+    const fitting = new Set<string>();
+    const inputs = [...state.nodes.values()].flatMap((into) =>
+      connectorsOf(into, "input").map((at, port) => {
+        const to = { node: into.id, port };
+        const fits = checkConnectors(state, output, to, NEW_EDGE_LEVEL).ok;
+        if (fits) fitting.add(`${into.id}:${port}`);
+        return { at, fits };
+      }),
+    );
     this.drag = {
       from: output,
       start,
@@ -157,6 +180,8 @@ export class ConnectTool implements Tool {
       moved: [],
       tip: start,
       end: undefined,
+      inputs,
+      fitting,
     };
     this.deps.selectEdge(null, null);
     return true;
@@ -209,7 +234,8 @@ export class ConnectTool implements Tool {
     const { state, camera } = this.deps;
     const world = camera.toWorld(drag.pointer.x, drag.pointer.y);
     const target =
-      this.connectorAt(drag.pointer, "input") ?? this.inputUnder(world);
+      this.connectorAt(drag.pointer, "input") ??
+      this.inputUnder(drag.fitting, world);
     const cell = worldToCell(world);
     const key = target
       ? `${target.node}:${target.port}`
@@ -241,9 +267,13 @@ export class ConnectTool implements Tool {
     this.show(drag);
   }
 
-  private show({ start, route, check, moved, end, tip }: Drag) {
+  private show({ start, route, check, moved, end, tip, inputs, target }: Drag) {
     const { state } = this.deps;
+    const into = target && state.nodes.get(target.node);
+    const wrong = !check.ok && check.reason === "wrong_item";
     this.deps.showPreview({
+      inputs,
+      wants: (wrong && into && inputTypes(into)[target.port]) || undefined,
       lines: [route ? edgeLine(start, route.path, end) : [start, tip]],
       moved: reroutedLines(moved, state.edges, state.nodes),
       slowed: slowedEdges(state, moved),
@@ -292,20 +322,20 @@ export class ConnectTool implements Tool {
   }
 
   /**
-   * The input of the node under world point `world` that the edge would
-   * enter: the nearest free one, or the nearest when all are taken.
+   * The input of the node under world point `world` that the dragged edge
+   * would enter: the nearest of `fitting`, or the nearest when it fits none.
    */
-  private inputUnder(world: Point): Connector | null {
+  private inputUnder(fitting: Set<string>, world: Point): Connector | null {
     const { state } = this.deps;
     const node = nodeAt(state, world);
     if (!node) return null;
     const inputs = connectorsOf(node, "input").map((c, port) => ({
       port,
-      taken: isConnected(state, "input", { node: node.id, port }),
+      fits: fitting.has(`${node.id}:${port}`),
       distance: Math.hypot(c.x - world.x, c.y - world.y),
     }));
     inputs.sort(
-      (a, b) => Number(a.taken) - Number(b.taken) || a.distance - b.distance,
+      (a, b) => Number(b.fits) - Number(a.fits) || a.distance - b.distance,
     );
     return inputs.length > 0 ? { node: node.id, port: inputs[0].port } : null;
   }

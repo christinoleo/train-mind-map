@@ -623,6 +623,16 @@ canvas {
   font-size: 0.7rem;
 }
 
+/* A recipe change that disconnects edges, before the player confirms it. */
+.bubble-warning {
+  max-width: 240px;
+  margin: 0;
+  padding: 0 4px;
+  color: #f5c542;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
 /* "Removido · Desfazer", above the palette for a few seconds. */
 #ui-root > .toast {
   position: fixed;

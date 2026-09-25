@@ -87,7 +87,7 @@ describe("the grid", () => {
       // Carries the coal over the edge, as flow would.
       while (
         node.production.output > 0 &&
-        acceptItem(state.nodes.get(gen)!, "coal")
+        acceptItem(state.nodes.get(gen)!, "coal", 0)
       ) {
         takeOutput(node);
       }
@@ -204,7 +204,7 @@ describe("Generator", () => {
     state.nodes.delete(CORE);
     const gen = put("generator");
     const extractor = put("extractor");
-    expect(acceptItem(state.nodes.get(gen)!, "coal")).toBe(true);
+    expect(acceptItem(state.nodes.get(gen)!, "coal", 0)).toBe(true);
     // The first tick measures no demand yet, so the coal waits.
     run(1);
     expect(generator(gen)).toMatchObject({ fuel: 1, burn: 0 });
@@ -224,7 +224,7 @@ describe("Generator", () => {
     const { state, put, run, generator } = setup();
     const gen = put("generator");
     put("box");
-    acceptItem(state.nodes.get(gen)!, "coal");
+    acceptItem(state.nodes.get(gen)!, "coal", 0);
     run(100);
     expect(generator(gen)).toMatchObject({ fuel: 1, burn: 0 });
     expect(state.power).toMatchObject({
@@ -236,18 +236,18 @@ describe("Generator", () => {
   it(`buffers ${GENERATOR.buffer} coal and takes nothing else`, () => {
     const { state, put } = setup();
     const gen = state.nodes.get(put("generator"))!;
-    expect(acceptItem(gen, "iron-ore")).toBe(false);
+    expect(acceptItem(gen, "iron-ore", 0)).toBe(false);
     for (let i = 0; i < GENERATOR.buffer; i++) {
-      expect(acceptItem(gen, "coal")).toBe(true);
+      expect(acceptItem(gen, "coal", 0)).toBe(true);
     }
-    expect(acceptItem(gen, "coal")).toBe(false);
+    expect(acceptItem(gen, "coal", 0)).toBe(false);
   });
 
   it("adds to the Core's supply with no edge between them", () => {
     const { state, put, run } = setup();
     const gen = put("generator");
     put("extractor");
-    acceptItem(state.nodes.get(gen)!, "coal");
+    acceptItem(state.nodes.get(gen)!, "coal", 0);
     run(2);
     expect(state.power.supply).toBe(CORE_POWER + GENERATOR.power);
   });
@@ -258,8 +258,8 @@ describe("determinism", () => {
     const { state, put, run } = setup();
     const gen = put("generator");
     for (let i = 0; i < 12; i++) put("extractor");
-    acceptItem(state.nodes.get(gen)!, "coal");
-    acceptItem(state.nodes.get(gen)!, "coal");
+    acceptItem(state.nodes.get(gen)!, "coal", 0);
+    acceptItem(state.nodes.get(gen)!, "coal", 0);
     run(15);
     const restored = deserializeState(
       JSON.parse(JSON.stringify(serializeState(state))),

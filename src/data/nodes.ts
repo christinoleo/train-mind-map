@@ -61,7 +61,10 @@ export type Cost = Readonly<ItemCounts>;
 export interface NodeDef {
   /** Side of the square footprint, in cells: at least its connectors on a side. */
   size: 2 | 3 | 4;
-  /** Input connectors, on the card's left side. */
+  /**
+   * Input connectors, on the card's left side. A production node's are
+   * typed and set by its recipe (FR25); this is the most it has.
+   */
   inputs: number;
   /** Output connectors, on the card's right side. */
   outputs: number;
@@ -96,7 +99,7 @@ export const NODES: Readonly<Record<NodeKind, NodeDef>> = {
   },
   furnace: {
     size: 2,
-    inputs: 2,
+    inputs: 1,
     outputs: 1,
     category: "smelting",
     cost: { stone: 10 },
@@ -104,7 +107,7 @@ export const NODES: Readonly<Record<NodeKind, NodeDef>> = {
   },
   "assembler-1": {
     size: 3,
-    inputs: 3,
+    inputs: 2,
     outputs: 1,
     category: "assembly",
     cost: { "iron-plate": 20, "copper-plate": 10 },
@@ -116,7 +119,7 @@ export const NODES: Readonly<Record<NodeKind, NodeDef>> = {
   // refund the same total.
   "assembler-2": {
     size: 3,
-    inputs: 3,
+    inputs: 2,
     outputs: 1,
     category: "assembly",
     cost: { "iron-plate": 40, "copper-plate": 10, gear: 10, circuit: 10 },
@@ -156,7 +159,7 @@ export const NODES: Readonly<Record<NodeKind, NodeDef>> = {
   },
   lab: {
     size: 3,
-    inputs: 3,
+    inputs: 1,
     outputs: 0,
     category: "research",
     cost: { "iron-plate": 20, "copper-plate": 10, brick: 10 },
