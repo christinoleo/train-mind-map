@@ -19,11 +19,7 @@ export interface TapToolDeps {
  * Refusals the player is told about. A tap on bare ground, a node or the
  * dark beyond the map is not an attempt at a tap, so it stays silent.
  */
-const TOLD: readonly FailReason[] = [
-  "no_stamina",
-  "not_tappable",
-  "storage_full",
-];
+const TOLD: readonly FailReason[] = ["no_stamina", "not_tappable"];
 
 /**
  * The tool active while nothing is being placed: a tap on a deposit mines

@@ -206,6 +206,7 @@ npm create pixi.js@latest train-mind-map -- --template bundler-vite
   - `tick`, `rng`, `map` (inteiro até 120², com `revealedRing`), `nodes`, `edges`, `rails` (faixas, segmentos, interconexões), `trains`, `lines`, `research`, `stamina`, `stats` (histórico em 1, 10 e 60 min), `rocketsLaunched`;
   - dados específicos de cada tipo de nó (buffer da Caixa, buffer da Estação, receita) ficam **no próprio nó**, discriminados por `kind`. Não há coleções paralelas `boxes`/`stations`;
   - `stock` é um **cache derivado** da soma das Caixas e do Núcleo, recalculado ao final do tick. Não é salvo;
+  - o Núcleo guarda **sem limite** (GDD 1.14, FR28); só as Caixas têm capacidade. As contagens são `number` inteiros, exatos até 2^53 (`Number.MAX_SAFE_INTEGER`), e `store` dispara um `assert` se uma contagem passar disso. A UI mostra toda quantidade por um único `formatAmount` (`ui/format.ts`: 1,2K, 3,4M, B, T, depois aa, ab…), sem `toLocaleString` em caminhos quentes. **Nota pós-MVP:** se a progressão passar de ~1e15 itens, trocar as contagens por uma biblioteca de números grandes (por exemplo `break_infinity.js`), o que toca `ItemRun.count`, o save e `formatAmount`;
   - as coleções são `Map<Id, T>`, com IDs numéricos incrementais;
   - não guarda referências a objetos do Pixi.
 - **Sistemas da simulação** são funções `(state, dt) => void`, executadas em ordem fixa por tick: comandos enfileirados → energia (satisfação calculada com a demanda do tick anterior) → extração → produção nos nós → fluxo nas arestas → estações e trens → pesquisa → estoque e estatísticas. A produção usa a satisfação calculada no início do tick; a demanda conta os nós que não estão `starved` nem `blocked`.
@@ -255,7 +256,7 @@ npm create pixi.js@latest train-mind-map -- --template bundler-vite
 
 1. Ao carregar, calcular `Δt = agora − último save`, limitado pelo teto de pesquisa (8, 12 ou 24 h).
 2. **Avanço rápido:** rodar a mesma simulação com o **mesmo tick de 100 ms**, sem render e sem eventos visuais, e com `ctx.offline = true` (os Laboratórios não consomem). Regime detectado quando as taxas de produção por item variam menos de 2% entre duas janelas consecutivas, cada uma com pelo menos 60 s e pelo menos 2× o maior ciclo de ida e volta entre as linhas de trem. Orçamento: 400 ms de CPU. Se o orçamento acabar antes do regime, usar as taxas da última janela completa.
-3. **Extrapolação:** aplicar as taxas do regime ao tempo restante e truncar pela capacidade de cada Caixa e do Núcleo. Os Laboratórios não consomem offline (regra do GDD).
+3. **Extrapolação:** aplicar as taxas do regime ao tempo restante e truncar pela capacidade de cada Caixa (o Núcleo não tem limite). Os Laboratórios não consomem offline (regra do GDD).
 4. Registrar o resumo "enquanto você esteve fora" e o principal gargalo (o nó com o maior tempo bloqueado ou faminto).
 
 ### Persistência

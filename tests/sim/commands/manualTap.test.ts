@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { STORAGE_CAPACITY } from "../../../src/data/nodes";
 import { MVP_SCENARIO } from "../../../src/data/scenarios/mvp";
 import { STAMINA } from "../../../src/data/tap";
 import { CommandQueue } from "../../../src/sim/commands/commandQueue";
@@ -100,11 +99,16 @@ describe("ManualTap", () => {
     expect(tap(69, 62)).toEqual(ok());
   });
 
-  it("refuses a tap once the Core is full", () => {
+  it("still sends iron to a Core holding a million stone", () => {
+    // The playtest softlock (GDD 1.14): a Core once filled with stone and
+    // refused every tap.
     const { state, tap } = setup();
-    coreNode(state).items = [{ item: "stone", count: STORAGE_CAPACITY.core }];
-    expect(tap()).toEqual(fail("storage_full"));
-    expect(state.stamina.points).toBe(STAMINA.max);
+    coreNode(state).items = [{ item: "stone", count: 1_000_000 }];
+    expect(tap()).toEqual(ok());
+    expect(storedItems(coreNode(state))).toEqual({
+      stone: 1_000_000,
+      "iron-ore": 1,
+    });
   });
 
   it("yields more at a higher tap level", () => {

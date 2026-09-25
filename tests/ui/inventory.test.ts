@@ -22,13 +22,9 @@ function setup() {
 }
 
 describe("inventoryInfo", () => {
-  it("shows an empty stock against the Core's capacity", () => {
+  it("shows an empty stock", () => {
     const { state } = setup();
-    expect(inventoryInfo(state)).toEqual({
-      used: 0,
-      capacity: 2000,
-      slots: [],
-    });
+    expect(inventoryInfo(state)).toEqual({ used: 0, slots: [] });
   });
 
   it("orders the slots raw, smelted, intermediate, then science", () => {
@@ -60,14 +56,14 @@ describe("inventoryInfo", () => {
     ]);
   });
 
-  it("leaves the Boxes kept out of construction out of the capacity", () => {
+  it("leaves the Boxes kept out of construction out of the count", () => {
     const { state, putBox } = setup();
     const box = putBox();
     store(box, "coal", 7);
-    expect(inventoryInfo(state)).toMatchObject({ used: 7, capacity: 2500 });
+    expect(inventoryInfo(state).used).toBe(7);
     new SetBoxConstruction(box.id, true).apply(state);
     const info = inventoryInfo(state);
-    expect(info).toMatchObject({ used: 0, capacity: 2000 });
+    expect(info.used).toBe(0);
     expect(info.slots[0].storages[0].kept).toBe(true);
   });
 });

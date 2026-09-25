@@ -4,32 +4,24 @@ import { ITEMS, type ItemCounts, type ItemId } from "../data/items";
 import { STAMINA } from "../data/tap";
 import type { PowerSummary } from "../sim/state/power";
 import { cssColor, ITEM_COLOR } from "../render/theme";
-import { formatCount } from "./format";
+import { formatAmount } from "./format";
 import { strings } from "./strings";
 
 interface Props {
   stock: ReadonlySignal<ItemCounts>;
   stamina: ReadonlySignal<number>;
   power: ReadonlySignal<PowerSummary>;
-  /** True while the Core and every Box are full (FR73). */
-  storageFull: ReadonlySignal<boolean>;
   /** True while the inventory panel is open; its button sits in the capsule. */
   inventoryOpen: Signal<boolean>;
 }
 
 /**
  * The HUD capsule at the top of the screen (GDD §HUD): one chip per item in
- * the global stock, over the ⚡ meter (FR131) and the stamina bar (FR75), and
- * a warning while all storage is full and the factory has stopped (FR73).
- * The button beside the chips opens the inventory.
+ * the global stock, over the ⚡ meter (FR131) and the stamina bar (FR75).
+ * The button beside the chips opens the inventory. The Core holds without
+ * limit, so the stock is never full; a full Box shows in its own menu.
  */
-export function StockHud({
-  stock,
-  stamina,
-  power,
-  storageFull,
-  inventoryOpen,
-}: Props) {
+export function StockHud({ stock, stamina, power, inventoryOpen }: Props) {
   const text = strings.hud;
   const held = ITEMS.filter((item) => (stock.value[item] ?? 0) > 0);
   return (
@@ -58,11 +50,6 @@ export function StockHud({
         </div>
         <PowerMeter power={power} />
         <StaminaBar stamina={stamina} />
-        {storageFull.value && (
-          <p class="stock-full" role="status">
-            {text.storageFull}
-          </p>
-        )}
       </div>
     </div>
   );
@@ -95,7 +82,7 @@ function StockChip({ item, count }: { item: ItemId; count: number }) {
         <span class="stock-abbr">
           {strings.itemsShort[item] ?? strings.items[item]}
         </span>
-        {formatCount(count)}
+        {formatAmount(count)}
       </button>
     </li>
   );
@@ -132,7 +119,7 @@ function StaminaBar({ stamina }: { stamina: ReadonlySignal<number> }) {
 function PowerMeter({ power }: { power: ReadonlySignal<PowerSummary> }) {
   const text = strings.hud;
   const { supply, demand, short } = power.value;
-  const numbers = `${formatCount(demand)}/${formatCount(supply)}`;
+  const numbers = `${formatAmount(demand)}/${formatAmount(supply)}`;
   const label = `${text.power}: ${text.powerUse} ${numbers}${short ? ` (${text.powerShort})` : ""}`;
   // With no supply, any demand fills the bar: x / 0 is Infinity.
   const load = demand === 0 ? 0 : Math.min(1, demand / supply);

@@ -5,7 +5,6 @@ import {
   STARTING_NODES,
   STORAGE_CAPACITY,
   type NodeKind,
-  type StorageKind,
 } from "../../data/nodes";
 import type { CrafterKind, RecipeId } from "../../data/recipes";
 import type { DepartureCondition } from "../../data/rail";
@@ -323,8 +322,11 @@ export interface GameState {
   tapLevel: number;
   /** The highest edge level research has unlocked (Epic 4). */
   edgeLevel: EdgeLevel;
-  /** Items each storage kind holds; Caixas extras raises the Box's. */
-  storageCapacity: Record<StorageKind, number>;
+  /**
+   * Items a Box holds; Caixas extras raises it. The Core holds without
+   * limit, so it has no entry (FR28).
+   */
+  storageCapacity: { box: number };
   /** The researches done and under way (FR109). */
   research: ResearchState;
   /**
@@ -366,7 +368,7 @@ export function createGameState(world: string | Scenario): GameState {
     stamina: newStamina(),
     tapLevel: 0,
     edgeLevel: 1,
-    storageCapacity: { ...STORAGE_CAPACITY },
+    storageCapacity: { box: STORAGE_CAPACITY.box },
     research: newResearch(),
     stock: sumStock(nodes),
     power: newPower(),

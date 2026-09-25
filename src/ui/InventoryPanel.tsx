@@ -18,11 +18,11 @@ import type { GameState } from "../sim/state/gameState";
 import type { NodeId } from "../sim/state/ids";
 import {
   buildsFrom,
-  constructionFill,
+  constructionStock,
   isStorage,
   storedItems,
 } from "../sim/state/stock";
-import { formatCount } from "./format";
+import { formatAmount } from "./format";
 import { Menu } from "./Menu";
 import { strings } from "./strings";
 
@@ -39,10 +39,8 @@ export interface StorageShare {
 
 /** What the inventory panel shows, published by the UI bridge. */
 export interface InventoryInfo {
-  /** Items held by the storage construction draws from. */
+  /** Items held by the storage construction draws from, without limit. */
   used: number;
-  /** What that storage holds at most. */
-  capacity: number;
   /** The items in stock, raw first, then smelted, intermediate and science. */
   slots: { item: ItemId; count: number; storages: StorageShare[] }[];
 }
@@ -80,7 +78,7 @@ export function inventoryInfo(state: Readonly<GameState>): InventoryInfo {
     const count = list.reduce((sum, share) => sum + share.count, 0);
     return [{ item, count, storages: list }];
   });
-  return { ...constructionFill(state), slots };
+  return { used: constructionStock(state), slots };
 }
 
 interface Props {
@@ -112,7 +110,7 @@ function InventoryBody({ inventory, open, onShowStorage }: Props) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
-  const { used, capacity, slots } = inventory.value;
+  const { used, slots } = inventory.value;
   const slot = slots.find((s) => s.item === picked);
   return (
     <>
@@ -123,7 +121,12 @@ function InventoryBody({ inventory, open, onShowStorage }: Props) {
         onClose={close}
         class="inventory"
       >
-        <CapacityBar used={used} capacity={capacity} />
+        <p class="inventory-capacity">
+          <span>{text.capacity}</span>
+          <span>
+            {formatAmount(used)}/{formatAmount(Infinity)}
+          </span>
+        </p>
         {slots.length === 0 ? (
           <p class="menu-note">{strings.hud.emptyStock}</p>
         ) : (
@@ -141,7 +144,7 @@ function InventoryBody({ inventory, open, onShowStorage }: Props) {
                     onClick={() => setPicked(item === picked ? null : item)}
                   >
                     <ItemIcon item={item} />
-                    <span class="inventory-count">{formatCount(count)}</span>
+                    <span class="inventory-count">{formatAmount(count)}</span>
                     <span class="inventory-name">{strings.items[item]}</span>
                   </button>
                 </li>
@@ -166,41 +169,13 @@ function InventoryBody({ inventory, open, onShowStorage }: Props) {
                   {share.number > 0 && ` ${share.number}`}
                   {share.kept && <span class="menu-items"> · {text.kept}</span>}
                 </span>
-                <span class="inventory-share">{formatCount(share.count)}</span>
+                <span class="inventory-share">{formatAmount(share.count)}</span>
               </button>
             ))}
           </div>
         )}
       </Menu>
     </>
-  );
-}
-
-/** The fill of the storage construction draws from, as a bar and numbers. */
-function CapacityBar({ used, capacity }: { used: number; capacity: number }) {
-  const text = strings.inventory;
-  return (
-    <div class="inventory-capacity" data-full={used >= capacity}>
-      <span>{text.capacity}</span>
-      <div
-        class="inventory-bar"
-        role="meter"
-        aria-label={`${text.capacity}: ${used}/${capacity}`}
-        aria-valuemin={0}
-        aria-valuemax={capacity}
-        aria-valuenow={used}
-      >
-        <div
-          class="inventory-fill"
-          style={{
-            width: `${capacity === 0 ? 0 : Math.min(1, used / capacity) * 100}%`,
-          }}
-        />
-      </div>
-      <span>
-        {formatCount(used)}/{formatCount(capacity)}
-      </span>
-    </div>
   );
 }
 

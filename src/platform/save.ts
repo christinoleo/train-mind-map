@@ -17,7 +17,7 @@ import {
 import { log, type LogEntry } from "./log";
 
 /** Bumped whenever the saved state changes shape; add a migration with it. */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 export const SAVE_KEYS = {
   /** The latest save. */
@@ -137,6 +137,20 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
         lines,
         nextIds: { ...state.nextIds, line: lines.length + 1 },
       },
+    };
+  },
+  // Schema 6: the Core holds without limit (FR28), so the state keeps only
+  // the Box's capacity.
+  5: (save) => {
+    const state = save.state as
+      { storageCapacity?: { core?: number } | null } | undefined;
+    if (!state?.storageCapacity) return { ...save, schemaVersion: 6 };
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { core, ...storageCapacity } = state.storageCapacity;
+    return {
+      ...save,
+      schemaVersion: 6,
+      state: { ...state, storageCapacity },
     };
   },
 };

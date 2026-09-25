@@ -19,12 +19,7 @@ import { allocateId } from "../../../src/sim/state/ids";
 import { createNode } from "../../../src/sim/state/nodes";
 import { acceptItem } from "../../../src/sim/state/production";
 import { serializeState } from "../../../src/sim/state/serialize";
-import {
-  coreNode,
-  storageCapacity,
-  store,
-  storedCount,
-} from "../../../src/sim/state/stock";
+import { coreNode, store, storedCount } from "../../../src/sim/state/stock";
 import { tick } from "../../../src/sim/tick";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -116,14 +111,14 @@ describe("fastForward", () => {
     expect(report.bottleneck).toEqual({ node: nodes[0].id, status: "blocked" });
   });
 
-  it("stops at the storage's capacity", () => {
+  it("does not cap at the Core, however long the absence", () => {
     const { state, core } = factory(4);
-    const room = 100;
-    store(core, "stone", storageCapacity(state, core) - room);
-    const report = fastForward(state, 4 * HOUR_MS, UNLIMITED);
-    expect(storedCount(core)).toBeLessThanOrEqual(storageCapacity(state, core));
-    expect(report.produced["iron-plate"]).toBeGreaterThan(room - 10);
-    expect(report.produced["iron-plate"]).toBeLessThanOrEqual(room);
+    store(core, "stone", 1_000_000);
+    const report = fastForward(state, OFFLINE_CAP_MS, UNLIMITED);
+    const plates = report.produced["iron-plate"] ?? 0;
+    // Far past the 2,000 items the Core once held.
+    expect(plates).toBeGreaterThan(5000);
+    expect(storedCount(core)).toBe(1_000_000 + plates);
   });
 
   it(`covers at most ${OFFLINE_CAP_MS / HOUR_MS} h of absence`, () => {

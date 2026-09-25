@@ -9,6 +9,7 @@ import {
   type Cost,
   type StorageKind,
 } from "../../data/nodes";
+import { assert } from "../assert";
 import type { Rect } from "../geometry/rect";
 import { stationCapacity } from "../rail/station";
 import type { FactoryNode, GameState, StationNode } from "./gameState";
@@ -47,12 +48,15 @@ export function coreNode(state: Readonly<GameState>): StorageNode {
   throw new Error("The game has no Core");
 }
 
-/** How many items `node` holds at most; research may raise it. */
+/**
+ * How many items `node` holds at most: `Infinity` for the Core. Research may
+ * raise a Box's.
+ */
 export function storageCapacity(
   state: Readonly<GameState>,
   node: Readonly<StorageNode>,
 ): number {
-  return state.storageCapacity[node.kind];
+  return node.kind === "core" ? Infinity : state.storageCapacity.box;
 }
 
 /** How many more items `node` has room for. */
@@ -87,6 +91,11 @@ export function store(node: ItemHolder, item: ItemId, count: number): void {
   const last = node.items.at(-1);
   if (last?.item === item) last.count += count;
   else node.items.push({ item, count });
+  // Counts are plain numbers, exact up to 2^53 (see the architecture).
+  assert(
+    node.items.at(-1)!.count <= Number.MAX_SAFE_INTEGER,
+    `${item} count past Number.MAX_SAFE_INTEGER`,
+  );
 }
 
 /**
@@ -98,14 +107,6 @@ export function takeOldest(node: ItemHolder): ItemId | undefined {
   if (!first) return undefined;
   if (--first.count === 0) node.items.shift();
   return first.item;
-}
-
-/** True when every storage node is full, so the factory backs up (FR73). */
-export function isStorageFull(state: Readonly<GameState>): boolean {
-  for (const node of state.nodes.values()) {
-    if (isStorage(node) && storageRoom(state, node) > 0) return false;
-  }
-  return true;
 }
 
 /**
@@ -133,20 +134,16 @@ export function buildsFrom(node: StorageNode): boolean {
   return node.kind === "core" || !node.noConstruction;
 }
 
-/** What the storage construction draws from holds, and holds at most. */
-export function constructionFill(state: Readonly<GameState>): {
-  used: number;
-  capacity: number;
-} {
+/**
+ * How many items the storage construction draws from holds. It has no
+ * limit: the Core is always part of it.
+ */
+export function constructionStock(state: Readonly<GameState>): number {
   let used = 0;
-  let capacity = 0;
   for (const node of state.nodes.values()) {
-    if (isStorage(node) && buildsFrom(node)) {
-      used += storedCount(node);
-      capacity += storageCapacity(state, node);
-    }
+    if (isStorage(node) && buildsFrom(node)) used += storedCount(node);
   }
-  return { used, capacity };
+  return used;
 }
 
 /**
@@ -215,8 +212,8 @@ export function debit(state: GameState, cost: Cost, site: Rect): Draw[] {
 }
 
 /**
- * Puts `items` into storage near `site`, in `storageOrder`, up to each
- * node's capacity, and returns what went in. Whatever finds no room is lost.
+ * Puts `items` into storage near `site`, in `storageOrder`, each Box up to
+ * its capacity, and returns what went in. The Core takes whatever is left.
  */
 export function deposit(state: GameState, items: Cost, site: Rect): ItemCounts {
   const order = storageOrder(state, site);

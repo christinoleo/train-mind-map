@@ -23,9 +23,13 @@ export type NodeKind = (typeof NODE_KINDS)[number];
 /** The kinds whose contents make up the global stock (FR68). */
 export type StorageKind = "core" | "box";
 
-/** How many items, of mixed types, each storage kind holds (GDD §Nós). */
+/**
+ * How many items, of mixed types, each storage kind holds (GDD §Nós). The
+ * Core holds without limit (GDD 1.14, FR28): a full Core once refused every
+ * tap and edge and left the player stuck.
+ */
 export const STORAGE_CAPACITY: Readonly<Record<StorageKind, number>> = {
-  core: 2000,
+  core: Infinity,
   box: 500,
 };
 

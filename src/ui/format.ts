@@ -2,25 +2,37 @@ import { itemEntries, type ItemCounts, type ItemId } from "../data/items";
 import type { FailReason } from "../sim/result";
 import { strings } from "./strings";
 
-const STEPS = [
-  { size: 1_000_000, suffix: "M" },
-  { size: 1_000, suffix: "K" },
-] as const;
+/** The suffixes of the first tiers of 1000: 1,2K, 3,4M, 5B, 67T. */
+const SUFFIXES = ["", "K", "M", "B", "T"];
+const LETTERS = "abcdefghijklmnopqrstuvwxyz";
+
+/** The suffix of tier `tier` of 1000: K, M, B, T, then aa, ab, …, zz. */
+function suffix(tier: number): string {
+  if (tier < SUFFIXES.length) return SUFFIXES[tier];
+  const i = tier - SUFFIXES.length;
+  return LETTERS[Math.floor(i / 26) % 26] + LETTERS[i % 26];
+}
 
 /**
- * A count in K/M notation for the HUD, in pt-BR: 950, 1,2K, 12K, 3,4M. It
- * rounds down, so the HUD never shows more than there is.
+ * An amount in idle-game notation, in pt-BR, for every count the player
+ * reads: 950, 1,2K, 12K, 3,4M, 5B, 67T, then 1aa, 1ab and on. It keeps two
+ * or three significant digits and rounds down, so it never shows more than
+ * there is. The Core's unlimited capacity reads "∞".
  */
-export function formatCount(n: number): string {
-  for (const { size, suffix } of STEPS) {
-    if (n < size) continue;
-    const scaled = n / size;
-    // One decimal below 10 (1,2K), none from there on (12K).
-    const shown =
-      scaled < 10 ? Math.floor(scaled * 10) / 10 : Math.floor(scaled);
-    return `${String(shown).replace(".", ",")}${suffix}`;
-  }
-  return String(n);
+export function formatAmount(n: number): string {
+  if (n === Infinity) return "∞";
+  if (n < 1000) return String(n);
+  let tier = 0;
+  while (1000 ** (tier + 1) <= n) tier++;
+  const scaled = n / 1000 ** tier;
+  // One decimal below 10 (1,2K), none from there on (12K).
+  const shown = scaled < 10 ? Math.floor(scaled * 10) / 10 : Math.floor(scaled);
+  return `${String(shown).replace(".", ",")}${suffix(tier)}`;
+}
+
+/** A rate or fraction to two significant digits, in pt-BR: 0,25, 1,5, 12. */
+export function formatRate(n: number): string {
+  return String(Number(n.toPrecision(2))).replace(".", ",");
 }
 
 /** Items gained, for the labels that fly from a tap to the Core: "+1 pedra". */
@@ -50,15 +62,12 @@ export function edgeStatsText(
   throughput: number,
 ): string {
   const price = itemEntries(cost)
-    .map(([item, n]) => `${formatCount(n)} ${strings.itemsShort[item]}`)
+    .map(([item, n]) => `${formatAmount(n)} ${strings.itemsShort[item]}`)
     .join(", ");
-  const rate = throughput.toLocaleString("pt-BR", {
-    maximumSignificantDigits: 2,
-  });
   return [
     `${length} ${strings.edge.length}`,
     price,
-    `${rate}${strings.edge.perSecond}`,
+    `${formatRate(throughput)}${strings.edge.perSecond}`,
   ].join(strings.menu.separator);
 }
 
