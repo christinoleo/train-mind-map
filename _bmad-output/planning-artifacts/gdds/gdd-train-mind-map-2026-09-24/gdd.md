@@ -4,7 +4,7 @@ game_type: "simulation + idle-incremental"
 platforms: ["navegador mobile (principal)", "navegador desktop"]
 created: 2026-09-24
 updated: 2026-09-24
-version: 1.13
+version: 1.14
 status: final
 ---
 
@@ -96,7 +96,7 @@ Todo nó tem conectores de entrada à esquerda e de saída à direita. Os nós o
 
 | Nó | Função | Entradas / Saídas | Base |
 |---|---|---|---|
-| Núcleo | caixa inicial especial: destino do clique, indestrutível | 4 entradas / 2 saídas | começa colocado; 2.000 itens |
+| Núcleo | caixa inicial especial: destino do clique, indestrutível | 4 entradas / 2 saídas | começa colocado; **capacidade infinita** |
 | Caixa | buffer e armazém; conta no estoque global | 2 entradas / 2 saídas | 500 itens de tipos misturados |
 | Extrator | produz o recurso da jazida sob ele | 0 / 1 (2 e 3 via pesquisa) | 1 item a cada 2 s |
 | Fornalha | fundição | 2 / 1 | receitas de 2 a 5 s |
@@ -357,7 +357,7 @@ A dificuldade vem da **complexidade das receitas** (número de insumos) e da **d
 
 ### Economia e recursos
 
-Ver Loops econômicos. Não há moeda. A capacidade de estoque vem do Núcleo (2.000 itens) e das Caixas (500 cada). Quando tudo enche, as arestas bloqueiam e a fábrica para, o que torna a Caixa uma decisão de espaço como qualquer outro nó.
+Ver Loops econômicos. Não há moeda. **O Núcleo tem capacidade infinita** (playtest 2026-09-25): acumular sem fim é o prazer natural de um idle/clicker, e um Núcleo cheio travava o jogo. As Caixas continuam com 500 itens e servem de buffer local. Os números crescem sem limite: notação K, M, B, T e depois aa, ab… e contagens sem perder precisão.
 
 ---
 

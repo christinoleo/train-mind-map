@@ -172,3 +172,8 @@
 - **MVP check:** the ~42-cell copper edge through the 1-cell corridor (only one fits) gives 0.25/s at level 1 and 0.5/s at level 2, below the 0.85/s that Protótipo final needs. A train with 2 wagons gives ~6.9/s. The train stays necessary.
 - **Connectors (user):** inputs stay on the left and outputs on the right; wrap-around is fine now.
 - **Labels (user):** a node hides the deposit label underneath it (the card shows "Extrator · minério de ferro"), and the state pill sits below the card, clear of the text.
+
+## 2026-09-25 — v1.14 (Infinite Core, playtest softlock)
+
+- **Playtest softlock:** the Core filled with stone (2,000 cap). Every edge and even manual taps were refused, and 2 iron ore could not pay for anything, so there was no way out.
+- **Decision (user):** **the Core has infinite capacity.** Endless accumulation is the natural idle/clicker pleasure. Take care with big numbers: notation and precision. Boxes keep their 500 cap as local buffers.

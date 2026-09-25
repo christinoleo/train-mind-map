@@ -57,7 +57,7 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 
 #### Nós: tipos
 
-- **FR28** [MVP] **Núcleo:** caixa inicial especial, destino do clique, indestrutível, 4 entradas / 2 saídas, capacidade de 2.000 itens; gera 3 ⚡ grátis.
+- **FR28** [MVP] **Núcleo:** caixa inicial especial, destino do clique, indestrutível, 4 entradas / 2 saídas, **capacidade infinita** (playtest 2026-09-25). Os números usam notação K/M/B/T/aa… sem perder precisão.
 - **FR29** [MVP] **Caixa:** buffer ou armazém de 500 itens de tipos misturados, 2 entradas / 2 saídas; conta no estoque global. Uma Caixa com saída entrega em ordem de chegada (FIFO); cheia, bloqueia as arestas de entrada.
 - **FR30** [MVP] **Extrator:** produz o recurso da jazida sob ele, 1 item a cada 2 s (0,5 item/s); 0 entradas / 1 saída (2 e 3 saídas via pesquisa de conectores extras).
 - **FR31** [MVP] **Fornalha:** fundição, 2 entradas / 1 saída, receitas de 2 a 5 s.
@@ -114,7 +114,7 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 - **FR70** [MVP] Ordem de débito: primeiro Caixas sem aresta de saída (armazéns), depois Caixas com saída (buffers), sempre da mais próxima do local da obra.
 - **FR71** [MVP] Cada Caixa tem a opção "não usar em construção", que exclui a Caixa do débito.
 - **FR72** [MVP] Os itens voam da caixa até a obra numa animação de 0,6 s; o transporte é instantâneo na simulação.
-- **FR73** [MVP] Quando Núcleo e Caixas enchem, as arestas de entrada bloqueiam e a fábrica para a montante (estado visível, nada é destruído).
+- **FR73** [MVP] Caixas cheias bloqueiam as arestas de entrada delas. O Núcleo nunca enche (capacidade infinita).
 
 #### Clique manual (fôlego)
 
