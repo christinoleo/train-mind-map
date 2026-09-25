@@ -1,4 +1,5 @@
 import type { ItemId } from "../data/items";
+import { FULL_IDLE_SECONDS } from "../data/rail";
 
 // Every player-visible string, in pt-BR. Components read text from here by key
 // so a second locale can be added without touching them.
@@ -151,6 +152,7 @@ export const strings = {
       full_or_wait: "cheio OU",
       inactive: "inativo por",
     },
+    neverFills: `esta estação só descarrega — 'cheio' nunca vai acontecer; o trem parte após ${FULL_IDLE_SECONDS} s sem carga nem descarga`,
     throughput: "Vazão efetiva",
     perSecond: "itens/s",
     perTrip: "itens por viagem",
@@ -246,7 +248,8 @@ export const strings = {
     has_trains: "Um trem ainda usa isto",
     immovable: "O Núcleo não pode ser movido",
     indestructible: "O Núcleo não pode ser removido",
-    line_full: "Cada trem precisa de uma parada livre na linha",
+    line_full:
+      "Cada trem precisa de uma estação livre entre as linhas que se cruzam",
     locked: "Ainda não pesquisado",
     max_level: "Já está no nível máximo",
     needs_deposit: "O Extrator precisa ficar sobre uma jazida",

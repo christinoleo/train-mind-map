@@ -34,6 +34,7 @@ import {
 } from "../../../src/sim/state/stock";
 import { updateStock } from "../../../src/sim/systems/stock";
 import { tick } from "../../../src/sim/tick";
+import { linePanelInfo } from "../../../src/ui/LinePanel";
 
 const LEFT = 0;
 const RIGHT = 1;
@@ -133,6 +134,11 @@ describe("departure conditions (FR96)", () => {
     expect(mayDepart(at(part, 1e6), when("full"))).toBe(false);
   });
 
+  it("cheio gives up after 60 s with nothing moved", () => {
+    expect(mayDepart(at(part, 1e6, 599), when("full"))).toBe(false);
+    expect(mayDepart(at(part, 1e6, 600), when("full"))).toBe(true);
+  });
+
   it("vazio waits for every wagon to be empty", () => {
     expect(mayDepart(at(empty), when("empty"))).toBe(true);
     expect(mayDepart(at(part, 1e6), when("empty"))).toBe(false);
@@ -230,6 +236,31 @@ describe("loading and unloading (FR89, FR92, FR93)", () => {
     expect(storedItems(box(sink))).toEqual({ "copper-ore": 100 });
     expect(storedItems(station(b))).toEqual({});
     expect(state.trains.size).toBe(1);
+  });
+});
+
+describe("a stop that never fills", () => {
+  it("is flagged in the Line panel where the Station only unloads", () => {
+    const { run, state, line } = yard();
+    const flags = () =>
+      linePanelInfo(state, line.id)!.stops.map((s) => s.neverFills);
+    expect(flags()).toEqual([false, false]);
+    run(new SetDeparture(line.id, 0, { kind: "full", seconds: 0 }));
+    run(new SetDeparture(line.id, 1, { kind: "full", seconds: 0 }));
+    // a loads, so it can fill; b only unloads.
+    expect(flags()).toEqual([false, true]);
+  });
+
+  it("lets its train go after 60 s of inactivity", () => {
+    const { run, step, line, train, a, b } = yard();
+    run(new SetDeparture(line.id, 0, { kind: "wait", seconds: 5 }));
+    run(new SetDeparture(line.id, 1, { kind: "full", seconds: 0 }));
+    for (let i = 0; i < 1000 && train.station !== b; i++) step();
+    expect(train.station).toBe(b);
+    for (let i = 0; i < 590; i++) step();
+    expect(train.station).toBe(b);
+    for (let i = 0; i < 1000 && train.station !== a; i++) step();
+    expect(train.station).toBe(a);
   });
 });
 

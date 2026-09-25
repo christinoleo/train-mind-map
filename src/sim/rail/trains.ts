@@ -13,7 +13,7 @@ import {
   WAGON_COST,
 } from "../../data/rail";
 import type { Emit } from "../events";
-import type { GameState, Train, TrainState } from "../state/gameState";
+import type { GameState, Train, TrainState, Trip } from "../state/gameState";
 import type { LineId, NodeId, RailId, TrainId } from "../state/ids";
 import { lineOf, mayDepart, stationRole, transfer } from "./lines";
 import { canReserveTrip, hold, releaseWhere, reserveTrip } from "./reservation";
@@ -71,6 +71,7 @@ export function createTrain(
     speed: 0,
     waited: 0,
     idle: 0,
+    blocked: 0,
     lapStart: null,
     lap: null,
     holds: [],
@@ -81,6 +82,8 @@ export function createTrain(
 }
 
 function setState(train: Train, next: TrainState, emit: Emit): void {
+  // `blocked` counts an unbroken run of waiting for a reservation.
+  if (next !== "waiting_reservation") train.blocked = 0;
   if (train.state === next) return;
   train.state = next;
   emit({ type: "TrainStateChanged", train: train.id, state: next });
@@ -115,6 +118,33 @@ function atStop(
   }
 }
 
+/** The index in its Line of the stop `train` heads for next. */
+function nextStop(state: Readonly<GameState>, train: Readonly<Train>): number {
+  return (train.stop + 1) % lineOf(state, train).stops.length;
+}
+
+/**
+ * The trip `train`, standing at `station`, would take to its next stop:
+ * around Stations other trains stand in, when there is a way, since head on
+ * into them the two trains would wait for each other for good. `null` while
+ * no route leads there.
+ */
+export function nextTrip(
+  state: Readonly<GameState>,
+  train: Readonly<Train>,
+  station: NodeId,
+): Trip | null {
+  const target = lineOf(state, train).stops[nextStop(state, train)].station;
+  const taken = (id: NodeId) => {
+    const holder = state.reservations.get(platformKey(id));
+    return holder !== undefined && holder !== train.id;
+  };
+  const route =
+    findRoute(state, station, target, taken) ??
+    findRoute(state, station, target);
+  return route && buildTrip(state, route);
+}
+
 /**
  * Leaves `station` for the next stop once its whole trip is reserved; it
  * waits otherwise, as it does while no route leads there.
@@ -125,20 +155,9 @@ function depart(
   station: NodeId,
   emit: Emit,
 ): void {
-  const { stops } = lineOf(state, train);
-  const next = (train.stop + 1) % stops.length;
-  // Around Stations other trains stand in, when there is a way; head on
-  // into them the two trains would wait for each other for good.
-  const target = stops[next].station;
-  const taken = (id: NodeId) => {
-    const holder = state.reservations.get(platformKey(id));
-    return holder !== undefined && holder !== train.id;
-  };
-  const route =
-    findRoute(state, station, target, taken) ??
-    findRoute(state, station, target);
-  const trip = route && buildTrip(state, route);
+  const trip = nextTrip(state, train, station);
   if (!trip || !canReserveTrip(state, train.id, trip)) {
+    train.blocked++;
     setState(train, "waiting_reservation", emit);
     return;
   }
@@ -151,7 +170,7 @@ function depart(
     train.lapStart = state.tick;
   }
   train.trip = trip;
-  train.stop = next;
+  train.stop = nextStop(state, train);
   train.station = null;
   train.pos = 0;
   train.prevPos = 0;

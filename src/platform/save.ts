@@ -17,7 +17,7 @@ import {
 import { log, type LogEntry } from "./log";
 
 /** Bumped whenever the saved state changes shape; add a migration with it. */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 export const SAVE_KEYS = {
   /** The latest save. */
@@ -152,6 +152,17 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
       schemaVersion: 6,
       state: { ...state, storageCapacity },
     };
+  },
+  // Schema 7: each train counts the ticks it has waited for a reservation,
+  // which breaks cycles of trains waiting on each other (FR87).
+  6: (save) => {
+    const state = save.state as { trains?: [number, object][] } | undefined;
+    if (!Array.isArray(state?.trains)) return { ...save, schemaVersion: 7 };
+    const trains = state.trains.map(([id, train]) => [
+      id,
+      { ...train, blocked: 0 },
+    ]);
+    return { ...save, schemaVersion: 7, state: { ...state, trains } };
   },
 };
 

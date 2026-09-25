@@ -31,6 +31,8 @@ export interface LinePanelInfo {
     /** What its trains do there. */
     role: "load" | "unload" | null;
     condition: DepartureCondition;
+    /** True when its "cheio" can never hold: the Station only unloads. */
+    neverFills: boolean;
   }[];
   throughput: LineThroughput;
   /** What "+ trem" costs, and why it is refused. */
@@ -54,11 +56,11 @@ export function linePanelInfo(
   }
   return {
     id,
-    stops: line.stops.map(({ station, condition }) => ({
-      station,
-      role: stationRole(state, station),
-      condition,
-    })),
+    stops: line.stops.map(({ station, condition }) => {
+      const role = stationRole(state, station);
+      const neverFills = condition.kind === "full" && role === "unload";
+      return { station, role, condition, neverFills };
+    }),
     throughput,
     addTrain: {
       cost: trainCost(MVP_WAGONS),
@@ -124,6 +126,11 @@ export function LinePanel({
               condition={stop.condition}
               onChange={(condition) => onCondition(i, condition)}
             />
+            {stop.neverFills && (
+              <p class="line-warning" role="alert">
+                {text.neverFills}
+              </p>
+            )}
           </li>
         ))}
       </ol>

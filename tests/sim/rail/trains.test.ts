@@ -17,7 +17,11 @@ import {
   segmentKey,
 } from "../../../src/sim/rail/segments";
 import { lineOf } from "../../../src/sim/rail/lines";
-import { trainCost, trainLength } from "../../../src/sim/rail/trains";
+import {
+  createTrain,
+  trainCost,
+  trainLength,
+} from "../../../src/sim/rail/trains";
 import { fail, ok, type Result } from "../../../src/sim/result";
 import {
   createGameState,
@@ -64,6 +68,7 @@ function setup() {
   const seen: SimEvent[] = [];
   events.on("TrainArrived", (e) => seen.push(e));
   events.on("TrainStateChanged", (e) => seen.push(e));
+  events.on("TrainDeadlock", (e) => seen.push(e));
   const step = () => {
     tick(state, commands, events.emit);
     events.drain();
@@ -217,19 +222,31 @@ describe("CreateLine (FR88, FR95)", () => {
   });
 
   it("puts its train at the next free stop when the first is taken", () => {
-    const { train, a, b } = line();
+    const { train, a, b, c } = line();
     train([a, b]);
-    expect(train([a, b]).station).toBe(b);
+    expect(train([a, b, c]).station).toBe(b);
   });
 
   it("refuses taken platforms, a missing route and repeated stops", () => {
     const { run, train, a, b, c, stations } = line();
     train([a, c]);
-    train([c, a]);
-    expect(run(new CreateLine([a, c]))).toEqual(fail("occupied"));
     expect(run(new CreateLine([b, stations[3]]))).toEqual(fail("no_route"));
     expect(run(new CreateLine([b, b]))).toEqual(fail("same_node"));
     expect(run(new CreateLine([b]))).toEqual(fail("no_route"));
+  });
+
+  it("keeps a Station free among the Lines that share Stations", () => {
+    const { state, run, train, a, b, c, d } = loop();
+    store(state.nodes.get(1 as NodeId) as StorageNode, "iron-plate", 100);
+    updateStock(state);
+    train([a, c]);
+    // a and c alone: a train back the other way would leave neither free.
+    expect(run(new CreateLine([c, a]))).toEqual(fail("line_full"));
+    // Through b and d too, two trains leave two Stations free.
+    expect(train([c, a, b, d]).station).toBe(c);
+    expect(run(new CreateLine([a, c]))).toEqual(fail("occupied"));
+    expect(run(new CreateLine([b, d]))).toEqual(ok());
+    expect(run(new CreateLine([d, b]))).toEqual(fail("line_full"));
   });
 
   it("is undone with a refund, freeing the platform", () => {
@@ -297,7 +314,7 @@ describe("train movement (FR90, FR94)", () => {
 });
 
 describe("reservation (FR86, ADR-0005)", () => {
-  /** t2 runs a→c; t1 stands at c, so t2 cannot reserve the leg into c. */
+  /** t2 runs a→c→b; t1 stands at c, so t2 cannot reserve the leg into c. */
   function blocked() {
     const s = line();
     const t1 = s.train([s.c, s.a]);
@@ -306,7 +323,7 @@ describe("reservation (FR86, ADR-0005)", () => {
       kind: "full",
       seconds: 0,
     };
-    const t2 = s.train([s.a, s.c]);
+    const t2 = s.train([s.a, s.c, s.b]);
     return { ...s, t1, t2 };
   }
 
@@ -410,6 +427,74 @@ describe("reservation (FR86, ADR-0005)", () => {
     // a has no rails left, but is still a stop.
     expect(run(new MoveNode(a, 40, 40))).toEqual(fail("has_trains"));
     expect(state.trains.size).toBe(1);
+  });
+});
+
+describe("deadlock (FR87)", () => {
+  /**
+   * The repro of a save from before the shared-Station guard: Lines a↔b and
+   * b↔a, a train standing at each end, each waiting for the other's platform.
+   */
+  function crossed() {
+    const s = setup();
+    const deadlocks = () => s.seen.filter((e) => e.type === "TrainDeadlock");
+    const [a, b] = s.stations;
+    s.rail(a, b);
+    const t1 = s.train([a, b]);
+    const line = allocateId(s.state.nextIds, "line");
+    s.state.lines.set(line, {
+      id: line,
+      stops: [b, a].map((station) => ({
+        station,
+        condition: { kind: "wait", seconds: 2 },
+      })),
+    });
+    const t2 = createTrain(
+      s.state,
+      allocateId(s.state.nextIds, "train"),
+      line,
+      0,
+      2,
+    );
+    return { ...s, deadlocks, a, b, t1, t2 };
+  }
+
+  it("refuses the second of two Lines over the same two Stations", () => {
+    const { run, a, b } = crossed();
+    expect(run(new CreateLine([b, a]))).toEqual(fail("line_full"));
+    expect(run(new CreateLine([a, b]))).toEqual(fail("line_full"));
+  });
+
+  it("waits 10 s, then the lowest train id gives up its platform", () => {
+    const { state, step, deadlocks, a, b, t1, t2 } = crossed();
+    for (let i = 0; i < 100; i++) step();
+    expect([t1.state, t2.state]).toEqual([
+      "waiting_reservation",
+      "waiting_reservation",
+    ]);
+    expect(deadlocks()).toEqual([]);
+    for (let i = 0; i < 30 && deadlocks().length === 0; i++) step();
+    expect(deadlocks()).toEqual([
+      { type: "TrainDeadlock", trains: [t1.id, t2.id], released: t1.id },
+    ]);
+    expect(state.reservations.get(platformKey(a))).toBeUndefined();
+    expect(t1.holds).toEqual([]);
+    for (let i = 0; i < 300 && t2.station !== a; i++) step();
+    expect(t2.station).toBe(a);
+    for (let i = 0; i < 300 && t1.station !== b; i++) step();
+    expect(t1.station).toBe(b);
+  });
+
+  it("no longer stops two crossed Lines for good", () => {
+    const { step, t1, t2 } = crossed();
+    const arrivals = [0, 0];
+    for (let i = 0; i < 3000; i++) {
+      step();
+      [t1, t2].forEach((t, j) => {
+        if (t.station !== null && t.waited === 1) arrivals[j]++;
+      });
+    }
+    expect(arrivals.every((n) => n > 5)).toBe(true);
   });
 });
 

@@ -1,6 +1,7 @@
 import { DEFAULT_DEPARTURE, MVP_WAGONS } from "../../data/rail";
 import type { Emit } from "../events";
 import { fail, ok, type Result } from "../result";
+import { networkFull } from "../rail/lines";
 import { findRoute, platformKey } from "../rail/segments";
 import { trainCost } from "../rail/trains";
 import type { GameState } from "../state/gameState";
@@ -44,7 +45,9 @@ export class CreateLine implements Command {
   validate(state: Readonly<GameState>): Result {
     const stops = checkStops(state, this.stops);
     if (!stops.ok) return stops;
-    // Its first train needs a free platform somewhere on it.
+    // Its first train must leave a Station free among the Lines it shares
+    // Stations with, and needs a free platform somewhere on it.
+    if (networkFull(state, this.stops)) return fail("line_full");
     if (this.stops.every((id) => state.reservations.has(platformKey(id)))) {
       return fail("occupied");
     }
