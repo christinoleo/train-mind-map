@@ -7,7 +7,7 @@ import type { FailReason } from "../sim/result";
 import { edgeCost, edgeThroughput, upgradeCost } from "../sim/state/edges";
 import type { GameState } from "../sim/state/gameState";
 import type { EdgeId } from "../sim/state/ids";
-import { ActionBubble, BubbleAction } from "./ActionBubble";
+import { ActionBubble, BubbleAction, BubbleRemove } from "./ActionBubble";
 import type { ScreenRect } from "./bubblePlacement";
 import { formatPerSecond, shortCostText } from "./format";
 import { strings } from "./strings";
@@ -109,13 +109,7 @@ export function EdgeMenu({
             onClick={onUpgrade}
           />
         )}
-        <BubbleAction
-          glyph={glyphs.removeGlyph}
-          label={strings.menu.remove}
-          detail={`${strings.menu.refund} ${shortCostText(info.refund)}`}
-          danger
-          onClick={onRemove}
-        />
+        <BubbleRemove refund={info.refund} onClick={onRemove} />
       </div>
     </ActionBubble>
   );

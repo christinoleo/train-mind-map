@@ -17,8 +17,6 @@ export interface Ghost {
   x: number;
   y: number;
   valid: boolean;
-  /** A node being moved, drawn lifted off the map rather than as a placement preview. */
-  lifted?: boolean;
   /** The deposit cells an Extractor would draw from, when it may sit here. */
   coverage?: Coverage[];
 }

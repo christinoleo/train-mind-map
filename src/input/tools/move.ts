@@ -7,7 +7,7 @@ import {
   type MovePlan,
 } from "../../sim/commands/moveNode";
 import type { PlanarIndex, Point } from "../../sim/geometry/planar";
-import { ok, type FailReason, type Result } from "../../sim/result";
+import type { FailReason, Result } from "../../sim/result";
 import type { GameState } from "../../sim/state/gameState";
 import type { NodeId } from "../../sim/state/ids";
 import { slowedEdges } from "../../sim/state/reroute";
@@ -112,12 +112,14 @@ export class MoveTool implements Tool {
     this.plan();
     const { plan, x, y } = grab;
     const node = this.deps.state.nodes.get(grab.id);
-    const stays = !plan || !node || (node.x === x && node.y === y);
-    const result = stays
-      ? ok()
-      : plan.check.ok
-        ? this.deps.dispatch(new MoveNode(grab.id, x, y))
-        : plan.check;
+    if (!plan || !node || (node.x === x && node.y === y)) {
+      this.deps.showDrop(false);
+      this.cancel();
+      return;
+    }
+    const result = plan.check.ok
+      ? this.deps.dispatch(new MoveNode(grab.id, x, y))
+      : plan.check;
     this.deps.showDrop(!result.ok);
     this.cancel();
     if (!result.ok) this.deps.showHint(result.reason);
@@ -170,7 +172,6 @@ export class MoveTool implements Tool {
       x: node.x,
       y: node.y,
       valid: check.ok,
-      lifted: true,
       // A refused move has not worked out the cells under the new spot.
       coverage:
         check.ok && node.kind === "extractor" ? node.coverage : undefined,

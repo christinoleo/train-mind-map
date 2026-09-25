@@ -1,4 +1,3 @@
-import { signal } from "@preact/signals";
 import { describe, expect, it } from "vitest";
 import { REMOVED_TOAST_MS } from "../../src/config/constants";
 import { MVP_SCENARIO } from "../../src/data/scenarios/mvp";
@@ -19,8 +18,8 @@ function setup() {
   fillCore(state);
   const commands = new CommandQueue();
   const events = new EventQueue();
-  const shown = signal(false);
-  const removal = new RemovalUndo(commands, shown);
+  const removal = new RemovalUndo(commands);
+  const { shown } = removal;
   const step = (now = 0) => {
     tick(state, commands, events.emit);
     removal.update(now);

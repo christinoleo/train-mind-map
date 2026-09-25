@@ -153,9 +153,8 @@ const selectedEdge = signal<EdgeId | null>(null);
 let edgeAnchor: Point | null = null;
 /** Where the open action bubble points, on the screen, published each frame. */
 const bubbleAnchor = signal<ScreenRect | null>(null);
-/** True while the "Removido · Desfazer" toast shows. */
-const removedToast = signal(false);
-const removal = new RemovalUndo(commands, removedToast);
+/** The "Removido · Desfazer" toast after a removal from a bubble. */
+const removal = new RemovalUndo(commands);
 const edgeMenu = signal<EdgeMenuInfo | null>(null);
 const selectedNode = signal<NodeId | null>(null);
 const nodeMenu = signal<NodeMenuInfo | null>(null);
@@ -238,7 +237,7 @@ const connectTool = new ConnectTool({
     batch(() => {
       if (id !== null) selectedNode.value = null;
       selectedEdge.value = id;
-      edgeAnchor = at ?? null;
+      edgeAnchor = at;
     });
   },
 });
@@ -662,7 +661,7 @@ render(
       onClose: () => (selectedNode.value = null),
     },
     removedToast: {
-      shown: removedToast,
+      shown: removal.shown,
       onUndo() {
         const result = removal.undo(state);
         if (result && !result.ok) flashHint(result.reason);

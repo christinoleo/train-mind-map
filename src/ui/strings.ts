@@ -176,7 +176,6 @@ export const strings = {
     pick: "toque outra Estação para criar a linha",
     cancel: "Cancelar",
   },
-  // The node menu, opened by tapping a node.
   // The action bubble over a tapped node or edge (FR19, FR59), and the
   // toast after a removal from it.
   bubble: {
@@ -193,6 +192,7 @@ export const strings = {
     removed: "Removido",
     undo: "Desfazer",
   },
+  // The node action bubble, opened by tapping a node.
   node: {
     title: "Nó",
     recipe: "Receita",
@@ -200,8 +200,6 @@ export const strings = {
     recipeLoses: "Trocar a receita perde os itens dentro do nó",
     full: "lotado",
     noConstruction: "Não usar em construção",
-    used: "Desligado: a construção pode usar estes itens",
-    kept: "Ligado: a construção não toca nesta Caixa",
   },
   // The report shown on return from an absence (FR124).
   offline: {

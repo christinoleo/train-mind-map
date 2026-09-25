@@ -46,7 +46,7 @@ function setup() {
     showPreview: (p) => (preview = p),
     selectEdge: (id, at) => {
       selected = id;
-      anchor = at ?? null;
+      anchor = at;
     },
   });
   const put = (kind: NodeKind, x: number, y: number) => {

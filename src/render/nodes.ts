@@ -38,7 +38,7 @@ const CONNECTOR_R = CELL_PX * 0.16;
 const CARD_RADIUS = PALETTE.cardRadius * CELL_PX;
 
 /** Side of a `kind` card, in world units. */
-function cardSide(kind: NodeKind): number {
+export function cardSide(kind: NodeKind): number {
   return NODES[kind].size * CELL_PX;
 }
 
@@ -147,18 +147,37 @@ function drawIconSlot(
   }
 }
 
+/**
+ * Adds three rounded rects round a card of `side`, `step` apart and `drop`
+ * lower, each painted by `paint` so they stack into a soft halo.
+ */
+function drawHalo(
+  g: Graphics,
+  side: number,
+  step: number,
+  drop: number,
+  paint: (g: Graphics) => void,
+): void {
+  for (let i = 3; i >= 1; i--) {
+    const spread = i * step;
+    paint(
+      g.roundRect(
+        -spread,
+        -spread + drop,
+        side + 2 * spread,
+        side + 2 * spread,
+        CARD_RADIUS + spread,
+      ),
+    );
+  }
+}
+
+const paintShadow = (g: Graphics) =>
+  g.fill({ color: PALETTE.shadow, alpha: 0.12 });
+
 /** Adds a card's soft shadow: stacked, fading rounded rects below it. */
 function drawShadow(g: Graphics, side: number): void {
-  for (let i = 3; i >= 1; i--) {
-    const spread = i * 1.5;
-    g.roundRect(
-      -spread,
-      -spread + 3,
-      side + 2 * spread,
-      side + 2 * spread,
-      CARD_RADIUS + spread,
-    ).fill({ color: PALETTE.shadow, alpha: 0.12 });
-  }
+  drawHalo(g, side, 1.5, 3, paintShadow);
 }
 
 /**
@@ -195,17 +214,9 @@ export function drawGhostOutline(g: Graphics, kind: NodeKind, valid: boolean) {
  */
 export function drawSelection(g: Graphics, kind: NodeKind) {
   const side = cardSide(kind);
-  g.clear();
-  for (let i = 3; i >= 1; i--) {
-    const spread = i * 2.5;
-    g.roundRect(
-      -spread,
-      -spread,
-      side + 2 * spread,
-      side + 2 * spread,
-      CARD_RADIUS + spread,
-    ).stroke({ color: SELECTED_COLOR, alpha: 0.1, width: 3 });
-  }
+  drawHalo(g.clear(), side, 2.5, 0, (g) =>
+    g.stroke({ color: SELECTED_COLOR, alpha: 0.1, width: 3 }),
+  );
   return g
     .roundRect(0, 0, side, side, CARD_RADIUS)
     .stroke({ color: SELECTED_COLOR, width: 2.5 });
@@ -234,18 +245,7 @@ export function drawLiftOrigin(g: Graphics, kind: NodeKind) {
  * as held above the map.
  */
 export function drawLiftShadow(g: Graphics, kind: NodeKind) {
-  const side = cardSide(kind);
-  g.clear();
-  for (let i = 3; i >= 1; i--) {
-    const spread = i * 2;
-    g.roundRect(
-      -spread,
-      -spread + LIFT.shadowDrop,
-      side + 2 * spread,
-      side + 2 * spread,
-      CARD_RADIUS + spread,
-    ).fill({ color: PALETTE.shadow, alpha: 0.12 });
-  }
+  drawHalo(g.clear(), cardSide(kind), 2, LIFT.shadowDrop, paintShadow);
   return g;
 }
 

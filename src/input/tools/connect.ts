@@ -82,7 +82,7 @@ export interface ConnectToolDeps {
    * Opens edge `id`'s action bubble at world point `at`, where it was
    * tapped, or closes it with `null`.
    */
-  selectEdge(id: EdgeId | null, at?: Point): void;
+  selectEdge(id: EdgeId | null, at: Point | null): void;
 }
 
 interface Drag {
@@ -158,7 +158,7 @@ export class ConnectTool implements Tool {
       tip: start,
       end: undefined,
     };
-    this.deps.selectEdge(null);
+    this.deps.selectEdge(null, null);
     return true;
   }
 

@@ -1,12 +1,14 @@
 import type { ReadonlySignal } from "@preact/signals";
 import type { ComponentChildren } from "preact";
 import { useLayoutEffect, useRef } from "preact/hooks";
+import type { ItemCounts } from "../data/items";
 import type { FailReason } from "../sim/result";
 import {
   placeBubble,
   type BubbleArea,
   type ScreenRect,
 } from "./bubblePlacement";
+import { shortCostText } from "./format";
 import { strings } from "./strings";
 
 /** Room kept between the bubble and the HUD or the palette. */
@@ -110,5 +112,24 @@ export function BubbleAction({
         <span class="bubble-refused">{strings.reasons[refused]}</span>
       )}
     </button>
+  );
+}
+
+/** The bubble's remove button, with what the removal gives back. */
+export function BubbleRemove({
+  refund,
+  onClick,
+}: {
+  refund: Readonly<ItemCounts>;
+  onClick(): void;
+}) {
+  return (
+    <BubbleAction
+      glyph={strings.bubble.removeGlyph}
+      label={strings.menu.remove}
+      detail={`${strings.menu.refund} ${shortCostText(refund)}`}
+      danger
+      onClick={onClick}
+    />
   );
 }

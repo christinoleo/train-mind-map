@@ -10,7 +10,7 @@ import { canRun } from "../sim/state/nodes";
 import { isCrafter } from "../sim/state/production";
 import { bufferCapacity, isBuffer, storedCount } from "../sim/state/stock";
 import { formatAmount, shortCostText } from "./format";
-import { ActionBubble, BubbleAction } from "./ActionBubble";
+import { ActionBubble, BubbleAction, BubbleRemove } from "./ActionBubble";
 import type { ScreenRect } from "./bubblePlacement";
 import { ItemIcon } from "./InventoryPanel";
 import { strings } from "./strings";
@@ -212,15 +212,7 @@ export function NodeMenu({
             onClick={onLine}
           />
         )}
-        {refund && (
-          <BubbleAction
-            glyph={glyphs.removeGlyph}
-            label={strings.menu.remove}
-            detail={`${strings.menu.refund} ${shortCostText(refund)}`}
-            danger
-            onClick={onRemove}
-          />
-        )}
+        {refund && <BubbleRemove refund={refund} onClick={onRemove} />}
       </div>
     </ActionBubble>
   );

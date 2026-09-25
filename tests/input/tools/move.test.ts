@@ -80,7 +80,6 @@ describe("MoveTool (FR20)", () => {
       x: 57,
       y: 51,
       valid: true,
-      lifted: true,
     });
     expect(t.preview()?.reason).toBeNull();
     expect(t.preview()?.lines).toHaveLength(1);

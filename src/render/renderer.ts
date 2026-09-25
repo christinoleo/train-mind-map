@@ -1,5 +1,4 @@
 import { Container, Graphics, type Application } from "pixi.js";
-import { NODES } from "../data/nodes";
 import type { SimEventOf } from "../sim/events";
 import type { Rect } from "../sim/geometry/rect";
 import type { GameState } from "../sim/state/gameState";
@@ -23,6 +22,7 @@ import {
   revealedBounds,
 } from "./mapView";
 import {
+  cardSide,
   drawGhostOutline,
   drawLiftOrigin,
   drawLiftShadow,
@@ -161,7 +161,8 @@ export function createRenderer(
   const drawGhostLayer = () => {
     ghostLayer.visible = ghost !== null;
     if (!ghost) return;
-    const { kind, coverage, valid, lifted = false } = ghost;
+    const { kind, coverage, valid } = ghost;
+    const lifted = moving !== null;
     if (ghost !== drawnGhost) {
       drawnGhost = ghost;
       // An Extractor's ghost previews what it would make, and how fast (FR30).
@@ -185,7 +186,7 @@ export function createRenderer(
     }
     // A lifted card grows about its centre and stays nearly opaque, over a
     // deeper shadow (FR134).
-    const half = (NODES[kind].size * CELL_PX) / 2;
+    const half = cardSide(kind) / 2;
     liftShadow.visible = lifted;
     ghostLayer.alpha = lifted ? LIFT.alpha : GHOST_ALPHA;
     ghostLayer.scale.set(lifted ? LIFT.scale : 1);
@@ -200,9 +201,9 @@ export function createRenderer(
    */
   const drawDrop = (now: number) => {
     if (!drop) return;
-    const node = state.nodes.get(drop.node);
+    const to = centerOf(drop.node);
     const t = (now - drop.start) / (drop.back ? LIFT.backMs : LIFT.settleMs);
-    if (!node || t >= 1) {
+    if (!to || t >= 1) {
       drop = null;
       ghostLayer.visible = false;
       return;
@@ -212,8 +213,6 @@ export function createRenderer(
     ghostLayer.scale.set(LIFT.scale + (1 - LIFT.scale) * ease);
     ghostLayer.alpha = LIFT.alpha + (1 - LIFT.alpha) * ease;
     if (drop.back) {
-      const half = ghostLayer.pivot.x;
-      const to = { x: node.x * CELL_PX + half, y: node.y * CELL_PX + half };
       ghostLayer.position.set(
         drop.from.x + (to.x - drop.from.x) * ease,
         drop.from.y + (to.y - drop.from.y) * ease,
@@ -221,8 +220,11 @@ export function createRenderer(
     }
   };
 
-  /** The selected node's outline, and the dashed cell a lifted node left. */
-  const drawNodeMarks = () => {
+  /**
+   * The selected node's outline, and the dashed cell and brighter grid while
+   * node `lifted` is held or dropping.
+   */
+  const drawNodeMarks = (lifted: NodeId | null) => {
     const selected =
       selectedNode === null ? undefined : state.nodes.get(selectedNode);
     selection.visible = selected !== undefined;
@@ -231,7 +233,6 @@ export function createRenderer(
       selection.position.set(selected.x * CELL_PX, selected.y * CELL_PX);
       drawnSelection = selected;
     }
-    const lifted = moving ?? drop?.node ?? null;
     const origin = lifted === null ? undefined : state.nodes.get(lifted);
     liftOrigin.visible = origin !== undefined && moving !== null;
     if (origin && origin !== drawnOrigin) {
@@ -239,8 +240,20 @@ export function createRenderer(
       liftOrigin.position.set(origin.x * CELL_PX, origin.y * CELL_PX);
       drawnOrigin = origin;
     }
+    if (lifted !== null) liftGrid ??= drawLiftGrid();
     if (liftGrid) liftGrid.visible = lifted !== null;
   };
+
+  /** Adds the brighter grid shown over the terrain while a node is lifted. */
+  const drawLiftGrid = () =>
+    layers.terrain.addChild(
+      drawGrid(
+        new Graphics({ label: "lift-grid" }),
+        revealedBounds(state.map),
+        LIFT.gridAlpha,
+        2 * LIFT.gridAlpha,
+      ),
+    );
 
   const rebuildMap = () => {
     const { map } = state;
@@ -251,14 +264,8 @@ export function createRenderer(
       }
     }
     layers.terrain.addChild(drawTerrain(map, bounds));
-    liftGrid = layers.terrain.addChild(
-      drawGrid(
-        new Graphics({ label: "lift-grid" }),
-        bounds,
-        LIFT.gridAlpha,
-        2 * LIFT.gridAlpha,
-      ),
-    );
+    // Drawn on the first lift after a rebuild: most maps never need it.
+    liftGrid = null;
     layers.deposits.addChild(drawDeposits(map, bounds));
     depositLabels = new DepositLabels(map, bounds);
     depositLabels.hideCovered(state);
@@ -312,6 +319,7 @@ export function createRenderer(
       camera.setViewport(width, height);
       if (drawnMap !== map || drawnRing !== map.revealedRing) rebuildMap();
       const { lod } = camera;
+      const now = performance.now();
       const lifted = moving ?? drop?.node ?? null;
       if (nodeViews.sync(state.nodes, state.power.satisfaction, lifted, lod)) {
         depositLabels?.hideCovered(state);
@@ -331,11 +339,11 @@ export function createRenderer(
         lod,
       );
       itemViews.update(state.edges, edgeViews, alpha, lod, camera.viewRect());
-      if (drop) drawDrop(performance.now());
+      if (drop) drawDrop(now);
       else drawGhostLayer();
-      drawNodeMarks();
+      drawNodeMarks(lifted);
       edgePreviewView.update(edgePreview, camera, width);
-      flights.update(performance.now(), camera.scale);
+      flights.update(now, camera.scale);
       world.scale.set(camera.scale);
       world.position.set(camera.x, camera.y);
       applyLod(layers, lod);
