@@ -1,11 +1,16 @@
 import { MVP_WAGONS } from "../../data/rail";
 import type { Emit } from "../events";
 import { fail, ok, type Result } from "../result";
-import { lineTrains } from "../rail/lines";
+import { sharedNetwork } from "../rail/lines";
 import { platformKey } from "../rail/segments";
 import { createTrain, trainCost } from "../rail/trains";
 import type { GameState } from "../state/gameState";
-import { allocateId, type LineId, type TrainId } from "../state/ids";
+import {
+  allocateId,
+  type LineId,
+  type NodeId,
+  type TrainId,
+} from "../state/ids";
 import { nodeRect } from "../state/nodes";
 import { canAfford, debit } from "../state/stock";
 import type { Command } from "./command";
@@ -20,11 +25,25 @@ function freeStop(state: Readonly<GameState>, line: LineId): number {
 }
 
 /**
+ * True when one more train on Lines over `stations` would leave no Station
+ * of their shared network free: trains standing in each other's next stops
+ * would wait for each other for good.
+ */
+export function networkFull(
+  state: Readonly<GameState>,
+  stations: readonly NodeId[],
+): boolean {
+  const network = sharedNetwork(state, stations);
+  return network.trains >= network.stations.size - 1;
+}
+
+/**
  * Builds a train, a locomotive and `MVP_WAGONS` wagons, paid from the global
  * stock (FR88), on `line` (the Line panel's "+ trem"). It stands at the
  * Line's first stop with a free platform, and follows the Line from there.
- * A Station has one platform, so a Line keeps one stop more than it has
- * trains: with every platform held, no train could reserve its next stop.
+ * A Station has one platform, so the Lines sharing Stations keep one
+ * Station more than they have trains: with every platform held, no train
+ * could reserve its next stop.
  */
 export class PlaceTrain implements Command {
   readonly type = "PlaceTrain";
@@ -35,7 +54,12 @@ export class PlaceTrain implements Command {
   validate(state: Readonly<GameState>): Result {
     const line = state.lines.get(this.line);
     if (!line) return fail("not_found");
-    if (lineTrains(state, this.line).length >= line.stops.length - 1) {
+    if (
+      networkFull(
+        state,
+        line.stops.map((s) => s.station),
+      )
+    ) {
       return fail("line_full");
     }
     if (freeStop(state, this.line) < 0) return fail("occupied");

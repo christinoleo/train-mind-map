@@ -42,6 +42,15 @@ export type SimEvent =
   | { type: "LineCreated"; line: LineId }
   | { type: "TrainStateChanged"; train: TrainId; state: TrainState }
   | {
+      /**
+       * `trains` waited on each other's reservations in a cycle (FR87), so
+       * `released`, the lowest id among them, gave up its platform.
+       */
+      type: "TrainDeadlock";
+      trains: TrainId[];
+      released: TrainId;
+    }
+  | {
       /** A train stopped at `station`, a stop of its own. */
       type: "TrainArrived";
       train: TrainId;

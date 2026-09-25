@@ -281,6 +281,8 @@ export interface Train {
   waited: number;
   /** Ticks since it last loaded or unloaded an item at the current stop. */
   idle: number;
+  /** Ticks it has waited in a row to reserve its trip to the next stop. */
+  blocked: number;
   /**
    * The tick it last left its Line's first stop, which starts a round
    * trip, or `null` before it first did.

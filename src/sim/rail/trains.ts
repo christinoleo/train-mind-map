@@ -13,7 +13,7 @@ import {
   WAGON_COST,
 } from "../../data/rail";
 import type { Emit } from "../events";
-import type { GameState, Train, TrainState } from "../state/gameState";
+import type { GameState, Train, TrainState, Trip } from "../state/gameState";
 import type { LineId, NodeId, RailId, TrainId } from "../state/ids";
 import { lineOf, mayDepart, stationRole, transfer } from "./lines";
 import { canReserveTrip, hold, releaseWhere, reserveTrip } from "./reservation";
@@ -71,6 +71,7 @@ export function createTrain(
     speed: 0,
     waited: 0,
     idle: 0,
+    blocked: 0,
     lapStart: null,
     lap: null,
     holds: [],
@@ -111,8 +112,32 @@ function atStop(
   if (mayDepart(train, condition)) {
     depart(state, train, station, emit);
   } else {
+    train.blocked = 0;
     setState(train, role === "unload" ? "unloading" : "loading", emit);
   }
+}
+
+/**
+ * The trip `train`, standing at `station`, would take to its next stop:
+ * around Stations other trains stand in, when there is a way, since head on
+ * into them the two trains would wait for each other for good. `null` while
+ * no route leads there.
+ */
+export function nextTrip(
+  state: Readonly<GameState>,
+  train: Readonly<Train>,
+  station: NodeId,
+): Trip | null {
+  const { stops } = lineOf(state, train);
+  const target = stops[(train.stop + 1) % stops.length].station;
+  const taken = (id: NodeId) => {
+    const holder = state.reservations.get(platformKey(id));
+    return holder !== undefined && holder !== train.id;
+  };
+  const route =
+    findRoute(state, station, target, taken) ??
+    findRoute(state, station, target);
+  return route && buildTrip(state, route);
 }
 
 /**
@@ -125,23 +150,13 @@ function depart(
   station: NodeId,
   emit: Emit,
 ): void {
-  const { stops } = lineOf(state, train);
-  const next = (train.stop + 1) % stops.length;
-  // Around Stations other trains stand in, when there is a way; head on
-  // into them the two trains would wait for each other for good.
-  const target = stops[next].station;
-  const taken = (id: NodeId) => {
-    const holder = state.reservations.get(platformKey(id));
-    return holder !== undefined && holder !== train.id;
-  };
-  const route =
-    findRoute(state, station, target, taken) ??
-    findRoute(state, station, target);
-  const trip = route && buildTrip(state, route);
+  const trip = nextTrip(state, train, station);
   if (!trip || !canReserveTrip(state, train.id, trip)) {
+    train.blocked++;
     setState(train, "waiting_reservation", emit);
     return;
   }
+  train.blocked = 0;
   // The platform it stands on frees once its tail is out of the Station.
   for (const h of train.holds) h.release = trip.exit;
   reserveTrip(state, train, trip);
@@ -151,7 +166,7 @@ function depart(
     train.lapStart = state.tick;
   }
   train.trip = trip;
-  train.stop = next;
+  train.stop = (train.stop + 1) % lineOf(state, train).stops.length;
   train.station = null;
   train.pos = 0;
   train.prevPos = 0;

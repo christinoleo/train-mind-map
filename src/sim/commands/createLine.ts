@@ -7,7 +7,7 @@ import type { GameState } from "../state/gameState";
 import { allocateId, type LineId, type NodeId } from "../state/ids";
 import { canAfford } from "../state/stock";
 import type { Command } from "./command";
-import { PlaceTrain } from "./placeTrain";
+import { networkFull, PlaceTrain } from "./placeTrain";
 import { RemoveLine } from "./removeLine";
 
 /**
@@ -44,7 +44,9 @@ export class CreateLine implements Command {
   validate(state: Readonly<GameState>): Result {
     const stops = checkStops(state, this.stops);
     if (!stops.ok) return stops;
-    // Its first train needs a free platform somewhere on it.
+    // Its first train must leave a Station free among the Lines it shares
+    // Stations with, and needs a free platform somewhere on it.
+    if (networkFull(state, this.stops)) return fail("line_full");
     if (this.stops.every((id) => state.reservations.has(platformKey(id)))) {
       return fail("occupied");
     }

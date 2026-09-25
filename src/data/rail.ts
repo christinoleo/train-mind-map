@@ -54,6 +54,18 @@ export const TRAIN_MOTION = {
   brake: 8,
 } as const;
 
+/**
+ * Seconds trains wait on each other's reservations in a cycle before the
+ * lowest train id gives up its platform so the others can go (FR87).
+ */
+export const DEADLOCK_SECONDS = 10;
+
+/**
+ * Seconds with nothing loaded or unloaded after which a "cheio" stop lets
+ * its train go anyway, so an unload-only stop cannot hold it for good.
+ */
+export const FULL_IDLE_SECONDS = 60;
+
 /** Items each wagon loads or unloads per second at a stop (FR93, placeholder). */
 export const WAGON_TRANSFER_PER_S = 50;
 

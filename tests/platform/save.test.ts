@@ -183,6 +183,18 @@ describe("migrations", () => {
     });
   });
 
+  it("starts each schema 6 train unblocked", () => {
+    const v6: RawSave = {
+      schemaVersion: 6,
+      state: { trains: [[1, { id: 1, idle: 4 }]] },
+    };
+    const migrated = migrate(v6);
+    if (!migrated.ok) throw new Error(migrated.reason);
+    expect(migrated.value.state).toEqual({
+      trains: [[1, { id: 1, idle: 4, blocked: 0 }]],
+    });
+  });
+
   it("gives each schema 4 train a Line of its own", () => {
     const v4: RawSave = {
       schemaVersion: 4,
@@ -223,6 +235,7 @@ describe("migrations", () => {
             ],
             waited: 0,
             idle: 0,
+            blocked: 0,
             lapStart: null,
             lap: null,
           },

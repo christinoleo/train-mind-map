@@ -13,6 +13,7 @@ import { PlaceTrain } from "../sim/commands/placeTrain";
 import {
   lineThroughput,
   lineTrains,
+  neverFills,
   stationRole,
   type LineThroughput,
 } from "../sim/rail/lines";
@@ -31,6 +32,8 @@ export interface LinePanelInfo {
     /** What its trains do there. */
     role: "load" | "unload" | null;
     condition: DepartureCondition;
+    /** True when its "cheio" can never hold: the Station only unloads. */
+    neverFills: boolean;
   }[];
   throughput: LineThroughput;
   /** What "+ trem" costs, and why it is refused. */
@@ -58,6 +61,7 @@ export function linePanelInfo(
       station,
       role: stationRole(state, station),
       condition,
+      neverFills: neverFills(state, station, condition),
     })),
     throughput,
     addTrain: {
@@ -124,6 +128,11 @@ export function LinePanel({
               condition={stop.condition}
               onChange={(condition) => onCondition(i, condition)}
             />
+            {stop.neverFills && (
+              <p class="line-warning" role="alert">
+                {text.neverFills}
+              </p>
+            )}
           </li>
         ))}
       </ol>

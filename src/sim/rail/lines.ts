@@ -5,6 +5,7 @@
 
 import { TICK_MS } from "../../config/constants";
 import {
+  FULL_IDLE_SECONDS,
   TRAIN_MOTION,
   WAGON_CAPACITY,
   WAGON_TRANSFER_PER_S,
@@ -33,6 +34,35 @@ export function lineTrains(state: Readonly<GameState>, line: LineId): Train[] {
   return [...state.trains.values()].filter((t) => t.line === line);
 }
 
+/**
+ * The Stations Lines share with `stations`, and the trains that run on
+ * them: `stations` and every stop of a Line that stops at one, and so on
+ * through the Lines those reach. A Station has one platform, so these
+ * trains need one Station more than they are to keep moving.
+ */
+export function sharedNetwork(
+  state: Readonly<GameState>,
+  stations: readonly NodeId[],
+): { stations: Set<NodeId>; trains: number } {
+  const reached = new Set(stations);
+  const joined = new Set<LineId>();
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const line of state.lines.values()) {
+      if (joined.has(line.id)) continue;
+      if (!line.stops.some((s) => reached.has(s.station))) continue;
+      joined.add(line.id);
+      for (const s of line.stops) reached.add(s.station);
+      grew = true;
+    }
+  }
+  let trains = 0;
+  for (const train of state.trains.values()) {
+    if (joined.has(train.line)) trains++;
+  }
+  return { stations: reached, trains };
+}
+
 /** The Line `train` follows. */
 export function lineOf(state: Readonly<GameState>, train: Readonly<Train>) {
   const line = state.lines.get(train.line);
@@ -56,6 +86,18 @@ export function stationRole(
     if (edge.to === station) feeds = true;
   }
   return feeds ? "load" : null;
+}
+
+/**
+ * True when "cheio" at `station` never happens: the Station only unloads,
+ * so its trains leave there on `FULL_IDLE_SECONDS` of inactivity alone.
+ */
+export function neverFills(
+  state: Readonly<GameState>,
+  station: NodeId,
+  condition: DepartureCondition,
+): boolean {
+  return condition.kind === "full" && stationRole(state, station) === "unload";
 }
 
 /** Loads `wagons` from `station`'s buffer, and returns the items moved. */
@@ -122,7 +164,9 @@ function isEmpty(wagons: readonly Wagon[]): boolean {
 
 /**
  * True when `train` may leave the stop it stands at under `condition`
- * (FR96). The times count whole ticks at the stop.
+ * (FR96). The times count whole ticks at the stop. "cheio" also gives up
+ * after `FULL_IDLE_SECONDS` with nothing moved, so a stop that never fills
+ * cannot hold a train for good.
  */
 export function mayDepart(
   train: Pick<Train, "wagons" | "waited" | "idle">,
@@ -131,7 +175,9 @@ export function mayDepart(
   const ticks = secondsToTicks(condition.seconds);
   switch (condition.kind) {
     case "full":
-      return isFull(train.wagons);
+      return (
+        isFull(train.wagons) || train.idle >= secondsToTicks(FULL_IDLE_SECONDS)
+      );
     case "empty":
       return isEmpty(train.wagons);
     case "wait":
