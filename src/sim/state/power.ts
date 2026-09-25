@@ -23,15 +23,21 @@ export function newPower(): Power {
 /** Ticks one fuel item burns for. */
 export const BURN_TICKS = secondsToTicks(GENERATOR.seconds);
 
+/** True when `node` draws power from the grid while it works (FR63). */
+export function drawsPower(node: Readonly<Pick<FactoryNode, "kind">>): boolean {
+  return (POWER_DEMAND[node.kind] ?? 0) > 0;
+}
+
 /**
  * The ⚡ `node` drew in the previous tick: its rate while it was operating,
  * neither starved nor blocked (FR63, FR64), and nothing otherwise.
  */
 function demandOf(node: FactoryNode): number {
-  const rate = POWER_DEMAND[node.kind] ?? 0;
-  if (rate === 0 || !("production" in node)) return 0;
+  if (!drawsPower(node) || !("production" in node)) return 0;
   const { status } = node.production;
-  return status === "starved" || status === "blocked" ? 0 : rate;
+  return status === "starved" || status === "blocked"
+    ? 0
+    : POWER_DEMAND[node.kind]!;
 }
 
 /**

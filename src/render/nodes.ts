@@ -2,10 +2,10 @@ import { Container, Graphics, type Text } from "pixi.js";
 import type { Lod } from "../input/camera";
 import type { ItemId } from "../data/items";
 import { NODES, type NodeKind } from "../data/nodes";
-import { POWER_DEMAND } from "../data/power";
 import { RECIPES } from "../data/recipes";
 import type { FactoryNode } from "../sim/state/gameState";
 import type { NodeId } from "../sim/state/ids";
+import { drawsPower } from "../sim/state/power";
 import { strings } from "../ui/strings";
 import { connectorPoints } from "./connectors";
 import { drawGlyph } from "./mapView";
@@ -190,9 +190,7 @@ export function flaggedStatus(
   if (!("production" in node)) return null;
   const { status } = node.production;
   if (status !== "working") return status;
-  return satisfaction < 1 && (POWER_DEMAND[node.kind] ?? 0) > 0
-    ? "low_power"
-    : null;
+  return satisfaction < 1 && drawsPower(node) ? "low_power" : null;
 }
 
 /**

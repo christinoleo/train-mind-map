@@ -334,7 +334,7 @@ export interface GameState {
    * cache, recomputed at the end of each tick and never saved.
    */
   stock: ItemCounts;
-  /** The power grid. A derived cache, recomputed each tick. */
+  /** The power grid. Recomputed at the start of each tick and never saved. */
   power: Power;
 }
 

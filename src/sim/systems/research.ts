@@ -57,9 +57,9 @@ function advance(
  * (FR40, FR109), and complete it once it has all it costs (FR116).
  */
 export const research: System = (state, { emit }) => {
+  const sat = state.power.satisfaction;
   for (const node of state.nodes.values()) {
     if (node.kind !== "lab") continue;
-    const sat = state.power.satisfaction;
     setStatus(node, advance(state, node, sat, emit), emit);
   }
 };

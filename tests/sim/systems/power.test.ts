@@ -27,7 +27,6 @@ import {
 } from "../../../src/sim/state/serialize";
 import { flow } from "../../../src/sim/systems/flow";
 import { SYSTEMS, tick } from "../../../src/sim/tick";
-import { link } from "../support/power";
 
 /** The systems without edge flow: the tests empty the output buffers themselves. */
 const NO_FLOW = SYSTEMS.filter((system) => system !== flow);
@@ -82,7 +81,6 @@ describe("the grid", () => {
     );
     const gen = allocateId(state.nextIds, "node");
     state.nodes.set(gen, createNode(gen, "generator", 4, 0));
-    link(state, extractor, gen);
     const node = state.nodes.get(extractor) as ProducerNode;
     for (let t = 0; t < 1000 && state.power.supply <= CORE_POWER; t++) {
       tick(state, commands, () => {}, NO_FLOW);
