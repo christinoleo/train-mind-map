@@ -161,3 +161,14 @@
 - **Inventory (user):** show the global stock like Factorio's inventory: a grid of slots with icon, name and count. This is a view change only; the Core plus Boxes model stays.
 - **Item names (user):** an icon alone does not tell the player what an item is. Show item names (on manual tap, on deposits, in the inventory and the HUD).
 - **Bug:** the node menu (Remover) opens underneath the palette tray.
+
+## 2026-09-25 — v1.13 (Edge distance rule, playtest)
+
+- **Playtest:** a 14-cell wrap-around edge was refused as too long (12 maximum), which made the game hard to play. The designer said "max is 200, not 20".
+- **Conflict surfaced:** the MVP corridor relied on max 12 < corridor 20. **Resolution (user):** the maximum is 200 at every level, and distance costs grow instead:
+  - the cost per cell doubles every 12 cells;
+  - effective throughput = level throughput × 0.5^⌊L/12⌋;
+  - edges of up to 11 cells are unchanged.
+- **MVP check:** the ~42-cell copper edge through the 1-cell corridor (only one fits) gives 0.25/s at level 1 and 0.5/s at level 2, below the 0.85/s that Protótipo final needs. A train with 2 wagons gives ~6.9/s. The train stays necessary.
+- **Connectors (user):** inputs stay on the left and outputs on the right; wrap-around is fine now.
+- **Labels (user):** a node hides the deposit label underneath it (the card shows "Extrator · minério de ferro"), and the state pill sits below the card, clear of the text.

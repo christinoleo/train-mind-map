@@ -4,7 +4,7 @@ game_type: "simulation + idle-incremental"
 platforms: ["navegador mobile (principal)", "navegador desktop"]
 created: 2026-09-24
 updated: 2026-09-24
-version: 1.12
+version: 1.13
 status: final
 ---
 
@@ -142,7 +142,7 @@ Todo nó tem conectores de entrada à esquerda e de saída à direita. Os nós o
 **Arestas**
 - Uma aresta liga um conector de saída a um de entrada. A rota é **automática**: o menor caminho ortogonal pela grade, que desvia de nós, água e outras arestas (desempate determinístico). O jogador não coloca dobras; para mudar uma rota, remove e recria a aresta ou move nós (issue #2). A célula em frente a cada conector livre fica reservada, e se uma aresta nova não tem rota, as arestas existentes são re-roteadas para abrir espaço.
 - **Regra planar:** uma aresta não cruza outra aresta, não atravessa nó e não atravessa água. Ao arrastar, o traçado inválido fica vermelho, e soltar o dedo nele não cria nada.
-- O comprimento de uma aresta é a soma dos comprimentos dos seus segmentos, em células, arredondada para cima. O comprimento máximo é de 12 células (nível 1), 20 (nível 2) e 32 (nível 3). O custo está na tabela de custos de construção (nível 1 = 1 minério de ferro por célula).
+- O comprimento de uma aresta é a soma dos comprimentos dos seus segmentos, em células, arredondada para cima. **Comprimento máximo: 200 células em todos os níveis** (playtest 2026-09-25). A distância pesa de outro jeito: o **custo por célula dobra a cada 12 células** (células 1–12 ×1, 13–24 ×2, 25–36 ×4…) e a **vazão cai pela metade a cada 12**: vazão efetiva = vazão do nível × 0,5^⌊L/12⌋. Arestas de até 11 células não mudam. Arestas longas ficam caras e lentas, e o trem vira o jeito de levar volume longe.
 - **Arestas não têm exceção: nunca cruzam.** Não há ponte nem túnel para arestas. Escalar além do plano local é papel dos trens.
 - A vazão é de 2 itens/s (nível 1), 4 (nível 2) e 8 (nível 3). A velocidade visual é de 3 células/s.
 - Uma aresta transporta vários tipos de item. Cada item aparece como um ponto colorido com ícone ao dar zoom, e a vazão total é compartilhada.
@@ -437,7 +437,7 @@ Detalhes e stories de alto nível em `epics.md`.
 
 **Sequência:** E1 → E2 → E3 → E6 (básico) → E4 (mínimo) → E5 (básico) → **MVP** → E4 (completo) → E5 (completo) → E7 → E8 → E9.
 
-**Meta do MVP (resolvido na issue #5):** o MVP não tem meta de vitória; a única meta do jogo completo é o foguete. A seed do MVP tem ferro, pedra e carvão perto do Núcleo, um **cobre pequeno** (3×3, uma vaga de extrator, 0,5 item/s) perto da base e um **cobre grande** atrás de um **corredor de terra entre lagos** com 1 célula de largura (menor que qualquer nó, então não cabe Caixa-relé) e ≥ 16 células de comprimento (maior que a aresta máxima de 12): só o trilho atravessa. Pesquisas do MVP, pagas com ciência vermelha: Divisor e Mesclador 10, Ferramentas 10, Caixas extras 20, Aresta 2 30, Ferrovia 50 (120 no total; Ferrovia por volta de 30 min) e, depois da Ferrovia, **Protótipo final** com 1.000 (~20 min), que exige ~0,85 placa de cobre/s, acima do cobre pequeno: o trem se torna necessário pela vazão. Ao concluir o Protótipo final, um aviso informa "fim do conteúdo do protótipo" e o jogo segue aberto. **Mapa do MVP (issue #6):** o terreno é gerado pela seed `mvp-1`, e um **cenário** carimba por cima o layout fixo. O Núcleo (3×3) fica em (60,60). Ferro (5×5), pedra (4×4) e carvão (4×4) ficam a ~7–8 células, e o cobre pequeno (3×3) a ~10. Nas colunas x 76–95 há água em toda a altura revelada, exceto um corredor de terra em y=60 (1×20). O cobre grande (6×6) ocupa x 100–105, y 57–62, a ~43 células. A área de 96² fica revelada desde o início, e o MVP não tem pesquisa de expansão. O cenário limpa a água da base e da rota do trilho.
+**Meta do MVP (resolvido na issue #5):** o MVP não tem meta de vitória; a única meta do jogo completo é o foguete. A seed do MVP tem ferro, pedra e carvão perto do Núcleo, um **cobre pequeno** (3×3, uma vaga de extrator, 0,5 item/s) perto da base e um **cobre grande** atrás de um **corredor de terra entre lagos** com 1 célula de largura (menor que qualquer nó, então não cabe Caixa-relé) e ≥ 16 células de comprimento. Com 1 célula de largura, só cabe uma aresta, e pela regra de distância uma aresta de ~42 células até o cobre grande leva no máximo 0,5 item/s (nível 2); o trem é o único jeito de chegar a 0,85/s. Pesquisas do MVP, pagas com ciência vermelha: Divisor e Mesclador 10, Ferramentas 10, Caixas extras 20, Aresta 2 30, Ferrovia 50 (120 no total; Ferrovia por volta de 30 min) e, depois da Ferrovia, **Protótipo final** com 1.000 (~20 min), que exige ~0,85 placa de cobre/s, acima do cobre pequeno: o trem se torna necessário pela vazão. Ao concluir o Protótipo final, um aviso informa "fim do conteúdo do protótipo" e o jogo segue aberto. **Mapa do MVP (issue #6):** o terreno é gerado pela seed `mvp-1`, e um **cenário** carimba por cima o layout fixo. O Núcleo (3×3) fica em (60,60). Ferro (5×5), pedra (4×4) e carvão (4×4) ficam a ~7–8 células, e o cobre pequeno (3×3) a ~10. Nas colunas x 76–95 há água em toda a altura revelada, exceto um corredor de terra em y=60 (1×20). O cobre grande (6×6) ocupa x 100–105, y 57–62, a ~43 células. A área de 96² fica revelada desde o início, e o MVP não tem pesquisa de expansão. O cenário limpa a água da base e da rota do trilho.
 
 ---
 
