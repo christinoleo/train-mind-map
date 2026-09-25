@@ -4,7 +4,7 @@ game_type: "simulation + idle-incremental"
 platforms: ["navegador mobile (principal)", "navegador desktop"]
 created: 2026-09-24
 updated: 2026-09-24
-version: 1.11
+version: 1.12
 status: final
 ---
 
@@ -140,7 +140,7 @@ Todo nó tem conectores de entrada à esquerda e de saída à direita. Os nós o
 - Remover um nó devolve 100% do custo de construção. **Os itens que estavam dentro dele (buffers, arestas, vagões) são perdidos**, e o mesmo vale ao trocar a receita.
 
 **Arestas**
-- Uma aresta liga um conector de saída a um de entrada. A rota é **automática**: o menor caminho ortogonal pela grade, que desvia de nós, água e outras arestas (desempate determinístico). O jogador não coloca dobras; para mudar uma rota, remove e recria a aresta ou move nós (issue #2).
+- Uma aresta liga um conector de saída a um de entrada. A rota é **automática**: o menor caminho ortogonal pela grade, que desvia de nós, água e outras arestas (desempate determinístico). O jogador não coloca dobras; para mudar uma rota, remove e recria a aresta ou move nós (issue #2). A célula em frente a cada conector livre fica reservada, e se uma aresta nova não tem rota, as arestas existentes são re-roteadas para abrir espaço.
 - **Regra planar:** uma aresta não cruza outra aresta, não atravessa nó e não atravessa água. Ao arrastar, o traçado inválido fica vermelho, e soltar o dedo nele não cria nada.
 - O comprimento de uma aresta é a soma dos comprimentos dos seus segmentos, em células, arredondada para cima. O comprimento máximo é de 12 células (nível 1), 20 (nível 2) e 32 (nível 3). O custo está na tabela de custos de construção (nível 1 = 1 minério de ferro por célula).
 - **Arestas não têm exceção: nunca cruzam.** Não há ponte nem túnel para arestas. Escalar além do plano local é papel dos trens.
@@ -216,7 +216,7 @@ A logística de trens cresce em cinco níveis, liberados por pesquisa. Cada nív
 | Colocar nó | tocar em "+" (paleta) → escolher → tocar na célula. Aparece uma prévia fantasma verde ou vermelha |
 | Criar aresta | arrastar a partir de um conector de saída até um de entrada. Durante o arraste, a câmera se move sozinha na borda da tela |
 | Editar/remover | tocar no nó ou na aresta abre o menu contextual (receita, upgrade, remover) |
-| Mover nó | segurar 0,5 s e arrastar. As arestas ligadas recalculam a rota; se alguma ficar sem rota ou longa demais, o movimento é recusado |
+| Mover nó | arrastar o nó (sem segurar). As arestas ligadas recalculam a rota; se alguma ficar sem rota ou longa demais, o movimento é recusado |
 | Traçar trilho | no modo Trilhos, arrastar de uma ponta de estação até a ponta de outra estação; a rota é automática |
 | Clique manual | tocar numa jazida |
 

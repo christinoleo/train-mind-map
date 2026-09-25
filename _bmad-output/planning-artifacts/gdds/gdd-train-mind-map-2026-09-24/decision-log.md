@@ -152,3 +152,12 @@
 
 - **Designer feedback on the rail prototype:** the separate horizontal-platform art for stations was confusing. **A Station is a regular node card**, like every other node, with **rail ports**: circles from which rail lines leave. The MVP has 1 rail port on the left and 1 on the right; this should grow to 2–3 per side later. Rails connect rail port to rail port with auto-routing. Trains stop at the node itself.
 - This supersedes the "choose the platform end" detail from v1.10: picking a rail port is picking the side. **Rail port** joins CONTEXT.md. FR41 and FR79 are updated, and Epic 5 tasks #49 and #50 are written this way.
+
+## 2026-09-25 — v1.12 (First playtest of the MVP build)
+
+- **Move (user):** dragging a node moves it immediately, with no long press. This supersedes the 500 ms long press validated in #2. Pan happens only on empty space, and dragging from a connector still creates an edge.
+- **Routing (user):** an edge ran flush against a Box's other connectors and made them unusable. **Every free connector now reserves the cell in front of it.**
+- **Second edge into the same target (user):** when a new edge has no route, **re-route the existing edges** to make room, and refuse only if no planar solution exists.
+- **Inventory (user):** show the global stock like Factorio's inventory: a grid of slots with icon, name and count. This is a view change only; the Core plus Boxes model stays.
+- **Item names (user):** an icon alone does not tell the player what an item is. Show item names (on manual tap, on deposits, in the inventory and the HUD).
+- **Bug:** the node menu (Remover) opens underneath the palette tray.

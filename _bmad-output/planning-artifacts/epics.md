@@ -46,7 +46,7 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 - **FR17** [MVP] Nós não se sobrepõem entre si, nem com água, nem com jazidas (exceto o Extrator, que precisa ficar sobre uma jazida).
 - **FR18** [MVP] Cada tipo de nó e cada nível de aresta e de trilho só pode ser construído depois de liberado por pesquisa, exceto os nós iniciais (Extrator, Fornalha, Gerador, Caixa, Montadora 1, Laboratório).
 - **FR19** [MVP] Tocar num nó abre o menu contextual (receita, upgrade, remover e opções específicas do tipo).
-- **FR20** [MVP] Mover nó: segurar 500 ms sobre o nó e arrastar. As arestas ligadas recalculam a rota; se alguma ficar sem rota ou longa demais, o movimento é recusado.
+- **FR20** [MVP] Mover nó: **arrastar o nó move na hora**, sem pressão longa (feedback do playtest, 2026-09-25; substitui os 500 ms). O pan acontece só no vazio, e arrastar de um conector continua criando aresta. As arestas ligadas recalculam a rota; se alguma ficar sem rota ou longa demais, o movimento é recusado.
 - **FR21** [MVP] Remover um nó devolve 100% do custo de construção ao estoque global; os itens que estavam dentro dele (buffers) são perdidos. O Núcleo é indestrutível.
 - **FR22** [MVP] O upgrade de um nó (ex.: nível de Montadora) é feito no lugar, pagando a diferença de custo.
 - **FR23** [MVP] Um nó com a saída cheia fica no estado "bloqueado" e um nó sem insumo fica "faminto"; o ícone do nó mostra o estado.
@@ -87,7 +87,7 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 #### Arestas
 
 - **FR51** [MVP] Criar aresta: arrastar de um conector de saída até um conector de entrada. Arrastar a partir do vazio move a câmera em vez de criar aresta.
-- **FR52** [MVP] A rota da aresta é automática: o menor caminho ortogonal na grade, desviando de nós, água e arestas, com desempate determinístico. O jogador não coloca dobras; para mudar, remove e recria ou move nós (issue #2).
+- **FR52** [MVP] A rota da aresta é automática: o menor caminho ortogonal na grade, desviando de nós, água e arestas, com desempate determinístico. **A célula em frente a cada conector livre fica reservada**, então nenhuma rota passa colada a um conector que outra aresta ainda pode usar. Se não houver rota para uma aresta nova, o jogo tenta **re-rotear as arestas existentes** (em ordem determinística) para abrir espaço, e só recusa se não houver solução planar. O jogador não coloca dobras (issue #2; feedback do playtest).
 - **FR53** [MVP] **Regra planar:** a aresta não cruza outra aresta, não atravessa nó e não atravessa água. Durante o arraste, um traçado inválido fica vermelho (com o motivo), e soltar sobre ele não cria nada. Não há ponte nem túnel para arestas.
 - **FR54** [MVP] Comprimento máximo: 12 células (nível 1), 20 (nível 2) e 32 (nível 3). O comprimento é a soma dos comprimentos dos segmentos da polilinha, em células, arredondada para cima; é o mesmo valor usado no custo.
 - **FR55** [MVP] Vazão: 2 itens/s (nível 1), 4 (nível 2) e 8 (nível 3). A velocidade visual dos itens é de 3 células/s; o espaçamento mínimo entre itens é velocidade ÷ vazão.
