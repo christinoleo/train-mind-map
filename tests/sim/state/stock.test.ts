@@ -30,7 +30,7 @@ const NEAR = 10 as NodeId;
 const FAR = 11 as NodeId;
 
 /**
- * The MVP map with the Core at (59, 59) holding `core`, and two Boxes: NEAR
+ * The MVP map with the Core at (58, 58) holding `core`, and two Boxes: NEAR
  * at (52, 53) and FAR at (45, 45). A Furnace (10 stone) placed at (55, 53)
  * is nearest to NEAR, then the Core, then FAR.
  */

@@ -370,11 +370,12 @@ describe("the MVP copper line", () => {
   it("brings 0.85 copper ore/s or more from the big deposit", () => {
     const { run, step, place, connect, core } = game(BUILD);
     // Two Extractors on the big copper deposit, beyond the water wall,
-    // feed a Station; its rail runs through the corridor to a Station
+    // feed a Station just south of it (the deposit leaves no room east);
+    // its rail runs through the corridor to a Station
     // beside the Core, which unloads into it.
-    const e1 = place("extractor", 103, 57);
-    const e2 = place("extractor", 103, 59);
-    const deposit = place("station", 106, 58);
+    const e1 = place("extractor", 100, 57);
+    const e2 = place("extractor", 100, 59);
+    const deposit = place("station", 101, 63);
     const base = place("station", 54, 64);
     connect(e1, deposit, 0);
     connect(e2, deposit, 1);

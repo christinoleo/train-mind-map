@@ -22,7 +22,7 @@ import { tick } from "../../../src/sim/tick";
 import { fillCore } from "../support/stock";
 import { createNode } from "../../../src/sim/state/nodes";
 
-// The MVP map: the Core at (59, 59), iron ore at (65, 58) 5×5, the water wall
+// The MVP map: the Core at (58, 58), iron ore at (65, 58) 5×5, the water wall
 // in columns 76–95, and cells 12–107 revealed on both axes.
 function setup() {
   const state = createGameState(MVP_SCENARIO);
@@ -46,9 +46,9 @@ function setup() {
 const CORE_ID = 1 as NodeId;
 
 describe("node catalog", () => {
-  it("keeps every footprint between 2×2 and 3×3", () => {
+  it("keeps every footprint between 2×2 and 4×4", () => {
     for (const kind of NODE_KINDS) {
-      expect([2, 3]).toContain(NODES[kind].size);
+      expect([2, 3, 4]).toContain(NODES[kind].size);
     }
   });
 
@@ -69,7 +69,7 @@ describe("the starting state", () => {
   it("holds the Core as node 1, empty, on the map's Core cells", () => {
     const state = createGameState(MVP_SCENARIO);
     expect([...state.nodes.values()]).toEqual([
-      { id: CORE_ID, kind: "core", x: 59, y: 59, items: [] },
+      { id: CORE_ID, kind: "core", x: 58, y: 58, items: [] },
     ]);
     expect(state.stock).toEqual({});
   });
@@ -78,7 +78,7 @@ describe("the starting state", () => {
 describe("PlaceNode validation", () => {
   const cases: [string, PlaceNode, ReturnType<typeof ok>][] = [
     ["a Furnace on open land", new PlaceNode("furnace", 55, 53), ok()],
-    ["a Box right beside the Core", new PlaceNode("box", 62, 59), ok()],
+    ["a Box right beside the Core", new PlaceNode("box", 62, 58), ok()],
     ["an Extractor on a deposit", new PlaceNode("extractor", 65, 58), ok()],
     [
       "an Extractor off any deposit",

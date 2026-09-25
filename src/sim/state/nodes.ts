@@ -11,7 +11,7 @@ import { allCells, containsCell, overlaps, type Rect } from "../geometry/rect";
 import { railCells } from "../rail/route";
 import { fail, ok, type Result } from "../result";
 import { edgeCrosses, pathBounds } from "./edges";
-import type { FactoryNode, GameState } from "./gameState";
+import type { FactoryNode, GameState, Rail } from "./gameState";
 import type { NodeId } from "./ids";
 import { depositUnder, isRevealedRect, Terrain, terrainAt } from "./map";
 import { newProduction } from "./production";
@@ -96,19 +96,22 @@ export function isOccupied(
  */
 export function railCrosses(state: Readonly<GameState>, rect: Rect): boolean {
   for (const rail of state.rails.values()) {
-    if (!overlaps(pathBounds(rail.path), rect)) continue;
-    const cells = railCells(rail.path);
-    for (let i = 0; i < cells.length; i++) {
-      const c = cells[i];
-      if (containsCell(rect, c.x, c.y)) return true;
-      const prev = cells[i - 1];
-      if (prev && prev.x !== c.x && prev.y !== c.y) {
-        if (
-          containsCell(rect, c.x, prev.y) ||
-          containsCell(rect, prev.x, c.y)
-        ) {
-          return true;
-        }
+    if (railHitsRect(rail, rect)) return true;
+  }
+  return false;
+}
+
+/** True when `rail` runs through a cell or a corner of `rect` (FR81). */
+export function railHitsRect(rail: Readonly<Rail>, rect: Rect): boolean {
+  if (!overlaps(pathBounds(rail.path), rect)) return false;
+  const cells = railCells(rail.path);
+  for (let i = 0; i < cells.length; i++) {
+    const c = cells[i];
+    if (containsCell(rect, c.x, c.y)) return true;
+    const prev = cells[i - 1];
+    if (prev && prev.x !== c.x && prev.y !== c.y) {
+      if (containsCell(rect, c.x, prev.y) || containsCell(rect, prev.x, c.y)) {
+        return true;
       }
     }
   }

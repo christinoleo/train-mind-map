@@ -1,7 +1,12 @@
 import type { ItemCounts } from "./items";
 
-/** Every node covers a square of this many cells per side (GDD §Nós, FR15). */
-export const NODE_SIZE = { min: 2, max: 3 } as const;
+/**
+ * Every node covers a square of this many cells per side (GDD §Nós, FR15).
+ * A side is at least as many cells as the connectors on it, so no two
+ * connectors share the cell an edge leaves or enters by; the Core's four
+ * inputs make it the one 4×4 node.
+ */
+export const NODE_SIZE = { min: 2, max: 4 } as const;
 
 /** The node kinds of the MVP (GDD §Nós). */
 export const NODE_KINDS = [
@@ -54,8 +59,8 @@ export type Unlock = "start" | "research" | "never";
 export type Cost = Readonly<ItemCounts>;
 
 export interface NodeDef {
-  /** Side of the square footprint, in cells. */
-  size: 2 | 3;
+  /** Side of the square footprint, in cells: at least its connectors on a side. */
+  size: 2 | 3 | 4;
   /** Input connectors, on the card's left side. */
   inputs: number;
   /** Output connectors, on the card's right side. */
@@ -70,10 +75,11 @@ export interface NodeDef {
 
 // Connector counts and costs come from the GDD tables (§Nós, §Custos de
 // construção). The GDD gives footprints only as 2×2 to 3×3; the per-kind
-// sizes here are first guesses: 3×3 for the multi-input hubs, 2×2 otherwise.
+// sizes here are the smallest square with a cell per connector on each side,
+// and 2×2 at least. The Core's four inputs need 4×4.
 export const NODES: Readonly<Record<NodeKind, NodeDef>> = {
   core: {
-    size: 3,
+    size: 4,
     inputs: 4,
     outputs: 2,
     category: "core",
@@ -133,7 +139,7 @@ export const NODES: Readonly<Record<NodeKind, NodeDef>> = {
     unlock: "start",
   },
   splitter: {
-    size: 2,
+    size: 3,
     inputs: 1,
     outputs: 3,
     category: "logistics",
@@ -141,7 +147,7 @@ export const NODES: Readonly<Record<NodeKind, NodeDef>> = {
     unlock: "research",
   },
   merger: {
-    size: 2,
+    size: 3,
     inputs: 3,
     outputs: 1,
     category: "logistics",
@@ -158,7 +164,7 @@ export const NODES: Readonly<Record<NodeKind, NodeDef>> = {
   },
   // A regular card that also has rail ports (FR41); see `STATION` in rail.ts.
   station: {
-    size: 2,
+    size: 3,
     inputs: 3,
     outputs: 3,
     category: "rail",

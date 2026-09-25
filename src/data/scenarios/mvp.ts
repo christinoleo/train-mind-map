@@ -19,8 +19,8 @@ export const MVP_SCENARIO: Scenario = {
   seed: "mvp-1",
   // 96² revealed from the start; the MVP has no expansion research.
   revealedRing: 2,
-  // Centred on cell (60, 60).
-  core: { x: 59, y: 59, w: NODES.core.size, h: NODES.core.size },
+  // Centred on the corner shared by cells (59, 59) and (60, 60).
+  core: { x: 58, y: 58, w: NODES.core.size, h: NODES.core.size },
   deposits: [
     // About 7 cells east of the Core.
     { resource: "iron-ore", x: 65, y: 58, w: 5, h: 5 },

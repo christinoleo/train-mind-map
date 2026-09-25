@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MVP_SCENARIO } from "../../../src/data/scenarios/mvp";
-import { NODES, type NodeKind } from "../../../src/data/nodes";
+import { NODE_KINDS, NODES, type NodeKind } from "../../../src/data/nodes";
 import type { Command } from "../../../src/sim/commands/command";
 import { CommandQueue } from "../../../src/sim/commands/commandQueue";
 import { ConnectEdge, planEdge } from "../../../src/sim/commands/connectEdge";
@@ -14,6 +14,7 @@ import { EDGE_MAX_LENGTH } from "../../../src/data/edges";
 import {
   checkLength,
   connectorCell,
+  connectorCount,
   connectorRows,
   edgeCost,
   edgeThroughput,
@@ -37,7 +38,7 @@ import { tick } from "../../../src/sim/tick";
 import { railCells } from "../../../src/sim/rail/route";
 import { fillCore } from "../support/stock";
 
-// The MVP map: the Core at (59, 59), open land around (50, 50), the water
+// The MVP map: the Core at (58, 58), open land around (50, 50), the water
 // wall from column 76 and cells 12–107 revealed on both axes.
 function setup(perItem = 100) {
   const state = createGameState(MVP_SCENARIO);
@@ -88,10 +89,19 @@ describe("connector layout", () => {
     expect(connectorRows(3, 3)).toEqual([0, 1, 2]);
   });
 
-  it("shares rows once there are more connectors than rows", () => {
-    expect(connectorRows(4, 3)).toEqual([0, 1, 1, 2]);
-    expect(connectorRows(3, 2)).toEqual([0, 1, 1]);
-  });
+  it.each(NODE_KINDS)(
+    "gives each of %s's connectors a cell of its own",
+    (kind) => {
+      const node = { kind, x: 50, y: 50 };
+      for (const side of ["input", "output"] as const) {
+        const cells = Array.from(
+          { length: connectorCount(kind, side) },
+          (_, port) => connectorCell(node, side, port),
+        ).map((c) => `${c.x},${c.y}`);
+        expect(new Set(cells).size).toBe(cells.length);
+      }
+    },
+  );
 
   it("puts outputs beside the right side and inputs beside the left", () => {
     const box = { kind: "box" as const, x: 50, y: 50 };

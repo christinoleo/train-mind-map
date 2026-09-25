@@ -7,7 +7,7 @@ import {
   type RailSide,
 } from "../../data/rail";
 import type { Point } from "../geometry/planar";
-import { connectorRows } from "../state/edges";
+import { spreadRows } from "../state/edges";
 import type { StationNode } from "../state/gameState";
 
 /**
@@ -38,14 +38,15 @@ export function stationCapacity(): number {
 
 /**
  * Every rail port of `station`, left side first, each side from the top.
- * They spread over the card's rows the way connectors do, one row each.
+ * They spread evenly over the whole side, one row each, so the MVP's single
+ * port sits on the card's middle row.
  */
 export function railPorts(
   station: Pick<StationNode, "kind" | "x" | "y">,
 ): RailPort[] {
   const { size } = NODES[station.kind];
   return RAIL_SIDES.flatMap((side) =>
-    connectorRows(STATION.railPorts[side], size).map((row, index) => ({
+    spreadRows(STATION.railPorts[side], size).map((row, index) => ({
       side,
       index,
       cell: {

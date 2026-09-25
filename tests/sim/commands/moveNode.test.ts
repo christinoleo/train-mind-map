@@ -23,7 +23,7 @@ import { tick } from "../../../src/sim/tick";
 import { railCells } from "../../../src/sim/rail/route";
 import { fillCore } from "../support/stock";
 
-// The MVP map: the Core at (59, 59) and open land around (50, 50).
+// The MVP map: the Core at (58, 58) and open land around (50, 50).
 function setup() {
   const state = createGameState(MVP_SCENARIO);
   fillCore(state);

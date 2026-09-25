@@ -15,7 +15,7 @@ describe("a Station's rail ports (FR41)", () => {
   it("sits in the cell just outside each side, on the same row", () => {
     const [left, right] = railPorts({ kind: "station", x: 10, y: 20 });
     expect(left.cell).toEqual({ x: 9, y: 21 });
-    expect(right.cell).toEqual({ x: 12, y: 21 });
+    expect(right.cell).toEqual({ x: 13, y: 21 });
   });
 
   it("follows the Station when it moves", () => {
@@ -41,9 +41,9 @@ describe("a Station's rail ports (FR41)", () => {
 });
 
 describe("a Station", () => {
-  it("is a 2×2 card with 3 inputs and 3 outputs, unlocked by research", () => {
+  it("is a 3×3 card with 3 inputs and 3 outputs, unlocked by research", () => {
     expect(NODES.station).toMatchObject({
-      size: 2,
+      size: 3,
       inputs: 3,
       outputs: 3,
       category: "rail",

@@ -10,6 +10,7 @@ import type { PlanarIndex, Point } from "../../sim/geometry/planar";
 import type { FailReason, Result } from "../../sim/result";
 import type { GameState } from "../../sim/state/gameState";
 import type { NodeId } from "../../sim/state/ids";
+import { slowedEdges } from "../../sim/state/reroute";
 import { canAfford } from "../../sim/state/stock";
 import { edgeLineOf, reroutedLines } from "../../render/connectors";
 import type { Camera } from "../camera";
@@ -171,6 +172,7 @@ export class MoveTool implements Tool {
     this.deps.showPreview({
       lines,
       moved: reroutedLines(moved, state.edges, nodes),
+      slowed: slowedEdges(state, [...edges, ...moved]),
       reason: check.ok ? null : check.reason,
       length: tooLong?.length ?? null,
       max: tooLong?.max ?? 0,
