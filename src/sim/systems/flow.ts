@@ -160,7 +160,9 @@ function take(node: FactoryNode, port: number, links: Links) {
 /** Hands `item` to `node`; returns whether it entered. */
 function deliver(state: GameState, node: FactoryNode, item: ItemId): boolean {
   if (!isBuffer(node)) return acceptItem(node, item);
-  if (storedCount(node) >= bufferCapacity(state, node)) return false;
+  const capacity = bufferCapacity(state, node);
+  // The Core's items are never counted: it always has room.
+  if (capacity !== Infinity && storedCount(node) >= capacity) return false;
   store(node, item, 1);
   return true;
 }

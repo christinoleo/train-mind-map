@@ -56,7 +56,9 @@ export function storageCapacity(
   state: Readonly<GameState>,
   node: Readonly<StorageNode>,
 ): number {
-  return node.kind === "core" ? Infinity : state.storageCapacity.box;
+  return node.kind === "core"
+    ? STORAGE_CAPACITY.core
+    : state.storageCapacity.box;
 }
 
 /** How many more items `node` has room for. */
@@ -64,7 +66,9 @@ export function storageRoom(
   state: Readonly<GameState>,
   node: Readonly<StorageNode>,
 ): number {
-  return storageCapacity(state, node) - storedCount(node);
+  const capacity = storageCapacity(state, node);
+  // The Core's items are never counted: its room is always Infinity.
+  return capacity === Infinity ? Infinity : capacity - storedCount(node);
 }
 
 /** How many items, of every type together, `node` holds. */
@@ -88,13 +92,13 @@ export function storedItems(node: Readonly<ItemHolder>): ItemCounts {
  * caller has checked that it has room.
  */
 export function store(node: ItemHolder, item: ItemId, count: number): void {
-  const last = node.items.at(-1);
-  if (last?.item === item) last.count += count;
-  else node.items.push({ item, count });
+  let run = node.items.at(-1);
+  if (run?.item === item) run.count += count;
+  else node.items.push((run = { item, count }));
   // Counts are plain numbers, exact up to 2^53 (see the architecture).
   assert(
-    node.items.at(-1)!.count <= Number.MAX_SAFE_INTEGER,
-    `${item} count past Number.MAX_SAFE_INTEGER`,
+    run.count <= Number.MAX_SAFE_INTEGER,
+    "item count past Number.MAX_SAFE_INTEGER",
   );
 }
 
