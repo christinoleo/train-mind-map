@@ -242,17 +242,19 @@ events.on("LineCreated", ({ line }) => (selectedLine.value = line));
 // from an output connector connects, a tap on a node or an edge opens its
 // menu, and any other tap mines by hand. A deposit under the mouse or the
 // last tap shows its resource's name (FR150).
+/** Names the deposit at `world` unless a node covers it; returns the node. */
+function nameDepositAt(world: { x: number; y: number }) {
+  const node = nodeAt(state, world);
+  renderer.showDepositName(node ? null : (depositAt(state, world) ?? null));
+  return node;
+}
 const buildTool: Tool = {
   hover(p) {
-    const world = camera.toWorld(p.x, p.y);
-    const onNode = nodeAt(state, world) !== undefined;
-    renderer.showDepositName(onNode ? null : (depositAt(state, world) ?? null));
+    nameDepositAt(camera.toWorld(p.x, p.y));
   },
   tap(p) {
-    const world = camera.toWorld(p.x, p.y);
-    const node = nodeAt(state, world);
+    const node = nameDepositAt(camera.toWorld(p.x, p.y));
     selectedNode.value = node?.id ?? null;
-    renderer.showDepositName(node ? null : (depositAt(state, world) ?? null));
     if (node) selectedEdge.value = null;
     else if (!connectTool.tap(p)) tapTool.tap(p);
   },

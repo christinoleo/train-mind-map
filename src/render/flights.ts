@@ -1,5 +1,6 @@
-import { Container, Graphics, Text } from "pixi.js";
-import { CELL_PX, PALETTE, TAP_POP_MS } from "./theme";
+import { Container, Graphics } from "pixi.js";
+import { screenText } from "./text";
+import { CELL_PX, TAP_POP_MS } from "./theme";
 
 interface Point {
   x: number;
@@ -17,8 +18,6 @@ interface Anim {
    * `scale` screen pixels per world unit.
    */
   draw(t: number, scale: number): void;
-  /** Its label, kept the same size on screen at any zoom. */
-  label?: Text;
 }
 
 const DOT = CELL_PX * 0.35;
@@ -64,11 +63,17 @@ export class Flights {
       .addChild(new Graphics())
       .roundRect(-DOT / 2, -DOT / 2, DOT, DOT, DOT * 0.25)
       .fill(color);
-    const text = label === undefined ? undefined : labelText(label, flight);
+    const text =
+      label === undefined
+        ? undefined
+        : flight.addChild(screenText(label, LABEL_PX));
     text?.anchor.set(0, 0.5);
-    this.add(flight, start, duration, text, (t, scale) => {
+    this.add(flight, start, duration, (t, scale) => {
       const e = easeInOut(t);
-      if (text) text.x = DOT / 2 + LABEL_GAP_PX / scale;
+      if (text) {
+        text.scale.set(1 / scale);
+        text.x = DOT / 2 + LABEL_GAP_PX / scale;
+      }
       flight.position.set(
         from.x + (to.x - from.x) * e,
         from.y + (to.y - from.y) * e,
@@ -87,15 +92,19 @@ export class Flights {
       .circle(0, 0, POP_RADIUS)
       .stroke({ color, width: CELL_PX * 0.15 });
     pop.position.set(at.x, at.y);
-    const text = label === undefined ? undefined : labelText(label, pop);
+    const text =
+      label === undefined
+        ? undefined
+        : pop.addChild(screenText(label, LABEL_PX));
     text?.anchor.set(0.5, 1);
     // The ring bursts in TAP_POP_MS; a label lingers after it.
     const linger = text ? LABEL_LINGER : 1;
-    this.add(pop, start, TAP_POP_MS * linger, text, (t, scale) => {
+    this.add(pop, start, TAP_POP_MS * linger, (t, scale) => {
       const e = 1 - (1 - Math.min(1, t * linger)) ** 2;
       ring.scale.set(0.3 + 0.7 * e);
       ring.alpha = 1 - e;
       if (text) {
+        text.scale.set(1 / scale);
         text.y = -POP_RADIUS - (LABEL_RISE_PX * t) / scale;
         text.alpha = Math.min(1, (1 - t) / 0.4);
       }
@@ -115,7 +124,6 @@ export class Flights {
         return false;
       }
       a.gfx.visible = t >= 0;
-      a.label?.scale.set(1 / scale);
       a.draw(Math.max(t, 0), scale);
       return true;
     });
@@ -130,29 +138,12 @@ export class Flights {
     gfx: Container,
     start: number,
     duration: number,
-    label: Text | undefined,
     draw: Anim["draw"],
   ): void {
     gfx.visible = false;
     this.layer.addChild(gfx);
-    this.anims.push({ gfx, start, duration, draw, label });
+    this.anims.push({ gfx, start, duration, draw });
   }
-}
-
-/** A flight's label, sized in screen pixels, added to `parent`. */
-function labelText(label: string, parent: Container): Text {
-  return parent.addChild(
-    new Text({
-      text: label,
-      style: {
-        fontFamily: "system-ui, sans-serif",
-        fontWeight: "700",
-        fontSize: LABEL_PX,
-        fill: PALETTE.text,
-        stroke: { color: PALETTE.shadow, width: 3, join: "round" },
-      },
-    }),
-  );
 }
 
 function easeInOut(t: number): number {

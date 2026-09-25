@@ -71,7 +71,9 @@ function StockChip({ item, count }: { item: ItemId; count: number }) {
           style={{ background: cssColor(ITEM_COLOR[item]) }}
         />
         <span class="stock-name">{strings.items[item]}</span>
-        <span class="stock-abbr">{strings.itemsShort[item]}</span>
+        <span class="stock-abbr">
+          {strings.itemsShort[item] ?? strings.items[item]}
+        </span>
         {formatCount(count)}
       </button>
     </li>

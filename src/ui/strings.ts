@@ -1,3 +1,5 @@
+import type { ItemId } from "../data/items";
+
 // Every player-visible string, in pt-BR. Components read text from here by key
 // so a second locale can be added without touching them.
 export const strings = {
@@ -68,22 +70,17 @@ export const strings = {
     rail: "trilho",
     "red-science": "ciência vermelha",
   },
-  // Abbreviated item names, for the stock chips on narrow screens.
+  // Abbreviated item names, for the stock chips on narrow screens; an item
+  // missing here is short enough already.
   itemsShort: {
     "iron-ore": "min. ferro",
     "copper-ore": "min. cobre",
-    coal: "carvão",
-    stone: "pedra",
-    "crude-oil": "petróleo",
     "iron-plate": "pl. ferro",
     "copper-plate": "pl. cobre",
-    brick: "tijolo",
     gear: "engren.",
     "copper-cable": "fio",
-    circuit: "circuito",
-    rail: "trilho",
     "red-science": "ciên. verm.",
-  },
+  } as Partial<Record<ItemId, string>>,
   // The HUD capsule at the top of the screen.
   hud: {
     stock: "Estoque",

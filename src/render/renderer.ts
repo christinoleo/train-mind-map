@@ -1,4 +1,4 @@
-import { Container, Graphics, Text, type Application } from "pixi.js";
+import { Container, Graphics, type Application } from "pixi.js";
 import type { SimEventOf } from "../sim/events";
 import type { Rect } from "../sim/geometry/rect";
 import type { Edge, GameState } from "../sim/state/gameState";
@@ -23,6 +23,7 @@ import {
 import { drawGhostOutline, drawNodeCard, NodeViews } from "./nodes";
 import { drawRailPorts, RailPortViews, RailViews } from "./rails";
 import type { DeepReadonly } from "./readonly";
+import { screenText } from "./text";
 import { TrainViews } from "./trains";
 import { formatGain } from "../ui/format";
 import { strings } from "../ui/strings";
@@ -32,7 +33,6 @@ import {
   CELL_PX,
   GHOST_ALPHA,
   ITEM_COLOR,
-  PALETTE,
   TAP_FLIGHT_MS,
   toWorld,
   UNFOCUSED_ALPHA,
@@ -103,19 +103,9 @@ export function createRenderer(
   const flights = new Flights(layers.overlays);
   let depositLabels: Container | null = null;
   let namedDeposit: DeepReadonly<Deposit> | null = null;
-  const depositName = layers.overlays.addChild(
-    new Text({
-      style: {
-        fontFamily: "system-ui, sans-serif",
-        fontWeight: "700",
-        fontSize: 14,
-        fill: PALETTE.text,
-        stroke: { color: PALETTE.shadow, width: 3, join: "round" },
-      },
-      anchor: { x: 0.5, y: 1 },
-      visible: false,
-    }),
-  );
+  const depositName = layers.overlays.addChild(screenText("", 14));
+  depositName.anchor.set(0.5, 1);
+  depositName.visible = false;
   /** The ghost as drawn: its card is rebuilt only when kind or resource change. */
   let drawnCard: string | null = null;
   let drawnValid: boolean | null = null;
@@ -211,12 +201,7 @@ export function createRenderer(
       nodeViews.sync(state.nodes, moving, lod);
       if (depositLabels) depositLabels.visible = lod === "icons";
       depositName.visible = namedDeposit !== null && lod !== "icons";
-      if (namedDeposit && depositName.visible) {
-        const { x, y, w } = toWorld(namedDeposit);
-        depositName.text = strings.items[namedDeposit.resource];
-        depositName.position.set(x + w / 2, y);
-        depositName.scale.set(1 / camera.scale);
-      }
+      if (depositName.visible) depositName.scale.set(1 / camera.scale);
       railPortViews.sync(state.nodes, moving);
       railViews.sync(state.rails, selectedRail);
       trainViews.update(state.trains, state.nodes, alpha);
@@ -292,6 +277,10 @@ export function createRenderer(
     },
     showDepositName(deposit) {
       namedDeposit = deposit;
+      if (!deposit) return;
+      const { x, y, w } = toWorld(deposit);
+      depositName.text = strings.items[deposit.resource];
+      depositName.position.set(x + w / 2, y);
     },
   };
 }

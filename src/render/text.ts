@@ -41,3 +41,20 @@ export function worldText(
   text.scale.set(fit / scale);
   return text;
 }
+
+/**
+ * Bold outlined text of `fontSize` screen pixels, for labels the caller keeps
+ * the same size on screen at any zoom by scaling them by 1 / the camera's.
+ */
+export function screenText(label: string, fontSize: number): Text {
+  return new Text({
+    text: label,
+    style: {
+      fontFamily: "system-ui, sans-serif",
+      fontWeight: "700",
+      fontSize,
+      fill: PALETTE.text,
+      stroke: { color: PALETTE.shadow, width: 3, join: "round" },
+    },
+  });
+}
