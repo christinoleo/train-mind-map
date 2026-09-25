@@ -1,8 +1,8 @@
 import { itemEntries, type ItemId } from "../../data/items";
 import type { GameState } from "../state/gameState";
 import {
+  bufferRoom,
   isStorage,
-  storageRoom,
   store,
   storedItems,
   withdraw,
@@ -55,7 +55,7 @@ export function extrapolate(
       else if (count > 0) gains.push([item, count]);
     }
     const total = gains.reduce((sum, [, count]) => sum + count, 0);
-    const room = storageRoom(state, node);
+    const room = bufferRoom(state, node);
     for (const [item, count] of gains) {
       const put = total <= room ? count : whole((count * room) / total);
       if (put > 0) store(node, item, put);

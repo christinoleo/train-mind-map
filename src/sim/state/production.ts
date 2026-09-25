@@ -1,4 +1,9 @@
-import type { ItemId } from "../../data/items";
+import {
+  addCounts,
+  itemEntries,
+  type ItemCounts,
+  type ItemId,
+} from "../../data/items";
 import {
   CRAFTERS,
   EXTRACTOR_SECONDS,
@@ -9,7 +14,7 @@ import {
   type RecipeId,
 } from "../../data/recipes";
 import { GENERATOR } from "../../data/power";
-import { LAB, SCIENCE_PACKS } from "../../data/research";
+import { LAB, RESEARCH, SCIENCE_PACKS } from "../../data/research";
 import { TICK_MS } from "../../config/constants";
 import type { Emit } from "../events";
 import type {
@@ -81,37 +86,106 @@ function smeltingFor(item: ItemId): RecipeId | undefined {
 }
 
 /**
- * Hands `item` to `node`'s input buffers, from any input connector (FR25).
- * The item enters only when the active recipe consumes it and its buffer,
- * 2× what one batch needs, has room (FR24). An empty Furnace switches to the
- * smelting recipe of whatever arrives. A Generator takes its fuel (FR67),
- * and a Lab science packs (FR40). Returns whether the item entered.
+ * The recipe a crafter would run on `item` arriving after `pending`, the
+ * items already on their way to it: an empty Furnace switches to the
+ * smelting recipe of whatever reaches it first.
+ */
+function recipeOn(
+  node: CrafterNode,
+  item: ItemId,
+  pending: Readonly<ItemCounts> = {},
+): RecipeId | null {
+  if (node.kind !== "furnace" || !isEmpty(node.production)) return node.recipe;
+  for (const [coming] of itemEntries(pending)) {
+    const recipe = smeltingFor(coming);
+    if (recipe) return recipe;
+  }
+  return smeltingFor(item) ?? node.recipe;
+}
+
+/**
+ * What one batch of `node` needs of each item it takes, once `pending`, the
+ * items already on its way to it, and then `item` have arrived: the active
+ * recipe's inputs, a Generator's fuel (FR67), or a Lab's science packs
+ * (FR40), one of each.
+ */
+export function inputNeeds(
+  node: FactoryNode,
+  item: ItemId,
+  pending: Readonly<ItemCounts> = {},
+): ItemCounts {
+  if (node.kind === "lab") {
+    return Object.fromEntries(SCIENCE_PACKS.map((pack) => [pack, 1]));
+  }
+  if (node.kind === "generator") return { [GENERATOR.fuel]: 1 };
+  if (!isCrafter(node)) return {};
+  const recipe = recipeOn(node, item, pending);
+  return recipe === null ? {} : RECIPES[recipe].inputs;
+}
+
+/** How many of `item` wait in `node`'s input buffers. */
+export function heldInput(node: FactoryNode, item: ItemId): number {
+  if (node.kind === "generator") return item === GENERATOR.fuel ? node.fuel : 0;
+  return isProducer(node) ? (node.production.input[item] ?? 0) : 0;
+}
+
+/**
+ * How many of an item `node` holds at most, when one batch needs `need` of
+ * it: 2× that for a crafter (FR24), and a Lab's or Generator's own size.
+ */
+export function inputLimit(node: FactoryNode, need: number): number {
+  if (node.kind === "lab") return LAB.buffer;
+  if (node.kind === "generator") return GENERATOR.buffer;
+  return 2 * need;
+}
+
+/** True when `node` takes `item` now: it needs it and its buffer has room. */
+function wouldAccept(node: FactoryNode, item: ItemId): boolean {
+  const need = inputNeeds(node, item)[item];
+  return !!need && heldInput(node, item) < inputLimit(node, need);
+}
+
+/**
+ * Hands `item` to `node`'s input buffers, from any input connector (FR25),
+ * when `wouldAccept` says it takes it. An empty Furnace switches to the
+ * smelting recipe of whatever arrives. Returns whether the item entered.
  */
 export function acceptItem(node: FactoryNode, item: ItemId): boolean {
-  if (node.kind === "lab") {
-    const { input } = node.production;
-    const have = input[item] ?? 0;
-    if (!SCIENCE_PACKS.includes(item) || have >= LAB.buffer) return false;
-    input[item] = have + 1;
-    return true;
-  }
+  if (!wouldAccept(node, item)) return false;
   if (node.kind === "generator") {
-    if (item !== GENERATOR.fuel || node.fuel >= GENERATOR.buffer) return false;
     node.fuel++;
     return true;
   }
-  if (!isCrafter(node)) return false;
-  const p = node.production;
-  let recipe = node.recipe;
-  if (node.kind === "furnace" && isEmpty(p))
-    recipe = smeltingFor(item) ?? recipe;
-  if (recipe === null) return false;
-  const need = RECIPES[recipe].inputs[item];
-  const have = p.input[item] ?? 0;
-  if (!need || have >= 2 * need) return false;
-  node.recipe = recipe;
-  p.input[item] = have + 1;
+  if (!isProducer(node)) return false;
+  if (isCrafter(node)) node.recipe = recipeOn(node, item);
+  const { input } = node.production;
+  input[item] = (input[item] ?? 0) + 1;
   return true;
+}
+
+/**
+ * The items `node` holds in its buffers, for when it is removed: its inputs,
+ * its finished output and the inputs of the batch under way. A Generator's
+ * fuel counts; the item burning now does not.
+ */
+export function bufferedItems(node: FactoryNode): ItemCounts {
+  if (node.kind === "generator") {
+    return node.fuel > 0 ? { [GENERATOR.fuel]: node.fuel } : {};
+  }
+  if (!isProducer(node)) return {};
+  const p = node.production;
+  const items: ItemCounts = {};
+  addCounts(items, p.input);
+  const batch = batchOf(node);
+  if (batch && p.output > 0) addCounts(items, { [batch.output]: p.output });
+  if (batch && p.progress !== null) addCounts(items, batch.inputs);
+  if (node.kind === "lab" && node.research !== null) {
+    addCounts(items, { [RESEARCH[node.research].pack]: 1 });
+  }
+  for (const [item, count] of itemEntries(items)) {
+    if (count === 0) delete items[item];
+  }
+  return items;
 }
 
 /** Takes one finished item out of `node`'s output buffer, if there is one. */

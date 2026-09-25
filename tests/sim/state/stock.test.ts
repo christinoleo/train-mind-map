@@ -246,20 +246,40 @@ describe("refunds (FR21)", () => {
     expect(state.stock).toEqual({ stone: 10 });
   });
 
-  it("loses the items inside a removed Box, and refunds the Box", () => {
+  it("returns the items inside a removed Box to the Core, and refunds the Box", () => {
     const { state, run } = setup({ near: { coal: 40 } });
     run(new RemoveNode(NEAR));
-    expect(state.stock).toEqual({ "iron-ore": 10 });
+    expect(storedItems(items(state, CORE))).toMatchObject({ coal: 40 });
+    expect(state.stock).toEqual({ "iron-ore": 10, coal: 40 });
   });
 
-  it("brings an undone removal back empty, paid for again", () => {
+  it("brings an undone removal back with its items, paid for again", () => {
     const { state, commands, paid, run, step } = setup({ far: { coal: 40 } });
     run(new RemoveNode(FAR));
     commands.undo(state);
     step();
-    expect(storedItems(items(state, FAR))).toEqual({});
-    expect(state.stock).toEqual({});
+    expect(storedItems(items(state, FAR))).toEqual({ coal: 40 });
+    expect(storedItems(items(state, CORE))).toEqual({});
+    expect(state.stock).toEqual({ coal: 40 });
     expect(paid.at(-1)?.site).toEqual(nodeRect(items(state, FAR)));
+  });
+
+  it("cannot undo a removal once the Core has spent its items", () => {
+    const { state, commands, run } = setup({ far: { coal: 40 } });
+    run(new RemoveNode(FAR));
+    // Spent outside the queue, so the undo stack still ends in the removal.
+    items(state, CORE).items = [];
+    store(items(state, NEAR), "coal", 40);
+    expect(commands.undo(state)).toEqual(fail("no_stock"));
+  });
+
+  it("puts no refund into a Box that feeds a machine", () => {
+    const { state, run } = setup({ core: { stone: 10 } });
+    addOutputEdge(state, NEAR);
+    run(furnace());
+    run(new RemoveNode(PLACED));
+    expect(storedItems(items(state, NEAR))).toEqual({});
+    expect(storedItems(items(state, CORE))).toEqual({ stone: 10 });
   });
 
   it("cannot undo a removal once its refund is spent", () => {

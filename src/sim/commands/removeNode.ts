@@ -1,4 +1,4 @@
-import { addCounts, type ItemCounts } from "../../data/items";
+import { addCounts, itemEntries, type ItemCounts } from "../../data/items";
 import { NODES } from "../../data/nodes";
 import type { Emit } from "../events";
 import { buildPlanarIndex } from "../geometry/planar";
@@ -8,8 +8,18 @@ import { isRailInUse, isStationInUse } from "../rail/trains";
 import { checkRestore, edgesOf } from "../state/edges";
 import type { Edge, FactoryNode, GameState, Rail } from "../state/gameState";
 import type { NodeId } from "../state/ids";
-import { checkFootprint, emptied, nodeRect } from "../state/nodes";
-import { canAfford, debit, deposit } from "../state/stock";
+import { checkFootprint, nodeRect } from "../state/nodes";
+import { bufferedItems } from "../state/production";
+import {
+  canAfford,
+  coreNode,
+  debit,
+  deposit,
+  isBuffer,
+  store,
+  storedItems,
+  withdraw,
+} from "../state/stock";
 import type { Command } from "./command";
 import { putBackEdge, takeOutEdge } from "./removeEdge";
 import { checkPutBackRails, putBackRail, takeOutRail } from "./removeRail";
@@ -28,15 +38,18 @@ interface RemovedRail {
 
 /**
  * Removes a node and refunds its whole cost to storage (FR21), and removes
- * the edges attached to it the same way (FR59). The items inside the node
- * are lost, so its undo brings it back empty. A Station takes its rails
- * with it. The Core is indestructible.
+ * the edges attached to it the same way (FR59). The items inside the node,
+ * in a Box, a Station or a machine's buffers, go to the Core, and its undo
+ * takes them back. A Station takes its rails with it. The Core is
+ * indestructible.
  */
 export class RemoveNode implements Command {
   readonly type = "RemoveNode";
   private removed?: FactoryNode;
   /** What the refund put into storage: the cost, less what found no room. */
   private refunded?: ItemCounts;
+  /** The items that were inside the node, now in the Core. */
+  private contents: ItemCounts = {};
   private edges: RemovedEdge[] = [];
   private rails: RemovedRail[] = [];
 
@@ -68,21 +81,37 @@ export class RemoveNode implements Command {
       refunded: takeOutRail(state, rail),
     }));
     this.refunded = deposit(state, NODES[node.kind].cost, nodeRect(node));
+    this.contents = contentsOf(node);
+    const core = coreNode(state);
+    for (const [item, count] of itemEntries(this.contents)) {
+      store(core, item, count);
+    }
   }
 
   invert(): Command {
     if (!this.removed || !this.refunded) {
       throw new Error("RemoveNode was not applied");
     }
-    return new RestoreNode(this.removed, this.refunded, this.edges, this.rails);
+    return new RestoreNode(
+      this.removed,
+      this.refunded,
+      this.contents,
+      this.edges,
+      this.rails,
+    );
   }
+}
+
+/** The items inside `node`: what a Box or Station holds, or its buffers. */
+function contentsOf(node: FactoryNode): ItemCounts {
+  return isBuffer(node) ? storedItems(node) : bufferedItems(node);
 }
 
 /**
  * Puts a removed node back with its id, as the undo of `RemoveNode`, and the
- * edges and rails removed with it. It takes back the refunds, only as much of each cost
- * as storage had room for, and the node comes back empty: its items were
- * lost.
+ * edges and rails removed with it. It takes back the refunds, only as much
+ * of each cost as storage had room for, and takes the node's items back out
+ * of the Core, so the node comes back as it was.
  */
 class RestoreNode implements Command {
   readonly type = "RestoreNode";
@@ -90,6 +119,7 @@ class RestoreNode implements Command {
   constructor(
     private readonly node: FactoryNode,
     private readonly refunded: ItemCounts,
+    private readonly contents: ItemCounts,
     private readonly edges: readonly RemovedEdge[],
     private readonly rails: readonly RemovedRail[],
   ) {}
@@ -97,7 +127,12 @@ class RestoreNode implements Command {
   validate(state: Readonly<GameState>): Result {
     const { id, kind, x, y } = this.node;
     if (state.nodes.has(id)) return fail("occupied");
-    if (!canAfford(state, this.totalRefund())) return fail("no_stock");
+    const core = storedItems(coreNode(state));
+    const inCore = itemEntries(this.contents).every(
+      ([item, count]) => (core[item] ?? 0) >= count,
+    );
+    const total = addCounts(this.totalRefund(), this.contents);
+    if (!inCore || !canAfford(state, total)) return fail("no_stock");
     const fits = checkFootprint(state, kind, x, y);
     if (!fits.ok) return fail(fits.reason);
     const index = buildPlanarIndex(state);
@@ -113,7 +148,11 @@ class RestoreNode implements Command {
   }
 
   apply(state: GameState, emit: Emit) {
-    const node = emptied(this.node);
+    const node = structuredClone(this.node);
+    const core = coreNode(state);
+    for (const [item, count] of itemEntries(this.contents)) {
+      withdraw(core, item, count);
+    }
     const site = nodeRect(node);
     const draws = debit(state, this.refunded, site);
     state.nodes.set(node.id, node);
