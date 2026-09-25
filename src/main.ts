@@ -248,6 +248,10 @@ function nameDepositAt(world: { x: number; y: number }) {
   renderer.showDepositName(node ? null : (depositAt(state, world) ?? null));
   return node;
 }
+// A hover name goes when the mouse leaves the map.
+app.canvas.addEventListener("pointerleave", (e) => {
+  if (e.pointerType === "mouse") renderer.showDepositName(null);
+});
 const buildTool: Tool = {
   hover(p) {
     nameDepositAt(camera.toWorld(p.x, p.y));
