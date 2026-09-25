@@ -26,7 +26,7 @@ describe("nodeMenuInfo", () => {
     const core = coreNode(state);
     expect(nodeMenuInfo(state, core.id)?.storage).toEqual({
       stored: storedCount(core),
-      capacity: 2000,
+      capacity: Infinity,
       noConstruction: null,
     });
   });

@@ -2,6 +2,7 @@ import type { ComponentChildren } from "preact";
 import { itemEntries } from "../data/items";
 import type { Cost } from "../data/nodes";
 import type { FailReason } from "../sim/result";
+import { formatAmount } from "./format";
 import { strings } from "./strings";
 
 interface Props {
@@ -47,7 +48,7 @@ export function Items({ cost }: { cost: Cost }) {
   return (
     <span class="menu-items">
       {itemEntries(cost)
-        .map(([item, count]) => `${count} ${strings.items[item]}`)
+        .map(([item, count]) => `${formatAmount(count)} ${strings.items[item]}`)
         .join(", ")}
     </span>
   );

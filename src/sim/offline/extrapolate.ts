@@ -34,9 +34,10 @@ function ticksOfSupply(state: Readonly<GameState>, rates: Rates): number {
 
 /**
  * Applies `rates` to storage for `ticks` (FR121): each Box and the Core
- * loses what it lost per tick and gains what it gained, up to its
- * capacity. It stops early once an item storage loses runs out. When the
- * gains do not fit, every item gets the same share of the room.
+ * loses what it lost per tick and gains what it gained, a Box up to its
+ * capacity and the Core without limit. It stops early once an item storage
+ * loses runs out. When a Box's gains do not fit, every item gets the same
+ * share of the room.
  */
 export function extrapolate(
   state: GameState,

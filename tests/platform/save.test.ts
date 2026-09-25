@@ -170,6 +170,19 @@ describe("migrations", () => {
     expect(state.nextIds.line).toBe(1);
   });
 
+  it("drops the Core's capacity from a schema 5 save", () => {
+    const v5: RawSave = {
+      schemaVersion: 5,
+      state: { tick: 3, storageCapacity: { core: 2000, box: 1000 } },
+    };
+    const migrated = migrate(v5);
+    if (!migrated.ok) throw new Error(migrated.reason);
+    expect(migrated.value.state).toEqual({
+      tick: 3,
+      storageCapacity: { box: 1000 },
+    });
+  });
+
   it("gives each schema 4 train a Line of its own", () => {
     const v4: RawSave = {
       schemaVersion: 4,

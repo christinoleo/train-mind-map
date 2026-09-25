@@ -6,7 +6,7 @@ import type { GameState } from "../state/gameState";
 import { depositUnder, isRevealedRect } from "../state/map";
 import { isOccupied } from "../state/nodes";
 import { tapYield } from "../state/stamina";
-import { coreNode, storageRoom, store } from "../state/stock";
+import { coreNode, store } from "../state/stock";
 import type { Rect } from "../geometry/rect";
 import type { Command } from "./command";
 
@@ -27,10 +27,7 @@ export class ManualTap implements Command {
   validate(state: Readonly<GameState>): Result {
     const tapped = this.resource(state);
     if (!tapped.ok) return tapped;
-    if (state.stamina.points < 1) return fail("no_stamina");
-    return storageRoom(state, coreNode(state)) > 0
-      ? ok()
-      : fail("storage_full");
+    return state.stamina.points < 1 ? fail("no_stamina") : ok();
   }
 
   apply(state: GameState, emit: Emit) {
@@ -38,8 +35,7 @@ export class ManualTap implements Command {
     if (!tapped.ok) throw new Error("ManualTap applied without validating");
     const item = tapped.value;
     const core = coreNode(state);
-    // A Core with less room than the yield takes what fits.
-    const count = Math.min(tapYield(state), storageRoom(state, core));
+    const count = tapYield(state);
     state.stamina.points--;
     store(core, item, count);
     const { x, y } = this;

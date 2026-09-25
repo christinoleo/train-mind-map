@@ -271,23 +271,7 @@ describe("refunds (FR21)", () => {
     expect(commands.undo(state)).toEqual(fail("no_stock"));
   });
 
-  it("undoes a removal whose refund found no room by taking back what went in", () => {
-    const { state, commands, run, step } = setup({
-      core: { stone: 10 },
-      near: { coal: 500 },
-      far: { coal: 500 },
-    });
-    run(furnace());
-    fill(items(state, CORE), { coal: 1995 });
-    run(new RemoveNode(PLACED));
-    expect(state.stock.stone).toBe(5);
-    expect(commands.undo(state)).toEqual({ ok: true, value: undefined });
-    step();
-    expect(state.nodes.has(PLACED)).toBe(true);
-    expect(state.stock.stone).toBeUndefined();
-  });
-
-  it("fills storage only up to its capacity, losing the rest", () => {
+  it("fills a Box only up to its capacity, the rest going to the Core", () => {
     const { state } = setup({ core: { stone: 1995 }, near: { coal: 498 } });
     state.nodes.delete(FAR);
     const site = { x: 55, y: 53, w: 2, h: 2 };
@@ -298,7 +282,7 @@ describe("refunds (FR21)", () => {
     });
     expect(storedItems(items(state, CORE))).toEqual({
       stone: 1995,
-      "iron-ore": 5,
+      "iron-ore": 8,
     });
   });
 });

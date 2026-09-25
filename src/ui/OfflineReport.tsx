@@ -6,7 +6,7 @@ import type {
   OfflineReport as Report,
 } from "../sim/offline/fastForward";
 import type { NodeId } from "../sim/state/ids";
-import { formatCount, formatDuration } from "./format";
+import { formatAmount, formatDuration } from "./format";
 import { strings } from "./strings";
 
 /** What the report shows: the offline report, with the bottleneck's kind. */
@@ -43,7 +43,7 @@ export function OfflineReport({ report, onBottleneck }: Props) {
           {produced.map((item) => (
             <li key={item}>
               <span>{strings.items[item]}</span>
-              <span>+{formatCount(view.produced[item]!)}</span>
+              <span>+{formatAmount(view.produced[item]!)}</span>
             </li>
           ))}
         </ul>

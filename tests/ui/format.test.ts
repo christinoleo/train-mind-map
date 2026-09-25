@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { formatCount, formatDuration, formatGain } from "../../src/ui/format";
+import {
+  edgeStatsText,
+  formatAmount,
+  formatDuration,
+  formatGain,
+  formatRate,
+} from "../../src/ui/format";
 
-describe("formatCount", () => {
+describe("formatAmount", () => {
   it.each([
     [0, "0"],
     [999, "999"],
@@ -14,8 +20,39 @@ describe("formatCount", () => {
     [1_000_000, "1M"],
     [3_450_000, "3,4M"],
     [42_000_000, "42M"],
-  ])("shows %i as %s", (n, text) => {
-    expect(formatCount(n)).toBe(text);
+    [999_999_999, "999M"],
+    [1e9, "1B"],
+    [2.5e12, "2,5T"],
+    [999e12, "999T"],
+    [1e15, "1aa"],
+    [12e15, "12aa"],
+    [1e18, "1ab"],
+    [Number.MAX_SAFE_INTEGER, "9aa"],
+    [1e15 * 1000 ** 26, "1ba"],
+  ])("shows %d as %s", (n, text) => {
+    expect(formatAmount(n)).toBe(text);
+  });
+
+  it("shows the Core's unlimited capacity as ∞", () => {
+    expect(formatAmount(Infinity)).toBe("∞");
+  });
+});
+
+describe("formatRate", () => {
+  it.each([
+    [0, "0"],
+    [0.25, "0,25"],
+    [1.5, "1,5"],
+    [0.0625, "0,063"],
+    [12, "12"],
+  ])("shows %d as %s", (n, text) => {
+    expect(formatRate(n)).toBe(text);
+  });
+
+  it("gives the edge chip its rate", () => {
+    expect(edgeStatsText(42, { "iron-ore": 1500 }, 0.25)).toBe(
+      "42 células · 1,5K min. ferro · 0,25/s",
+    );
   });
 });
 

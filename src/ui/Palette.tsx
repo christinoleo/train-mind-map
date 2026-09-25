@@ -4,6 +4,7 @@ import { itemEntries } from "../data/items";
 import { NODES, type NodeKind } from "../data/nodes";
 import { CATEGORY_COLOR, cssColor } from "../render/theme";
 import type { FailReason } from "../sim/result";
+import { formatAmount } from "./format";
 import { strings } from "./strings";
 
 interface Props {
@@ -92,7 +93,7 @@ function CostList({ kind }: { kind: NodeKind }) {
         ? strings.palette.free
         : entries.map(([item, count]) => (
             <span key={item}>
-              {count} {strings.items[item]}
+              {formatAmount(count)} {strings.items[item]}
             </span>
           ))}
     </span>

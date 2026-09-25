@@ -88,12 +88,24 @@ describe("meanRates", () => {
 });
 
 describe("extrapolate", () => {
-  it("shares the room left among the items gained", () => {
+  it("shares a Box's room left among the items gained", () => {
+    const state = createGameState(MVP_SCENARIO);
+    const box = createNode(2 as NodeId, "box", 0, 0) as StorageNode;
+    state.nodes.set(box.id, box);
+    store(box, "stone", storageCapacity(state, box) - 90);
+    const rates: Rates = new Map([
+      [box.id, { gear: 200 / WINDOW_TICKS, brick: 100 / WINDOW_TICKS }],
+    ]);
+    extrapolate(state, rates, WINDOW_TICKS);
+    expect(storedItems(box)).toMatchObject({ gear: 60, brick: 30 });
+  });
+
+  it("never caps the Core", () => {
     const state = createGameState(MVP_SCENARIO);
     const core = coreNode(state);
-    store(core, "stone", storageCapacity(state, core) - 90);
-    extrapolate(state, perWindow({ gear: 200, brick: 100 }), WINDOW_TICKS);
-    expect(storedItems(core)).toMatchObject({ gear: 60, brick: 30 });
+    store(core, "stone", 1_000_000);
+    extrapolate(state, perWindow({ gear: 1_000_000 }), 1000 * WINDOW_TICKS);
+    expect(storedItems(core)).toEqual({ stone: 1e6, gear: 1e9 });
   });
 
   it("stops once an item storage loses runs out", () => {

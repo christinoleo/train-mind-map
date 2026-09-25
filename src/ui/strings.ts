@@ -90,7 +90,6 @@ export const strings = {
     powerUse: "uso",
     powerShort: "falta de energia",
     powerGlyph: "⚡",
-    storageFull: "Estoque cheio: a fábrica parou",
   },
   // The inventory button in the HUD and the panel it opens (FR68).
   inventory: {
@@ -265,7 +264,6 @@ export const strings = {
     out_of_range: "Fora do limite",
     researched: "Já pesquisado",
     same_node: "Ligue a outro nó",
-    storage_full: "O Núcleo está cheio",
     wrong_recipe: "Esta receita não roda neste nó",
   },
   // The rendering stress-test page (stress.html), used on real phones.

@@ -8,6 +8,7 @@ import type { NodeId } from "../sim/state/ids";
 import { canRun } from "../sim/state/nodes";
 import { isCrafter } from "../sim/state/production";
 import { bufferCapacity, isBuffer, storedCount } from "../sim/state/stock";
+import { formatAmount } from "./format";
 import { Menu, RemoveAction, UpgradeAction } from "./Menu";
 import { strings } from "./strings";
 
@@ -108,7 +109,7 @@ export function NodeMenu({
       {strings.nodes[info.kind]}
       {strings.menu.separator}
       <span data-full={full}>
-        {storage.stored}/{storage.capacity}
+        {formatAmount(storage.stored)}/{formatAmount(storage.capacity)}
         {full && ` ${text.full}`}
       </span>
     </>

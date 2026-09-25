@@ -60,7 +60,6 @@ import { lineTrains } from "./sim/rail/lines";
 import { createGameState, type GameState } from "./sim/state/gameState";
 import type { EdgeId, LineId, NodeId, RailId } from "./sim/state/ids";
 import { powerSummary, type PowerSummary } from "./sim/state/power";
-import { isStorageFull } from "./sim/state/stock";
 import { tick } from "./sim/tick";
 import { edgeMenuInfo, type EdgeMenuInfo } from "./ui/EdgeMenu";
 import type { HintView } from "./ui/Hint";
@@ -147,7 +146,6 @@ const linePanel = signal<LinePanelInfo | null>(null);
 const linePick = signal<NodeId | null>(null);
 /** The layer the player works on (FR78). */
 const focus = signal<Focus>("factory");
-const storageFull = signal(false);
 const canUndo = signal(false);
 const researchOpen = signal(false);
 const inventoryOpen = signal(false);
@@ -548,7 +546,6 @@ loop = createLoop({
       if (!sameCounts(stock.value, state.stock)) stock.value = state.stock;
       const summary = powerSummary(state.power);
       if (!samePower(power.value, summary)) power.value = summary;
-      storageFull.value = isStorageFull(state);
       publishIfChanged(research, researchInfo(state));
       if (inventoryOpen.value)
         publishIfChanged(inventory, inventoryInfo(state));
@@ -565,7 +562,6 @@ render(
     stock,
     stamina,
     power,
-    storageFull,
     edgeMenu: {
       edge: edgeMenu,
       onUpgrade() {

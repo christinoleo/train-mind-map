@@ -13,7 +13,6 @@ import { allocateId } from "../../../src/sim/state/ids";
 import { createNode } from "../../../src/sim/state/nodes";
 import {
   coreNode,
-  isStorageFull,
   store,
   storedCount,
   storedItems,
@@ -211,16 +210,13 @@ describe("storage nodes on edges (FR28, FR29, FR73)", () => {
     expect(storedItems(core)).toEqual({ brick: 7 });
   });
 
-  it("reports the storage full only when the Core and every Box are", () => {
+  it("lets a Core holding a million stone still take iron by edge", () => {
     const w = world();
     const core = coreNode(w.state);
-    const box = fullBox(w);
-    store(core, "stone", STORAGE_CAPACITY.core - 1);
-    expect(isStorageFull(w.state)).toBe(false);
-    store(core, "stone", 1);
-    expect(isStorageFull(w.state)).toBe(true);
-    box.items[0].count--;
-    expect(isStorageFull(w.state)).toBe(false);
+    store(core, "stone", 1_000_000);
+    w.wire(w.box(["iron-ore", 7]), 0, core, 3);
+    w.run(100);
+    expect(storedItems(core)).toEqual({ stone: 1_000_000, "iron-ore": 7 });
   });
 });
 
