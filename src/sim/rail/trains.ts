@@ -103,14 +103,14 @@ function atStop(
   station: NodeId,
   emit: Emit,
 ): void {
-  const moved = transfer(state, train, station);
+  const role = stationRole(state, station);
+  const moved = transfer(state, train, station, role);
   train.waited++;
   train.idle = moved > 0 ? 0 : train.idle + 1;
   const { condition } = lineOf(state, train).stops[train.stop];
   if (mayDepart(train, condition)) {
     depart(state, train, station, emit);
   } else {
-    const role = stationRole(state, station);
     setState(train, role === "unload" ? "unloading" : "loading", emit);
   }
 }

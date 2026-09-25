@@ -53,7 +53,11 @@ export class CreateLine implements Command {
 
   apply(state: GameState, emit: Emit) {
     const id = allocateId(state.nextIds, "line");
-    state.lines.set(id, { id, stops: this.lineStops() });
+    const stops = this.stops.map((station) => ({
+      station,
+      condition: { ...DEFAULT_DEPARTURE },
+    }));
+    state.lines.set(id, { id, stops });
     this.created = id;
     new PlaceTrain(id).apply(state, emit);
     emit({ type: "LineCreated", line: id });
@@ -63,12 +67,5 @@ export class CreateLine implements Command {
     if (this.created === undefined)
       throw new Error("CreateLine was not applied");
     return new RemoveLine(this.created);
-  }
-
-  private lineStops() {
-    return this.stops.map((station) => ({
-      station,
-      condition: { ...DEFAULT_DEPARTURE },
-    }));
   }
 }

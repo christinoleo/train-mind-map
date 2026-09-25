@@ -56,6 +56,7 @@ import { EventQueue } from "./sim/events";
 import { clamp } from "./sim/math";
 import { fastForward, type OfflineReport } from "./sim/offline/fastForward";
 import { ok, type FailReason, type Result } from "./sim/result";
+import { lineTrains } from "./sim/rail/lines";
 import { createGameState, type GameState } from "./sim/state/gameState";
 import type { EdgeId, LineId, NodeId, RailId } from "./sim/state/ids";
 import { powerSummary, type PowerSummary } from "./sim/state/power";
@@ -372,9 +373,9 @@ effect(() => {
 effect(() => {
   renderer.setSelectedRail(selectedRail.value);
   publishMenu(selectedRail, railMenu, railMenuInfo);
-  publishMenu(selectedLine, linePanel, linePanelInfo);
 });
 effect(() => {
+  // Read to subscribe: publishMenu only peeks.
   void selectedLine.value;
   publishMenu(selectedLine, linePanel, linePanelInfo);
 });
@@ -384,6 +385,7 @@ function publishMenus() {
   publishMenu(selectedEdge, edgeMenu, edgeMenuInfo);
   publishMenu(selectedNode, nodeMenu, nodeMenuInfo);
   publishMenu(selectedRail, railMenu, railMenuInfo);
+  publishMenu(selectedLine, linePanel, linePanelInfo);
 }
 
 function publishMenu<Id, Info>(
@@ -598,9 +600,7 @@ render(
       },
       onRemoveTrain() {
         const id = selectedLine.value;
-        const last = [...state.trains.values()]
-          .filter((t) => t.line === id)
-          .at(-1);
+        const last = id === null ? undefined : lineTrains(state, id).at(-1);
         if (last) commands.dispatch(state, new RemoveTrain(last.id));
       },
       onRemove() {

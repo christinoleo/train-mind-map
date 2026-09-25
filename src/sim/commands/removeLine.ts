@@ -4,6 +4,7 @@ import { fail, ok, type Result } from "../result";
 import type { GameState, Line } from "../state/gameState";
 import type { LineId } from "../state/ids";
 import { canAfford } from "../state/stock";
+import { lineTrains } from "../rail/lines";
 import type { Command } from "./command";
 import { RemoveTrain, RestoreTrain } from "./removeTrain";
 
@@ -23,13 +24,11 @@ export class RemoveLine implements Command {
 
   apply(state: GameState) {
     const line = state.lines.get(this.id)!;
-    const trains = [...state.trains.values()]
-      .filter((t) => t.line === this.id)
-      .map((t) => {
-        const remove = new RemoveTrain(t.id);
-        remove.apply(state);
-        return remove.invert() as RestoreTrain;
-      });
+    const trains = lineTrains(state, this.id).map((t) => {
+      const remove = new RemoveTrain(t.id);
+      remove.apply(state);
+      return remove.invert() as RestoreTrain;
+    });
     state.lines.delete(this.id);
     this.removed = { line: structuredClone(line), trains };
   }

@@ -1,4 +1,5 @@
 import type { ReadonlySignal } from "@preact/signals";
+import { addCounts, type ItemCounts } from "../data/items";
 import type { Cost } from "../data/nodes";
 import {
   DEPARTURE_KINDS,
@@ -11,6 +12,7 @@ import {
 import { PlaceTrain } from "../sim/commands/placeTrain";
 import {
   lineThroughput,
+  lineTrains,
   stationRole,
   type LineThroughput,
 } from "../sim/rail/lines";
@@ -46,9 +48,9 @@ export function linePanelInfo(
   if (!line) return null;
   const throughput = lineThroughput(state, line);
   const check = new PlaceTrain(id).validate(state);
-  const refund: Record<string, number> = {};
-  for (const [item, count] of Object.entries(trainCost(MVP_WAGONS))) {
-    refund[item] = count * throughput.trains;
+  const refund: ItemCounts = {};
+  for (const train of lineTrains(state, id)) {
+    addCounts(refund, trainCost(train.wagons.length));
   }
   return {
     id,

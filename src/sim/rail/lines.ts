@@ -17,7 +17,8 @@ import type {
   Train,
   Wagon,
 } from "../state/gameState";
-import type { NodeId } from "../state/ids";
+import type { LineId, NodeId } from "../state/ids";
+import { secondsToTicks } from "../state/production";
 import { store, storedCount, withdraw } from "../state/stock";
 import { findRoute } from "./segments";
 import { stationCapacity, trainCapacity } from "./station";
@@ -26,6 +27,11 @@ const TICKS_PER_S = 1000 / TICK_MS;
 
 /** Items one wagon moves in a tick at a stop. */
 const TRANSFER_PER_TICK = (WAGON_TRANSFER_PER_S * TICK_MS) / 1000;
+
+/** The trains that follow Line `line`. */
+export function lineTrains(state: Readonly<GameState>, line: LineId): Train[] {
+  return [...state.trains.values()].filter((t) => t.line === line);
+}
 
 /** The Line `train` follows. */
 export function lineOf(state: Readonly<GameState>, train: Readonly<Train>) {
@@ -88,29 +94,29 @@ function unload(station: StationNode, wagons: Wagon[]): number {
 }
 
 /**
- * Loads or unloads `train` at `station` for one tick, at the wagons' rate
- * (FR93), and returns the items moved.
+ * Loads or unloads `train` at `station` for one tick, as `role` says, at the
+ * wagons' rate (FR93), and returns the items moved.
  */
 export function transfer(
   state: GameState,
   train: Train,
   station: NodeId,
+  role: ReturnType<typeof stationRole>,
 ): number {
   const node = state.nodes.get(station);
   if (node?.kind !== "station") return 0;
-  const role = stationRole(state, station);
   if (role === "load") return load(node, train.wagons);
   if (role === "unload") return unload(node, train.wagons);
   return 0;
 }
 
 /** True when every wagon is full. */
-export function isFull(wagons: readonly Wagon[]): boolean {
+function isFull(wagons: readonly Wagon[]): boolean {
   return wagons.every((w) => w.count >= WAGON_CAPACITY);
 }
 
 /** True when every wagon is empty. */
-export function isEmpty(wagons: readonly Wagon[]): boolean {
+function isEmpty(wagons: readonly Wagon[]): boolean {
   return wagons.every((w) => w.count === 0);
 }
 
@@ -122,7 +128,7 @@ export function mayDepart(
   train: Pick<Train, "wagons" | "waited" | "idle">,
   condition: DepartureCondition,
 ): boolean {
-  const ticks = condition.seconds * TICKS_PER_S;
+  const ticks = secondsToTicks(condition.seconds);
   switch (condition.kind) {
     case "full":
       return isFull(train.wagons);
@@ -223,7 +229,7 @@ export function lineThroughput(
   state: Readonly<GameState>,
   line: Readonly<Line>,
 ): LineThroughput {
-  const trains = [...state.trains.values()].filter((t) => t.line === line.id);
+  const trains = lineTrains(state, line.id);
   const laps = trains.flatMap((t) => (t.lap === null ? [] : [t.lap]));
   const measured = laps.length > 0;
   const roundTrip = measured
