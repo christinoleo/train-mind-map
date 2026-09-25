@@ -6,13 +6,7 @@ import { edgeUnits, spacingUnits } from "../state/edges";
 import type { Edge, FactoryNode, GameState } from "../state/gameState";
 import type { NodeId } from "../state/ids";
 import { acceptItem, takeOutput, wouldAccept } from "../state/production";
-import {
-  bufferCapacity,
-  isBuffer,
-  store,
-  storedCount,
-  takeOldest,
-} from "../state/stock";
+import { bufferRoom, isBuffer, store, takeOldest } from "../state/stock";
 import type { Emit } from "../events";
 import type { System } from "../tick";
 
@@ -39,22 +33,36 @@ function queued(edge: Edge): number[] {
 }
 
 /**
+ * Takes out of `edge` the first item queued at its input connector that
+ * `wanted` passes, from the `skip`th on, the front one first; the others keep
+ * their place.
+ */
+function takeQueued(
+  edge: Edge,
+  wanted: (item: ItemId) => boolean,
+  skip = 0,
+): ItemId | undefined {
+  const i = queued(edge)
+    .slice(skip)
+    .find((i) => wanted(edge.items[i].item));
+  return i === undefined ? undefined : edge.items.splice(i, 1)[0].item;
+}
+
+/**
  * Hands `deliver` the first item queued behind a refused front item that it
- * takes, one per tick; the refused ones keep their place. So an item the node refuses never jams the edge for the
- * others (FR57). A type refused once is not offered again this tick.
+ * takes, one per tick; the refused ones keep their place. So an item the
+ * node refuses never jams the edge for the others (FR57). A type refused
+ * once is not offered again this tick.
  */
 function bypass(edge: Edge, deliver: (item: ItemId) => boolean): void {
   const refused = new Set<ItemId>([edge.items[0].item]);
-  for (const i of queued(edge).slice(1)) {
-    const { item } = edge.items[i];
-    if (refused.has(item)) continue;
-    if (!deliver(item)) {
-      refused.add(item);
-      continue;
-    }
-    edge.items.splice(i, 1);
-    return;
-  }
+  const takes = (item: ItemId) => {
+    if (refused.has(item)) return false;
+    if (deliver(item)) return true;
+    refused.add(item);
+    return false;
+  };
+  takeQueued(edge, takes, 1);
 }
 
 /**
@@ -162,6 +170,8 @@ function acceptor(
   from?: NodeId,
 ): (item: ItemId) => boolean {
   const pending = new Map<NodeId, ItemCounts>();
+  // Whether each buffer node has room; the same for every item.
+  const room = new Map<NodeId, boolean>();
   const pendingOf = (id: NodeId) => {
     let counts = pending.get(id);
     if (counts) return counts;
@@ -197,25 +207,14 @@ function acceptor(
       return outputs.some((edge) => edge && takes(edge.to, item, seen));
     }
     if (!isBuffer(node)) return wouldAccept(node, item, pendingOf(id));
-    const capacity = bufferCapacity(state, node);
-    if (capacity === Infinity) return true;
-    const coming = Object.values(pendingOf(id)).reduce((a, b) => a + b, 0);
-    return storedCount(node) + coming < capacity;
+    let has = room.get(id);
+    if (has === undefined) {
+      const coming = Object.values(pendingOf(id)).reduce((a, b) => a + b, 0);
+      room.set(id, (has = bufferRoom(state, node) > coming));
+    }
+    return has;
   };
   return (item) => takes(target, item, new Set());
-}
-
-/**
- * Takes out of `edge`, for the router at its end, the first item queued
- * there that `wanted` passes, the front one first; the others keep their
- * place.
- */
-function takeQueued(
-  edge: Edge,
-  wanted: (item: ItemId) => boolean,
-): ItemId | undefined {
-  const i = queued(edge).find((i) => wanted(edge.items[i].item));
-  return i === undefined ? undefined : edge.items.splice(i, 1)[0].item;
 }
 
 /**
@@ -280,9 +279,7 @@ function take(state: GameState, node: FactoryNode, edge: Edge, links: Links) {
 /** Hands `item` to `node`; returns whether it entered. */
 function deliver(state: GameState, node: FactoryNode, item: ItemId): boolean {
   if (!isBuffer(node)) return acceptItem(node, item);
-  const capacity = bufferCapacity(state, node);
-  // The Core's items are never counted: it always has room.
-  if (capacity !== Infinity && storedCount(node) >= capacity) return false;
+  if (bufferRoom(state, node) < 1) return false;
   store(node, item, 1);
   return true;
 }
@@ -342,8 +339,6 @@ export const flow: System = (state, { emit }) => {
     );
   }
   for (const node of state.nodes.values()) {
-    if (node.kind === "splitter" || node.kind === "merger") {
-      updateRouter(state, node, links, emit);
-    }
+    if (isRouter(node)) updateRouter(state, node, links, emit);
   }
 };

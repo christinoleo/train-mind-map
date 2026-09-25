@@ -17,7 +17,7 @@ import {
   hashState,
   serializeState,
 } from "../../../src/sim/state/serialize";
-import { storedItems } from "../../../src/sim/state/stock";
+import { coreNode, storedItems } from "../../../src/sim/state/stock";
 import { tick } from "../../../src/sim/tick";
 import { fillCore } from "../support/stock";
 import { createNode } from "../../../src/sim/state/nodes";
@@ -253,11 +253,10 @@ describe("RemoveNode", () => {
     assembler.production.progress = 3;
     assembler.production.input = { "iron-plate": 3 };
     assembler.production.output = 1;
-    const placed = structuredClone(assembler);
-    const core = state.nodes.get(CORE_ID)!;
-    const before = storedItems(core as never);
+    const core = coreNode(state);
+    const before = storedItems(core);
     run(new RemoveNode(2 as NodeId));
-    const after = storedItems(core as never);
+    const after = storedItems(core);
     const { cost } = NODES["assembler-1"];
     // 3 waiting and 2 in the batch under way, the gear, and the refund.
     expect(after["iron-plate"]! - before["iron-plate"]!).toBe(
@@ -269,11 +268,11 @@ describe("RemoveNode", () => {
     expect(state.nodes.get(2 as NodeId)).toMatchObject({
       recipe: "gear",
       production: {
-        input: placed.production.input,
+        input: { "iron-plate": 3 },
         output: 1,
       },
     });
-    expect(storedItems(core as never).gear).toBe(before.gear);
+    expect(storedItems(core).gear).toBe(before.gear);
   });
 
   it("cannot be undone once another node took the cells", () => {

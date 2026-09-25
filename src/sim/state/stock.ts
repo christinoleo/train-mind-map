@@ -62,11 +62,11 @@ export function storageCapacity(
 }
 
 /** How many more items `node` has room for. */
-export function storageRoom(
+export function bufferRoom(
   state: Readonly<GameState>,
-  node: Readonly<StorageNode>,
+  node: Readonly<BufferNode>,
 ): number {
-  const capacity = storageCapacity(state, node);
+  const capacity = bufferCapacity(state, node);
   // The Core's items are never counted: its room is always Infinity.
   return capacity === Infinity ? Infinity : capacity - storedCount(node);
 }
@@ -110,7 +110,7 @@ export function store(node: ItemHolder, item: ItemId, count: number): void {
  */
 export function takeOldest(
   node: ItemHolder,
-  wanted: (item: ItemId) => boolean = () => true,
+  wanted: (item: ItemId) => boolean,
 ): ItemId | undefined {
   const i = node.items.findIndex((run) => wanted(run.item));
   if (i < 0) return undefined;
@@ -175,8 +175,11 @@ export function canAfford(state: Readonly<GameState>, cost: Cost): boolean {
  * the nearest first within each group. Ties go to the lower id. Boxes kept
  * out of construction are left out, of payments and refunds alike (FR71).
  */
-export function storageOrder(state: GameState, site: Rect): StorageNode[] {
-  const feeding = feedingNodes(state);
+export function storageOrder(
+  state: GameState,
+  site: Rect,
+  feeding: ReadonlySet<NodeId> = feedingNodes(state),
+): StorageNode[] {
   const key = (node: StorageNode) => ({
     buffer: feeding.has(node.id) ? 1 : 0,
     distance: distanceSq(nodeRect(node), site),
@@ -235,14 +238,14 @@ export function debit(state: GameState, cost: Cost, site: Rect): Draw[] {
  */
 export function deposit(state: GameState, items: Cost, site: Rect): ItemCounts {
   const feeding = feedingNodes(state);
-  const order = storageOrder(state, site).filter(
+  const order = storageOrder(state, site, feeding).filter(
     (node) => node.kind === "core" || !feeding.has(node.id),
   );
   const stored: ItemCounts = {};
   for (const [item, count] of itemEntries(items)) {
     let left = count;
     for (const storage of order) {
-      const put = Math.min(left, storageRoom(state, storage));
+      const put = Math.min(left, bufferRoom(state, storage));
       if (put <= 0) continue;
       store(storage, item, put);
       stored[item] = (stored[item] ?? 0) + put;

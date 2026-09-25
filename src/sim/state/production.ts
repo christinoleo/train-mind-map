@@ -93,12 +93,14 @@ function smeltingFor(item: ItemId): RecipeId | undefined {
 function recipeOn(
   node: CrafterNode,
   item: ItemId,
-  pending: Readonly<ItemCounts>,
+  pending: Readonly<ItemCounts> = {},
 ): RecipeId | null {
   if (node.kind !== "furnace" || !isEmpty(node.production)) return node.recipe;
-  const coming = itemEntries(pending).map(([first]) => first);
-  const first = [...coming, item].map(smeltingFor).find(Boolean);
-  return first ?? node.recipe;
+  for (const [coming] of itemEntries(pending)) {
+    const recipe = smeltingFor(coming);
+    if (recipe) return recipe;
+  }
+  return smeltingFor(item) ?? node.recipe;
 }
 
 /**
@@ -140,7 +142,7 @@ export function acceptItem(node: FactoryNode, item: ItemId): boolean {
     return true;
   }
   if (!isProducer(node)) return false;
-  if (isCrafter(node)) node.recipe = recipeOn(node, item, {});
+  if (isCrafter(node)) node.recipe = recipeOn(node, item);
   const { input } = node.production;
   input[item] = (input[item] ?? 0) + 1;
   return true;
