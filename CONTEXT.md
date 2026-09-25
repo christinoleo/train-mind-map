@@ -46,9 +46,9 @@ _Avoid_: chest, container, warehouse
 The sum of everything held in the Core and in all Boxes. Construction draws from it automatically.
 _Avoid_: inventory
 
-**Mesh**:
-A connected group of nodes, joined by edges or by the rail network, that shares one power supply.
-_Avoid_: grid, power network
+**Power grid**:
+The single, map-wide pool of power: every Generator and the Core feed every node, and shortage slows all nodes equally.
+_Avoid_: mesh, network
 
 **Stamina**:
 The limited pool of manual taps, which refills over time.

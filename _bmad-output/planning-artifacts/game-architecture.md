@@ -235,6 +235,9 @@ npm create pixi.js@latest train-mind-map -- --template bundler-vite
 
 ### Energia
 
+> **Revisado (2026-09-25):** a energia é uma **rede global**. O union-find de malhas abaixo foi substituído por um único total de oferta e demanda por tick (GDD 1.15).
+
+
 - Uma malha é um componente conexo do grafo formado pelas arestas, pelos trilhos e pelas estações da mesma rede ferroviária. É calculada com union-find e marcada como suja em qualquer comando topológico.
 - Por tick: `satisfação = min(1, oferta ÷ demanda)` por malha. Cada nó multiplica o próprio progresso pela satisfação da sua malha.
 

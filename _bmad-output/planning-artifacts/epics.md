@@ -95,14 +95,14 @@ Este documento traz a divisão completa em épicos e stories do train-mind-map. 
 - **FR57** [MVP] Se o nó de destino não aceita o item, a fila da aresta para e a aresta fica "cheia".
 - **FR58** [MVP] Uma aresta existente pode receber upgrade de nível no lugar, pagando a diferença de custo.
 - **FR59** [MVP] Tocar numa aresta abre o menu contextual (upgrade, remover). Remover uma aresta reembolsa 100% do custo e perde os itens em trânsito.
-- **FR60** [MVP] Arestas conduzem energia (ver Energia).
+- **FR60** [MVP] ~~Arestas conduzem energia~~. A energia é uma rede global (playtest 2026-09-25).
 
 #### Energia
 
-- **FR61** [MVP] Não há rede elétrica separada, postes nem fios. Cada componente conexo de nós ligados por arestas forma uma **malha**, e todo gerador da malha alimenta todos os nós dela.
-- **FR62** Trilhos também conduzem energia: uma Estação une a malha dela às malhas das outras Estações da mesma rede ferroviária.
+- **FR61** [MVP] Rede elétrica global: todo Gerador e os 3 ⚡ do Núcleo alimentam todos os nós do mapa. Não há malhas, postes nem fios, e a energia não depende de arestas.
+- **FR62** ~~Trilhos conduzem energia~~ (não se aplica: a rede é global).
 - **FR63** [MVP] Consumo por nó em operação: Extrator 1 ⚡, Fornalha 2 ⚡, Montadora 2 / 3 / 4 ⚡ (níveis 1 / 2 / 3), Laboratório 2 ⚡, Refinaria e Planta química 4 ⚡, Silo 10 ⚡. Divisor, Mesclador, Filtro, Caixa e Estação não consomem.
-- **FR64** [MVP] Satisfação por malha = min(1, oferta ÷ demanda); todos os nós da malha desaceleram nessa proporção. Nada para de vez, a não ser com oferta zero. A demanda conta só os nós que não estão famintos nem bloqueados.
+- **FR64** [MVP] Satisfação global = min(1, oferta ÷ demanda); todos os nós multiplicam o progresso por ela. Com os 3 ⚡ do Núcleo, ela nunca chega a zero.
 - **FR65** [MVP] Com falta de energia, as arestas da malha brilham mais fraco e o medidor de ⚡ na barra superior fica vermelho.
 - **FR66** [MVP] Não há armazenamento de energia na v1.
 - **FR67** [MVP] O carvão chega ao Gerador por aresta como qualquer insumo; os 3 ⚡ do Núcleo bastam para os 2 ou 3 primeiros extratores.

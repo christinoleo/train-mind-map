@@ -4,7 +4,7 @@ game_type: "simulation + idle-incremental"
 platforms: ["navegador mobile (principal)", "navegador desktop"]
 created: 2026-09-24
 updated: 2026-09-24
-version: 1.14
+version: 1.15
 status: final
 ---
 
@@ -196,14 +196,12 @@ A logística de trens cresce em cinco níveis, liberados por pesquisa. Cada nív
 - **Gargalo que escala:** com o despacho automático, o desafio passa para o layout: interchanges, depósitos e capacidade da via. Trilhos com mais vias ficam como tema pós-MVP.
 - O despacho e as regras funcionam normalmente no cálculo offline, porque usam a mesma simulação.
 
-**Energia**
-- Não existe rede elétrica separada, nem postes ou fios. **Toda aresta conduz energia.** Um grupo de nós ligados por arestas forma uma **malha**, e todo gerador da malha alimenta todos os nós dela.
-- Trilhos também conduzem: uma estação junta a malha dela às malhas das outras estações da mesma rede ferroviária. Um posto avançado ligado por trem compartilha a energia da base.
-- Produção: o Gerador queima carvão (1 carvão a cada 4 s → 10 ⚡), e o carvão chega por aresta como qualquer insumo. O Núcleo gera 3 ⚡ grátis para o começo.
+**Energia (revisado no playtest de 2026-09-25: rede global)**
+- **Rede elétrica global:** todo Gerador, mais os 3 ⚡ grátis do Núcleo, alimenta **todos** os nós do mapa. Não há malhas, e a energia não depende de arestas nem de trilhos. (Isso substitui "toda aresta conduz energia", que travava o jogo: um extrator de carvão ligado só ao Gerador nunca arrancava.)
+- Produção: o Gerador queima carvão (1 carvão a cada 4 s → 10 ⚡), e o carvão chega por aresta como qualquer insumo. O Núcleo gera 3 ⚡ grátis, o que sempre permite arrancar.
 - Consumo por nó em operação: Extrator 1 ⚡, Fornalha 2 ⚡, Montadora 2/3/4 ⚡ (níveis 1/2/3), Laboratório 2 ⚡, Refinaria e Planta química 4 ⚡, Silo 10 ⚡. Divisor, Mesclador, Filtro, Caixa e Estação não consomem.
-- **Falta de energia:** se a demanda passa da oferta, todos os nós da malha desaceleram na proporção oferta ÷ demanda. As arestas brilham mais fraco, e o medidor de ⚡ na barra superior fica vermelho. Nada para de vez, a não ser com oferta zero.
+- **Falta de energia:** se a demanda passa da oferta, **todos** os nós desaceleram na proporção oferta ÷ demanda, e o medidor ⚡ na barra superior fica vermelho. Como o Núcleo sempre gera 3 ⚡, a satisfação nunca chega a zero.
 - Não há armazenamento de energia na v1.
-- Começo: tocar em carvão → Núcleo → aresta até o Gerador. Os 3 ⚡ do Núcleo bastam para os 2 ou 3 primeiros extratores.
 
 ### Controles e entrada
 

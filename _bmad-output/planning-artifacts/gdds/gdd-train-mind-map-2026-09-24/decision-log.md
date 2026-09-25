@@ -177,3 +177,8 @@
 
 - **Playtest softlock:** the Core filled with stone (2,000 cap). Every edge and even manual taps were refused, and 2 iron ore could not pay for anything, so there was no way out.
 - **Decision (user):** **the Core has infinite capacity.** Endless accumulation is the natural idle/clicker pleasure. Take care with big numbers: notation and precision. Boxes keep their 500 cap as local buffers.
+
+## 2026-09-25 — v1.15 (Global power grid, playtest softlock 2)
+
+- **Playtest softlock:** a coal Extractor feeding a Generator sat in its own edge-mesh, unpowered. It could never start, the Generator has no output to join the Core's mesh, and the same held for an Extractor feeding a Box.
+- **Decision (user):** a **global power grid**. Every Generator and the Core's 3 ⚡ feed every node, with no meshes, and satisfaction is global. This reverses "any edge conducts power" (v1.1) and "rails conduct power" (v1.2). CONTEXT.md: Mesh → Power grid. FR60, FR61, FR62 and FR64 are updated.
