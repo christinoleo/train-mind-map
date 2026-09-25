@@ -27,7 +27,7 @@ import { updateStock } from "../../../src/sim/systems/stock";
 import { tick } from "../../../src/sim/tick";
 import { fillCore } from "../support/stock";
 
-// The MVP map: the Core at (59, 59), the water wall in columns 76–95 with
+// The MVP map: the Core at (58, 58), the water wall in columns 76–95 with
 // the 1-cell corridor on row 60, and land again from column 96.
 function setup(perItem = 100) {
   const state = createGameState(MVP_SCENARIO);
@@ -68,9 +68,9 @@ function onlyRail(state: GameState) {
 /** A Station each side of the corridor, their rail ports on its row. */
 function corridor(perItem?: number) {
   const s = setup(perItem);
-  // A 2×2 Station's rail ports sit on its second row.
+  // A Station's rail ports sit on its middle row.
   const west = s.put("station", 70, MVP_CORRIDOR.y - 1);
-  const east = s.put("station", 98, MVP_CORRIDOR.y - 1);
+  const east = s.put("station", 97, MVP_CORRIDOR.y - 1);
   return { ...s, west, east };
 }
 
@@ -81,11 +81,11 @@ describe("PlaceRail (FR45, FR79–FR81)", () => {
     expect(run(new PlaceRail(end(west, RIGHT), end(east, LEFT)))).toEqual(ok());
     const rail = onlyRail(state);
     expect(rail.path).toEqual([
-      { x: 72, y: 60 },
-      { x: 97, y: 60 },
+      { x: 73, y: 60 },
+      { x: 96, y: 60 },
     ]);
-    expect(railLength(rail.path)).toBe(26);
-    expect(state.stock.rail).toBe(before - 26);
+    expect(railLength(rail.path)).toBe(24);
+    expect(state.stock.rail).toBe(before - 24);
   });
 
   it("refuses when the stock lacks the rail items", () => {
@@ -203,7 +203,7 @@ describe("PlaceRail (FR45, FR79–FR81)", () => {
     });
     expect(run(new PlaceRail(end(a, RIGHT), end(b, LEFT)))).toEqual(ok());
     expect(onlyRail(state).path).toEqual([
-      { x: 52, y: 51 },
+      { x: 53, y: 51 },
       { x: 59, y: 51 },
     ]);
   });
@@ -229,7 +229,7 @@ describe("RemoveRail", () => {
     expect(state.stock.rail).toBe(before);
     expect(undo()).toEqual(ok());
     expect(onlyRail(state)).toEqual(rail);
-    expect(state.stock.rail).toBe(before! - railCost(26).rail!);
+    expect(state.stock.rail).toBe(before! - railCost(24).rail!);
   });
 
   it("refuses a missing rail", () => {

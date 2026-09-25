@@ -1,5 +1,6 @@
 import { itemEntries, type ItemCounts, type ItemId } from "../data/items";
 import type { FailReason } from "../sim/result";
+import type { SlowedEdge } from "../sim/state/reroute";
 import { strings } from "./strings";
 
 /** The suffixes of the first tiers of 1000: 1,2K, 3,4M, 5B, 67T. */
@@ -67,8 +68,21 @@ export function edgeStatsText(
   return [
     `${length} ${strings.edge.length}`,
     price,
-    `${formatRate(throughput)}${strings.edge.perSecond}`,
+    formatPerSecond(throughput),
   ].join(strings.menu.separator);
+}
+
+/**
+ * An edge a re-route slows, for the preview's chip: "aresta 3: 2/s → 1/s"
+ * (FR54).
+ */
+export function slowedEdgeText({ id, from, to }: SlowedEdge): string {
+  return `${strings.edge.slowed} ${id}: ${formatPerSecond(from)} ${strings.edge.slowedArrow} ${formatPerSecond(to)}`;
+}
+
+/** An edge's items/s with its unit: "0,25/s". */
+function formatPerSecond(n: number): string {
+  return `${formatRate(n)}${strings.edge.perSecond}`;
 }
 
 /**

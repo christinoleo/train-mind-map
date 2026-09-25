@@ -26,7 +26,12 @@ import { addCounts } from "../../data/items";
 import type { Cost } from "../../data/nodes";
 import type { GameState } from "../../sim/state/gameState";
 import type { EdgeId } from "../../sim/state/ids";
-import { rerouteCost, type Reroute } from "../../sim/state/reroute";
+import {
+  rerouteCost,
+  slowedEdges,
+  type Reroute,
+  type SlowedEdge,
+} from "../../sim/state/reroute";
 import {
   cellCentre,
   connectorsOf,
@@ -51,6 +56,8 @@ export interface EdgePreview {
   lines: Point[][];
   /** Other edges that would move out of the way, on their new routes (FR52). */
   moved?: Point[][];
+  /** Existing edges the re-route slows down, to warn of before release (FR54). */
+  slowed?: SlowedEdge[];
   /** Why the edge cannot be built here, or `null` when it can. */
   reason: FailReason | null;
   /** The route's length, when one was found, and the length limit. */
@@ -235,6 +242,7 @@ export class ConnectTool implements Tool {
     this.deps.showPreview({
       lines: [route ? edgeLine(start, route.path, end) : [start, tip]],
       moved: reroutedLines(moved, state.edges, state.nodes),
+      slowed: slowedEdges(state, moved),
       reason: check.ok ? null : check.reason,
       length: route?.length ?? null,
       max: EDGE_MAX_LENGTH,

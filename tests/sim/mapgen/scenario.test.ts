@@ -92,8 +92,8 @@ describe("MVP scenario", () => {
     expect(revealedSize(map.revealedRing)).toBe(96);
   });
 
-  it("places the Core 3×3 centred on (60, 60)", () => {
-    expect(map.core).toEqual({ x: 59, y: 59, w: 3, h: 3 });
+  it("places the Core 4×4 centred on (60, 60)", () => {
+    expect(map.core).toEqual({ x: 58, y: 58, w: 4, h: 4 });
   });
 
   it("places the starter deposits around the Core", () => {

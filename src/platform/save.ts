@@ -7,17 +7,34 @@ import { version as GAME_VERSION } from "../../package.json";
 import { AUTOSAVE_MS, STORAGE_PREFIX } from "../config/constants";
 import { fail, ok, type FailReason, type Result } from "../sim/result";
 import { DEFAULT_DEPARTURE } from "../data/rail";
-import type { GameState } from "../sim/state/gameState";
+import type { NodeKind } from "../data/nodes";
+import { RemoveEdge } from "../sim/commands/removeEdge";
+import { RemoveLine } from "../sim/commands/removeLine";
+import { RemoveNode } from "../sim/commands/removeNode";
+import { overlaps } from "../sim/geometry/rect";
+import { RemoveRail } from "../sim/commands/removeRail";
+import { lineTrains } from "../sim/rail/lines";
+import { railsOf } from "../sim/rail/rails";
+import { edgeHitsRect, edgesOf } from "../sim/state/edges";
+import type { GameState, Rail } from "../sim/state/gameState";
+import type { NodeId } from "../sim/state/ids";
+import {
+  checkFootprint,
+  footprint,
+  nodeRect,
+  railHitsRect,
+} from "../sim/state/nodes";
 import {
   deserializeState,
   hashState,
+  serializeState,
   toPairs,
   type SerializedState,
 } from "../sim/state/serialize";
 import { log, type LogEntry } from "./log";
 
 /** Bumped whenever the saved state changes shape; add a migration with it. */
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 export const SAVE_KEYS = {
   /** The latest save. */
@@ -164,7 +181,112 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
     ]);
     return { ...save, schemaVersion: 7, state: { ...state, trains } };
   },
+  // Schema 8: every node is at least as tall as its connectors on a side,
+  // so no two share a cell (FR15). The Core grew from 3×3 to 4×4, and the
+  // Splitter, the Merger and the Station from 2×2 to 3×3.
+  7: (save) => {
+    const state = save.state as SerializedState | undefined;
+    if (!Array.isArray(state?.nodes)) return { ...save, schemaVersion: 8 };
+    const grown = deserializeState(state);
+    growFootprints(grown, SCHEMA_7_SIZES);
+    return { ...save, schemaVersion: 8, state: serializeState(grown) };
+  },
 };
+
+/** The node sizes of schema 7 that schema 8 changed. */
+const SCHEMA_7_SIZES: Partial<Record<NodeKind, number>> = {
+  core: 3,
+  splitter: 2,
+  merger: 2,
+  station: 2,
+};
+
+/**
+ * Fits the nodes whose kinds grew from `oldSizes` to their new footprints.
+ * A grown node loses its edges and rails, and the Lines that stop at it or
+ * run over its rails; each refunds its cost, as removing it would. The node
+ * keeps its top-left cell when the new cells are free, and otherwise shifts
+ * up, left or both by a cell; the edges and rails still in the way go. If
+ * no shift fits, the node goes too, refunded, except the Core, which stays
+ * and takes the cells of the nodes it now covers. The Core also resizes the
+ * map's Core cells.
+ */
+function growFootprints(
+  state: GameState,
+  oldSizes: Partial<Record<NodeKind, number>>,
+): void {
+  const grown = [...state.nodes.values()].filter(
+    (node) => node.kind in oldSizes,
+  );
+  const removeRail = (rail: Rail) => {
+    const stations = new Set([rail.from.node, rail.to.node]);
+    for (const line of [...state.lines.values()]) {
+      const stops = line.stops.some((stop) => stations.has(stop.station));
+      const rides = lineTrains(state, line.id).some((train) =>
+        train.trip?.legs.some((leg) => leg.rail === rail.id),
+      );
+      if (stops || rides) new RemoveLine(line.id).apply(state);
+    }
+    new RemoveRail(rail.id).apply(state);
+  };
+  for (const node of grown) {
+    for (const edge of edgesOf(state, node.id)) {
+      new RemoveEdge(edge.id).apply(state);
+    }
+    for (const rail of railsOf(state, node.id)) removeRail(rail);
+  }
+  const removeNode = (id: NodeId) => {
+    for (const line of [...state.lines.values()]) {
+      if (line.stops.some((stop) => stop.station === id)) {
+        new RemoveLine(line.id).apply(state);
+      }
+    }
+    for (const rail of railsOf(state, id)) removeRail(rail);
+    new RemoveNode(id).apply(state);
+  };
+  for (const node of grown) {
+    // The grown Core may have taken this node's cells already.
+    if (!state.nodes.has(node.id)) continue;
+    const others = { ...state, nodes: new Map(state.nodes) };
+    others.nodes.delete(node.id);
+    let spot = SHIFTS.map(([dx, dy]) => ({
+      x: node.x + dx,
+      y: node.y + dy,
+    })).find(({ x, y }) => checkFootprint(others, node.kind, x, y).ok);
+    if (!spot) {
+      // Nothing fits: the node goes, refunded, but the Core stays and the
+      // nodes it now covers go instead.
+      if (node.kind !== "core") {
+        removeNode(node.id);
+        continue;
+      }
+      spot = node;
+      const rect = footprint(node.kind, node.x, node.y);
+      for (const other of [...state.nodes.values()]) {
+        if (other.id !== node.id && overlaps(nodeRect(other), rect)) {
+          removeNode(other.id);
+        }
+      }
+    }
+    const rect = footprint(node.kind, spot.x, spot.y);
+    for (const edge of [...state.edges.values()]) {
+      if (edgeHitsRect(edge, rect)) new RemoveEdge(edge.id).apply(state);
+    }
+    for (const rail of [...state.rails.values()]) {
+      if (railHitsRect(rail, rect)) removeRail(rail);
+    }
+    state.nodes.set(node.id, { ...node, x: spot.x, y: spot.y });
+    if (node.kind === "core") state.map.core = rect;
+  }
+}
+
+/** Where a grown node may shift its top-left cell to, in order of preference. */
+const SHIFTS: readonly [number, number][] = [
+  [0, 0],
+  [-1, 0],
+  [0, -1],
+  [-1, -1],
+];
 
 /** Applies the migrations one after another, up to `target`. */
 export function migrate(

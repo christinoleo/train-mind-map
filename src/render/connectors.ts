@@ -20,8 +20,8 @@ const pointsByKind = new Map<NodeKind, ConnectorPoints>();
 /**
  * Where a card's connectors sit, relative to its top-left corner: inputs on
  * the left edge, outputs on the right, each centred on the row its edge
- * leaves or enters by (FR15). Connectors that share a row split it. They
- * depend only on the kind, so each kind is worked out once.
+ * leaves or enters by (FR15). They depend only on the kind, so each kind is
+ * worked out once.
  */
 export function connectorPoints(kind: NodeKind): ConnectorPoints {
   let points = pointsByKind.get(kind);
@@ -34,14 +34,8 @@ export function connectorPoints(kind: NodeKind): ConnectorPoints {
 
 function computeConnectorPoints(kind: NodeKind): ConnectorPoints {
   const { size, inputs, outputs } = NODES[kind];
-  const spread = (n: number, x: number) => {
-    const rows = connectorRows(n, size);
-    return rows.map((row, i) => {
-      const shared = rows.filter((r) => r === row).length;
-      const nth = rows.slice(0, i).filter((r) => r === row).length;
-      return { x, y: (row + (nth + 0.5) / shared) * CELL_PX };
-    });
-  };
+  const spread = (n: number, x: number) =>
+    connectorRows(n, size).map((row) => ({ x, y: (row + 0.5) * CELL_PX }));
   return {
     inputs: spread(inputs, 0),
     outputs: spread(outputs, size * CELL_PX),

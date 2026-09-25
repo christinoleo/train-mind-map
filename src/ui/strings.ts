@@ -125,6 +125,9 @@ export const strings = {
     upgrade: "Melhorar para nível",
     tooLong: "Longa demais",
     onWater: "Cruza a água",
+    // A re-routed edge that gets slower: "aresta 3: 2/s → 1/s".
+    slowed: "aresta",
+    slowedArrow: "→",
   },
   // The rail layer: its toggle, the rail menu and the dragged rail's chip.
   rail: {

@@ -11,13 +11,13 @@ import { buildPlanarIndex, type Point } from "../../../src/sim/geometry/planar";
 import { pathLength } from "../../../src/sim/geometry/route";
 import type { Result } from "../../../src/sim/result";
 import { cellIndex, MAP_RECT, Terrain } from "../../../src/sim/state/map";
-import { edgeUnits } from "../../../src/sim/state/edges";
+import { edgeThroughput, edgeUnits } from "../../../src/sim/state/edges";
 import {
   createGameState,
   type GameState,
 } from "../../../src/sim/state/gameState";
 import { allocateId, type NodeId } from "../../../src/sim/state/ids";
-import { rerouted } from "../../../src/sim/state/reroute";
+import { rerouted, slowedEdges } from "../../../src/sim/state/reroute";
 import { createNode } from "../../../src/sim/state/nodes";
 import { hashState } from "../../../src/sim/state/serialize";
 import { isStorage, storedItems } from "../../../src/sim/state/stock";
@@ -25,7 +25,7 @@ import { updateStock } from "../../../src/sim/systems/stock";
 import { tick } from "../../../src/sim/tick";
 import { fillCore } from "../support/stock";
 
-// The MVP map: the Core at (59, 59) and open land around (50, 50).
+// The MVP map: the Core at (58, 58) and open land around (50, 50).
 function setup() {
   const state = createGameState(MVP_SCENARIO);
   fillCore(state);
@@ -316,5 +316,41 @@ describe("rip-up and re-route (FR52)", () => {
     }
     times.sort((x, y) => x - y);
     expect(times[10]).toBeLessThan(5);
+  });
+});
+
+describe("slowedEdges (FR54)", () => {
+  it("lists the moved edges whose new route crosses a distance step", () => {
+    const { state, put, wire } = setup();
+    const a = put("box", 40, 40);
+    const b = put("box", 50, 40);
+    const c = put("box", 40, 44);
+    const d = put("box", 50, 44);
+    // 10 cells each, at level 3.
+    const short = wire(a, b, 0, [
+      { x: 42, y: 40 },
+      { x: 49, y: 40 },
+    ]);
+    const other = wire(c, d, 0, [
+      { x: 42, y: 44 },
+      { x: 49, y: 44 },
+    ]);
+    const slowed = slowedEdges(state, [
+      // Grows to 13 cells: past the 12-cell step, so it halves.
+      { id: short, length: 13 },
+      // Grows to 11 cells: still under the step.
+      { id: other, length: 11 },
+    ]);
+    const level3 = edgeThroughput(10, 3);
+    expect(slowed).toEqual([{ id: short, from: level3, to: level3 / 2 }]);
+  });
+
+  it("leaves out an edge that found no route", () => {
+    const { state, put, wire } = setup();
+    const id = wire(put("box", 40, 40), put("box", 50, 40), 0, [
+      { x: 42, y: 40 },
+      { x: 49, y: 40 },
+    ]);
+    expect(slowedEdges(state, [{ id, length: null }])).toEqual([]);
   });
 });

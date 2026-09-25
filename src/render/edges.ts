@@ -5,7 +5,7 @@ import type { EdgeId, NodeId } from "../sim/state/ids";
 import { ITEMS, type ItemId } from "../data/items";
 import type { Camera, Lod } from "../input/camera";
 import type { EdgePreview } from "../input/tools/connect";
-import { edgeReasonText, edgeStatsText } from "../ui/format";
+import { edgeReasonText, edgeStatsText, slowedEdgeText } from "../ui/format";
 import { strings } from "../ui/strings";
 import { edgeLineOf } from "./connectors";
 import { itemMix, measure, slice, type Polyline } from "./polyline";
@@ -226,6 +226,7 @@ export class EdgePreviewView {
       fontWeight: "600",
       fontSize: 13,
       fill: PALETTE.headerText,
+      align: "center",
     },
   });
   private drawn: EdgePreview | null = null;
@@ -259,7 +260,9 @@ export class EdgePreviewView {
 
   private redraw(preview: EdgePreview | null) {
     this.line.visible = preview !== null;
-    this.chip.visible = preview?.reason != null || preview?.stats != null;
+    const slowed = preview?.slowed ?? [];
+    this.chip.visible =
+      preview?.reason != null || preview?.stats != null || slowed.length > 0;
     if (!preview) return;
     const color =
       preview.reason === null ? GHOST_COLOR.valid : GHOST_COLOR.invalid;
@@ -275,12 +278,21 @@ export class EdgePreviewView {
     if (stats && length !== null) {
       parts.push(edgeStatsText(length, stats.cost, stats.throughput));
     }
-    this.chipText.text = parts.join(strings.menu.separator);
+    // Each slowed edge gets a line of its own, under the rest.
+    this.chipText.text = [
+      parts.join(strings.menu.separator),
+      ...slowed.map(slowedEdgeText),
+    ]
+      .filter(Boolean)
+      .join("\n");
     const w = this.chipText.width + 20;
     const h = this.chipText.height + 8;
+    // A move that builds but slows other edges warns in amber.
+    const fill =
+      preview.reason === null && slowed.length > 0 ? REROUTE_COLOR : color;
     this.chipBg
       .clear()
-      .roundRect(-w / 2, -h / 2, w, h, h / 2)
-      .fill({ color, alpha: 0.92 });
+      .roundRect(-w / 2, -h / 2, w, h, Math.min(h / 2, 12))
+      .fill({ color: fill, alpha: 0.92 });
   }
 }

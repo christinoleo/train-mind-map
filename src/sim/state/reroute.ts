@@ -7,7 +7,12 @@ import { addCounts, type ItemCounts } from "../../data/items";
 import { pathsTouch, type PlanarIndex, type Point } from "../geometry/planar";
 import { pathLength, type Route } from "../geometry/route";
 import { fail, ok, type Result } from "../result";
-import { edgeUnits, findRoute, lengthChangeCost } from "./edges";
+import {
+  edgeThroughput,
+  edgeUnits,
+  findRoute,
+  lengthChangeCost,
+} from "./edges";
 import type { Edge, GameState } from "./gameState";
 import type { EdgeId } from "./ids";
 
@@ -137,6 +142,33 @@ export function rerouteCost(
     );
   }
   return cost;
+}
+
+/** An existing edge that a re-route slows down, with its throughput before and after, in items/s. */
+export interface SlowedEdge {
+  id: EdgeId;
+  from: number;
+  to: number;
+}
+
+/**
+ * The edges of `moved` whose new route crosses a distance step and so
+ * carries less than before (FR54): what a preview warns of before release.
+ * An edge with no new route (`length` null) is left out.
+ */
+export function slowedEdges(
+  state: Readonly<GameState>,
+  moved: readonly { id: EdgeId; length: number | null }[],
+): SlowedEdge[] {
+  const slowed: SlowedEdge[] = [];
+  for (const { id, length } of moved) {
+    if (length === null) continue;
+    const edge = state.edges.get(id)!;
+    const from = edgeThroughput(pathLength(edge.path), edge.level);
+    const to = edgeThroughput(length, edge.level);
+    if (to < from) slowed.push({ id, from, to });
+  }
+  return slowed;
 }
 
 /**

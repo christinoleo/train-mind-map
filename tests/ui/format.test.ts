@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+import type { EdgeId } from "../../src/sim/state/ids";
 import {
   edgeStatsText,
   formatAmount,
   formatDuration,
   formatGain,
   formatRate,
+  slowedEdgeText,
 } from "../../src/ui/format";
 
 describe("formatAmount", () => {
@@ -71,5 +73,16 @@ describe("formatGain", () => {
   it("names the item gained, in pt-BR (FR150)", () => {
     expect(formatGain(1, "stone")).toBe("+1 pedra");
     expect(formatGain(3, "iron-ore")).toBe("+3 minério de ferro");
+  });
+});
+
+describe("slowedEdgeText", () => {
+  it("names the edge and its throughput before and after (FR54)", () => {
+    expect(slowedEdgeText({ id: 3 as EdgeId, from: 2, to: 1 })).toBe(
+      "aresta 3: 2/s → 1/s",
+    );
+    expect(slowedEdgeText({ id: 7 as EdgeId, from: 0.5, to: 0.25 })).toBe(
+      "aresta 7: 0,5/s → 0,25/s",
+    );
   });
 });

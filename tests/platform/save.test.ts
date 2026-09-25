@@ -17,11 +17,28 @@ import {
 } from "../../src/platform/save";
 import { CommandQueue } from "../../src/sim/commands/commandQueue";
 import { ConnectEdge } from "../../src/sim/commands/connectEdge";
+import type { Command } from "../../src/sim/commands/command";
+import { CreateLine } from "../../src/sim/commands/createLine";
 import { PlaceNode } from "../../src/sim/commands/placeNode";
+import { PlaceRail } from "../../src/sim/commands/placeRail";
 import { EventQueue } from "../../src/sim/events";
-import { createGameState, type GameState } from "../../src/sim/state/gameState";
-import type { NodeId } from "../../src/sim/state/ids";
-import { hashState } from "../../src/sim/state/serialize";
+import {
+  createGameState,
+  type FactoryNode,
+  type GameState,
+} from "../../src/sim/state/gameState";
+import {
+  deserializeState,
+  hashState,
+  serializeState,
+  type SerializedState,
+} from "../../src/sim/state/serialize";
+import { addCounts } from "../../src/data/items";
+import { NODES } from "../../src/data/nodes";
+import { edgeCost } from "../../src/sim/state/edges";
+import type { EdgeId, NodeId } from "../../src/sim/state/ids";
+import { createNode } from "../../src/sim/state/nodes";
+import { sumStock } from "../../src/sim/state/stock";
 import { tick } from "../../src/sim/tick";
 import fixture from "./fixtures/save-v1.json";
 
@@ -149,6 +166,17 @@ describe("save format", () => {
   });
 });
 
+/** `state` saved as schema 7, migrated to the latest and loaded back. */
+function migrateFrom7(state: GameState): GameState {
+  const v7: RawSave = {
+    schemaVersion: 7,
+    state: JSON.parse(JSON.stringify(serializeState(state))),
+  };
+  const migrated = migrate(v7);
+  if (!migrated.ok) throw new Error(migrated.reason);
+  return deserializeState(migrated.value.state as SerializedState);
+}
+
 describe("migrations", () => {
   it("loads the committed schema 1 fixture", () => {
     const save = decodeSave(JSON.stringify(fixture));
@@ -157,7 +185,9 @@ describe("migrations", () => {
     expect(state.map.seed).toBe(fixture.seed);
     expect(state.tick).toBe(fixture.state.tick);
     expect(state.nodes.size).toBe(fixture.state.nodes.length);
-    expect(state.edges.size).toBe(fixture.state.edges.length);
+    // Schema 8 grew the Core to 4×4, which took its one edge off.
+    expect(state.edges.size).toBe(0);
+    expect(state.map.core).toEqual({ x: 59, y: 59, w: 4, h: 4 });
     // Schema 3 brought the rail layer, empty in an older save.
     expect(state.rails.size).toBe(0);
     expect(state.nextIds.rail).toBe(1);
@@ -248,14 +278,89 @@ describe("migrations", () => {
     const v1 = structuredClone(fixture) as unknown as RawSave & {
       state: { nodes: [number, object][] };
     };
-    v1.state.nodes.push([99, { id: 99, kind: "station", x: 0, y: 0 }]);
+    v1.state.nodes.push([99, { id: 99, kind: "station", x: 46, y: 46 }]);
     const migrated = migrate(v1);
     if (!migrated.ok) throw new Error(migrated.reason);
     const { nodes } = migrated.value.state as typeof v1.state;
     expect(nodes.at(-1)).toEqual([
       99,
-      { id: 99, kind: "station", x: 0, y: 0, items: [] },
+      { id: 99, kind: "station", x: 46, y: 46, items: [] },
     ]);
+  });
+
+  it("grows schema 7 footprints, refunding the edges that no longer fit", () => {
+    const state = createGameState(MVP_SCENARIO);
+    const put = (node: FactoryNode) => state.nodes.set(node.id, node);
+    // A 2×2 Splitter at (50, 50), fed by a Box on its left, and a Box
+    // right under it that the grown Splitter would cover.
+    put(createNode(2 as NodeId, "box", 46, 50));
+    put(createNode(3 as NodeId, "splitter", 50, 50));
+    put(createNode(4 as NodeId, "box", 50, 52));
+    state.edges.set(1 as EdgeId, {
+      id: 1 as EdgeId,
+      from: 2 as NodeId,
+      fromPort: 0,
+      to: 3 as NodeId,
+      toPort: 0,
+      level: 1,
+      path: [
+        { x: 48, y: 50 },
+        { x: 49, y: 50 },
+      ],
+      items: [],
+    });
+    state.nextIds.node = 5;
+    state.nextIds.edge = 2;
+    const after = migrateFrom7(state);
+    // The Splitter shifted up a cell, clear of the Box below.
+    expect(after.nodes.get(3 as NodeId)).toMatchObject({ x: 50, y: 49 });
+    expect(after.edges.size).toBe(0);
+    expect(after.stock).toEqual(
+      addCounts(sumStock(state.nodes), edgeCost(2, 1)),
+    );
+  });
+
+  it("removes a grown schema 7 node that no shift fits, refunded", () => {
+    const state = createGameState(MVP_SCENARIO);
+    const put = (node: FactoryNode) => state.nodes.set(node.id, node);
+    // A 2×2 Splitter at (50, 50) boxed in: Boxes right and below block its
+    // own cells grown, and one up-left blocks the shifts.
+    put(createNode(2 as NodeId, "splitter", 50, 50));
+    put(createNode(3 as NodeId, "box", 52, 50));
+    put(createNode(4 as NodeId, "box", 50, 52));
+    put(createNode(5 as NodeId, "box", 48, 48));
+    state.nextIds.node = 6;
+    const after = migrateFrom7(state);
+    expect(after.nodes.has(2 as NodeId)).toBe(false);
+    expect([...after.nodes.keys()]).toEqual([1, 3, 4, 5]);
+    expect(after.stock).toEqual(
+      addCounts(sumStock(state.nodes), NODES.splitter.cost),
+    );
+  });
+
+  it("takes a grown schema 7 Station's rails and Lines off, refunded", () => {
+    const { state, commands, step } = factory();
+    state.unlockedNodes.push("station");
+    const run = (command: Command) => {
+      expectOk(commands.dispatch(state, command));
+      step();
+    };
+    run(new GiveItems(1000));
+    run(new PlaceNode("station", 46, 46));
+    run(new PlaceNode("station", 56, 46));
+    const [a, b] = [...state.nodes.values()]
+      .filter((n) => n.kind === "station")
+      .map((n) => n.id);
+    run(new PlaceRail({ node: a, port: 1 }, { node: b, port: 0 }));
+    run(new CreateLine([a, b]));
+    expect(state.trains.size).toBe(1);
+    const before = sumStock(state.nodes);
+    const after = migrateFrom7(state);
+    expect(after.rails.size).toBe(0);
+    expect(after.lines.size).toBe(0);
+    expect(after.trains.size).toBe(0);
+    expect(after.stock.rail).toBeGreaterThan(before.rail ?? 0);
+    expect(after.stock.circuit).toBeGreaterThan(before.circuit ?? 0);
   });
 
   it("applies the chain one version at a time", () => {

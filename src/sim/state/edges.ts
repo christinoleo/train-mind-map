@@ -43,14 +43,19 @@ export interface Connector {
  * `size` cells tall (FR15). An edge leaves or enters a connector through the
  * cell beside its row, so connectors keep to the body below the header row
  * while they fit there, and spread over the whole side when they do not.
- * Connectors beyond the number of rows share a row, and only one edge fits
- * through each row.
+ * Every node is at least as tall as its connectors on a side (see
+ * `NODE_SIZE`), so each connector has a row of its own.
  */
 export function connectorRows(count: number, size: number): number[] {
+  return count < size
+    ? spreadRows(count, size - 1).map((row) => row + 1)
+    : spreadRows(count, size);
+}
+
+/** `count` rows spread evenly over `size` rows, counted from the first. */
+export function spreadRows(count: number, size: number): number[] {
   return Array.from({ length: count }, (_, i) =>
-    count < size
-      ? 1 + Math.floor(((i + 0.5) * (size - 1)) / count)
-      : Math.floor(((i + 0.5) * size) / count),
+    Math.floor(((i + 0.5) * size) / count),
   );
 }
 
@@ -154,11 +159,14 @@ export function pathBounds(path: readonly Point[]): Rect {
 /** True when an edge's route runs through a cell of `rect`. */
 export function edgeCrosses(state: Readonly<GameState>, rect: Rect): boolean {
   for (const edge of state.edges.values()) {
-    for (const [a, b] of segments(edge.path)) {
-      if (segmentHitsRect(a, b, rect)) return true;
-    }
+    if (edgeHitsRect(edge, rect)) return true;
   }
   return false;
+}
+
+/** True when `edge`'s route runs through a cell of `rect`. */
+export function edgeHitsRect(edge: Readonly<Edge>, rect: Rect): boolean {
+  return segments(edge.path).some(([a, b]) => segmentHitsRect(a, b, rect));
 }
 
 /** The edges that leave or enter node `id`. */
