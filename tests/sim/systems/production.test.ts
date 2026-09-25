@@ -9,10 +9,12 @@ import {
   type ProducerNode,
 } from "../../../src/sim/state/gameState";
 import { allocateId } from "../../../src/sim/state/ids";
+import type { Coverage } from "../../../src/sim/state/map";
 import { createNode } from "../../../src/sim/state/nodes";
 import {
   acceptItem,
   batchTicks,
+  extractorCycle,
   takeOutput,
 } from "../../../src/sim/state/production";
 import { flow } from "../../../src/sim/systems/flow";
@@ -25,12 +27,13 @@ const NO_FLOW = SYSTEMS.filter((system) => system !== flow);
  * A game with one producing node, placed directly and powered by the Core,
  * and a tick driver.
  */
-function setup(kind: NodeKind, recipe?: RecipeId) {
+function setup(kind: NodeKind, recipe?: RecipeId, coverage?: Coverage[]) {
   const state = createGameState("production");
   const commands = new CommandQueue();
   const events: SimEvent[] = [];
   const id = allocateId(state.nextIds, "node");
   const node = createNode(id, kind, 0, 0, {
+    coverage,
     resource: "iron-ore",
     recipe,
   }) as ProducerNode;
@@ -85,6 +88,78 @@ describe("Extractor", () => {
       ["working", node.id],
       ["blocked", node.id],
       ["working", node.id],
+    ]);
+  });
+});
+
+describe("Extractor on part of a deposit", () => {
+  /** Items of each kind an Extractor over `coverage` makes in 60 s. */
+  const perMinute = (coverage: Coverage[]) => {
+    const { run, made } = setup("extractor", undefined, coverage);
+    run(600);
+    const counts: Partial<Record<ItemId, number>> = {};
+    for (const item of made) counts[item] = (counts[item] ?? 0) + 1;
+    return counts;
+  };
+
+  it.each([
+    [4, 30],
+    [2, 15],
+    [1, 7.5],
+  ])("with %i of its 4 cells on iron makes %d items a minute", (cells, n) => {
+    const made = perMinute([{ resource: "iron-ore", cells }]);
+    // A partial batch at the end of the minute does not count.
+    expect(made["iron-ore"]).toBe(Math.floor(n));
+  });
+
+  it("splits 2 iron cells and 1 coal cell into 0.25 iron/s and 0.125 coal/s", () => {
+    const { run, made } = setup("extractor", undefined, [
+      { resource: "iron-ore", cells: 2 },
+      { resource: "coal", cells: 1 },
+    ]);
+    run(4800); // 480 s: 120 iron and 60 coal
+    expect(made.filter((item) => item === "iron-ore")).toHaveLength(120);
+    expect(made.filter((item) => item === "coal")).toHaveLength(60);
+    // Interleaved through the one output, weighted by cells.
+    expect(made.slice(0, 6)).toEqual([
+      "iron-ore",
+      "coal",
+      "iron-ore",
+      "iron-ore",
+      "coal",
+      "iron-ore",
+    ]);
+  });
+
+  it("holds each resource in the output buffer until it is taken", () => {
+    const { node, run } = setup("extractor", undefined, [
+      { resource: "iron-ore", cells: 1 },
+      { resource: "coal", cells: 1 },
+    ]);
+    run(200, [], false);
+    expect(node.production).toMatchObject({ output: 1, status: "blocked" });
+    expect(takeOutput(node)).toBe("iron-ore");
+    run(1, [], false);
+    expect(takeOutput(node)).toBe("coal");
+    expect(takeOutput(node)).toBeUndefined();
+  });
+
+  it("interleaves the same way every time", () => {
+    const coverage: Coverage[] = [
+      { resource: "iron-ore", cells: 1 },
+      { resource: "coal", cells: 2 },
+      { resource: "stone", cells: 1 },
+    ];
+    const a = setup("extractor", undefined, coverage);
+    const b = setup("extractor", undefined, structuredClone(coverage));
+    a.run(1000);
+    b.run(1000);
+    expect(a.made).toEqual(b.made);
+    expect(extractorCycle(coverage)).toEqual([
+      "coal",
+      "iron-ore",
+      "stone",
+      "coal",
     ]);
   });
 });

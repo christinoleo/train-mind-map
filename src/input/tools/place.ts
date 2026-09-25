@@ -1,9 +1,9 @@
 import { CELL_PX } from "../../config/constants";
-import type { RawResource } from "../../data/items";
 import { NODES, type NodeKind } from "../../data/nodes";
 import { checkPlacement, PlaceNode } from "../../sim/commands/placeNode";
 import type { FailReason, Result } from "../../sim/result";
 import type { GameState } from "../../sim/state/gameState";
+import type { Coverage } from "../../sim/state/map";
 import { footprint } from "../../sim/state/nodes";
 import { toWorld } from "../../render/theme";
 import type { Camera } from "../camera";
@@ -17,8 +17,8 @@ export interface Ghost {
   x: number;
   y: number;
   valid: boolean;
-  /** The resource an Extractor would draw from, when it sits on a deposit. */
-  resource?: RawResource;
+  /** The deposit cells an Extractor would draw from, when it may sit here. */
+  coverage?: Coverage[];
 }
 
 export interface PlaceToolDeps {
@@ -126,7 +126,7 @@ export class PlaceTool implements Tool {
       x,
       y,
       valid: fits.ok,
-      resource: fits.ok ? fits.value : undefined,
+      coverage: fits.ok ? fits.value : undefined,
     };
     const { placedAt } = this;
     if (placedAt?.x === x && placedAt.y === y) {

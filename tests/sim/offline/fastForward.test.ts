@@ -95,6 +95,35 @@ describe("fastForward", () => {
     expect(b.state.tick).toBe(a.state.tick);
   });
 
+  it("runs a partly covered, mixed Extractor at its live rates", () => {
+    const setup = () => {
+      const { state, put, wire, core } = factory(0);
+      const extractor = put("extractor");
+      extractor.coverage = [
+        { resource: "iron-ore", cells: 2 },
+        { resource: "coal", cells: 1 },
+      ];
+      wire(extractor, core);
+      return state;
+    };
+    const a = setup();
+    const b = setup();
+    live(a, HOUR_MS);
+    fastForward(b, HOUR_MS, UNLIMITED);
+    // 0.25 iron/s and 0.125 coal/s: 900 and 450 in the hour. Offline
+    // measures the same rates over two 60 s windows, give or take the item
+    // that falls on a window's edge: 1 in 30.
+    for (const [item, expected] of [
+      ["iron-ore", 900],
+      ["coal", 450],
+    ] as const) {
+      expect(Math.abs(stored(a, item) - expected)).toBeLessThanOrEqual(2);
+      expect(Math.abs(stored(b, item) - stored(a, item))).toBeLessThan(
+        expected * 0.04,
+      );
+    }
+  });
+
   it("extrapolates once the rates settle, well before the end", () => {
     const { state } = factory();
     let ticks = 0;

@@ -158,7 +158,7 @@ export class MoveTool implements Tool {
       x: node.x,
       y: node.y,
       valid: check.ok,
-      resource: node.kind === "extractor" ? node.resource : undefined,
+      coverage: node.kind === "extractor" ? node.coverage : undefined,
     });
     const nodes = new Map(state.nodes).set(node.id, node);
     const lines: Point[][] = [];

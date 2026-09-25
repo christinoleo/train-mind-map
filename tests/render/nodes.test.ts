@@ -70,6 +70,17 @@ describe("iconItem", () => {
     expect(iconItem(node)).toBe("stone");
   });
 
+  it("shows the resource over most of a mixed Extractor's cells", () => {
+    const node = createNode(1 as NodeId, "extractor", 0, 0, {
+      coverage: [
+        { resource: "iron-ore", cells: 1 },
+        { resource: "coal", cells: 2 },
+        { resource: "stone", cells: 1 },
+      ],
+    });
+    expect(iconItem(node)).toBe("coal");
+  });
+
   it("shows what a crafter's recipe makes, and nothing without one", () => {
     const node = createNode(1 as NodeId, "assembler-1", 0, 0);
     assert("recipe" in node);

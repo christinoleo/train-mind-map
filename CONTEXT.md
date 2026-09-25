@@ -27,7 +27,7 @@ The invariant that no two edges cross, and no edge passes through a node or over
 _Avoid_: no-crossing rule
 
 **Deposit**:
-An infinite patch of one raw resource on the map, which an Extractor or a manual tap draws from.
+An infinite patch of one raw resource on the map, which an Extractor or a manual tap draws from. An Extractor needs at least one cell on a deposit, and draws each resource at the share of its cells over it.
 _Avoid_: ore field, resource patch
 
 **Scenario**:

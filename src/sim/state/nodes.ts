@@ -13,11 +13,21 @@ import { fail, ok, type Result } from "../result";
 import { edgeCrosses, pathBounds } from "./edges";
 import type { FactoryNode, GameState, Rail } from "./gameState";
 import type { NodeId } from "./ids";
-import { depositUnder, isRevealedRect, Terrain, terrainAt } from "./map";
+import {
+  type Coverage,
+  coverageUnder,
+  isRevealedRect,
+  Terrain,
+  terrainAt,
+} from "./map";
 import { newProduction } from "./production";
 
-/** What a node needs besides its place: an Extractor's resource, a crafter's recipe. */
+/**
+ * What a node needs besides its place: an Extractor's deposit cells, or a
+ * `resource` for an Extractor wholly on one, and a crafter's recipe.
+ */
 export interface NodeSetup {
+  coverage?: Coverage[];
   resource?: RawResource;
   recipe?: RecipeId;
 }
@@ -28,12 +38,15 @@ export function createNode(
   kind: NodeKind,
   x: number,
   y: number,
-  { resource, recipe }: NodeSetup = {},
+  { coverage, resource, recipe }: NodeSetup = {},
 ): FactoryNode {
   switch (kind) {
-    case "extractor":
-      assert(resource, "An Extractor needs a resource");
-      return { id, kind, x, y, resource, production: newProduction() };
+    case "extractor": {
+      const cells = NODES.extractor.size ** 2;
+      coverage ??= resource ? [{ resource, cells }] : [];
+      assert(coverage.length > 0, "An Extractor needs a deposit");
+      return { id, kind, x, y, coverage, turn: 0, production: newProduction() };
+    }
     case "furnace":
     case "assembler-1":
     case "assembler-2":
@@ -130,16 +143,16 @@ export function isUnlocked(
 
 /**
  * Checks that a node of `kind` fits at (x, y): on revealed land, clear of
- * other nodes and edges, and off deposits, except an Extractor, which must sit wholly
- * on one (FR17). On success it returns the resource under an
- * Extractor, or `undefined` for other kinds.
+ * other nodes and edges, and off deposits, except an Extractor, which must
+ * have at least one cell on one (FR17, FR30). On success it returns the
+ * deposit cells under an Extractor, or `undefined` for other kinds.
  */
 export function checkFootprint(
   state: Readonly<GameState>,
   kind: NodeKind,
   x: number,
   y: number,
-): Result<RawResource | undefined> {
+): Result<Coverage[] | undefined> {
   const { map } = state;
   const rect = footprint(kind, x, y);
   if (!isRevealedRect(map, rect)) return fail("out_of_bounds");
@@ -150,8 +163,8 @@ export function checkFootprint(
     return fail("on_water");
   }
   if (kind === "extractor") {
-    const deposit = depositUnder(map, rect);
-    return deposit ? ok(deposit.resource) : fail("needs_deposit");
+    const coverage = coverageUnder(map, rect);
+    return coverage.length > 0 ? ok(coverage) : fail("needs_deposit");
   }
   if (map.deposits.some((d) => overlaps(rect, d))) return fail("on_deposit");
   return ok(undefined);

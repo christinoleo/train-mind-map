@@ -170,6 +170,41 @@ describe("MoveNode (FR20)", () => {
   });
 });
 
+describe("moving an Extractor (FR30)", () => {
+  /** An Extractor wholly on the iron deposit, with an item finished. */
+  function extractor() {
+    const s = setup();
+    expect(s.run(new PlaceNode("extractor", 65, 58))).toEqual(ok());
+    const id = 2 as NodeId;
+    const node = () => {
+      const found = s.state.nodes.get(id);
+      if (found?.kind !== "extractor") throw new Error("no Extractor");
+      return found;
+    };
+    node().production.output = 1;
+    return { ...s, id, node };
+  }
+
+  it("keeps its buffers over the same resource, at the new speed", () => {
+    const { run, id, node } = extractor();
+    expect(run(new MoveNode(id, 64, 58))).toEqual(ok());
+    expect(node().coverage).toEqual([{ resource: "iron-ore", cells: 2 }]);
+    expect(node().production.output).toBe(1);
+  });
+
+  it("starts over on another resource", () => {
+    const { run, id, node } = extractor();
+    expect(run(new MoveNode(id, 51, 59))).toEqual(ok());
+    expect(node().coverage).toEqual([{ resource: "stone", cells: 4 }]);
+    expect(node().production.output).toBe(0);
+  });
+
+  it("refuses cells with no deposit under any of them", () => {
+    const { run, id } = extractor();
+    expect(run(new MoveNode(id, 45, 45))).toEqual(fail("needs_deposit"));
+  });
+});
+
 describe("undo (FR137)", () => {
   it("undoes a placement", () => {
     const { state, run, undo } = setup();

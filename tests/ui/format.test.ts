@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { EdgeId } from "../../src/sim/state/ids";
 import {
+  coverageText,
   edgeStatsText,
+  extractorRateText,
   formatAmount,
   formatDuration,
   formatGain,
@@ -84,5 +86,37 @@ describe("slowedEdgeText", () => {
     expect(slowedEdgeText({ id: 7 as EdgeId, from: 0.5, to: 0.25 })).toBe(
       "aresta 7: 0,5/s → 0,25/s",
     );
+  });
+});
+
+describe("coverageText", () => {
+  it("names a resource that covers the whole Extractor bare", () => {
+    expect(coverageText([{ resource: "iron-ore", cells: 4 }])).toBe(
+      "minério de ferro",
+    );
+  });
+
+  it("gives each resource its share of the cells", () => {
+    expect(
+      coverageText([
+        { resource: "iron-ore", cells: 2 },
+        { resource: "coal", cells: 1 },
+      ]),
+    ).toBe("minério de ferro ½ · carvão ¼");
+    expect(coverageText([{ resource: "stone", cells: 3 }])).toBe("pedra ¾");
+  });
+});
+
+describe("extractorRateText", () => {
+  it("gives the items/s over all its resources", () => {
+    expect(extractorRateText([{ resource: "iron-ore", cells: 1 }])).toBe(
+      "0,13/s",
+    );
+    expect(
+      extractorRateText([
+        { resource: "iron-ore", cells: 2 },
+        { resource: "coal", cells: 1 },
+      ]),
+    ).toBe("0,38/s");
   });
 });
