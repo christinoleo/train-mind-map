@@ -1,9 +1,10 @@
 import type { Signal } from "@preact/signals";
 import { Menu } from "./Menu";
 import { SaveActions, type SaveProps } from "./SaveActions";
+import { StartOver, type StartOverProps } from "./StartOver";
 import { strings } from "./strings";
 
-interface Props extends SaveProps {
+interface Props extends SaveProps, StartOverProps {
   /** True while the menu is open; it shares the other menus' place on screen. */
   open: Signal<boolean>;
   /** Shows the onboarding hints again from the first. */
@@ -12,9 +13,15 @@ interface Props extends SaveProps {
 
 /**
  * The ⚙ button, beside undo, and the settings menu it opens: the save's
- * export and import, and the onboarding hints.
+ * export and import, starting over, and the onboarding hints.
  */
-export function SettingsMenu({ open, onReviewHints, ...save }: Props) {
+export function SettingsMenu({
+  open,
+  onReviewHints,
+  newGame,
+  loadBackup,
+  ...save
+}: Props) {
   const text = strings.settings;
   return (
     <>
@@ -45,6 +52,12 @@ export function SettingsMenu({ open, onReviewHints, ...save }: Props) {
           >
             {text.reviewHints}
           </button>
+          <StartOver
+            newGame={newGame}
+            loadBackup={loadBackup}
+            buttonClass="menu-action"
+            onDone={() => (open.value = false)}
+          />
         </Menu>
       )}
     </>

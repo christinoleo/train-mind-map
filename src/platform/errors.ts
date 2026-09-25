@@ -1,4 +1,5 @@
-import { h } from "preact";
+import { h, type ComponentProps } from "preact";
+import type { Result } from "../sim/result";
 import { CrashScreen } from "../ui/CrashScreen";
 import { showOverlay } from "../ui/overlay";
 import { log, type LogEntry } from "./log";
@@ -14,6 +15,13 @@ export interface CrashHooks {
    * alone.
    */
   exportSave?: () => Promise<string> | undefined;
+  /**
+   * Writes a new game as the latest save; the crash screen reloads after
+   * it, so a save that crashes on every load cannot trap the player.
+   */
+  newGame: () => Promise<void>;
+  /** Makes the backup the latest save; the crash screen reloads after it. */
+  loadBackup: () => Promise<Result<unknown>>;
 }
 
 /**
@@ -32,7 +40,7 @@ export function installErrorHandler(hooks: CrashHooks): void {
       hooks.pause();
       hooks.saveCrash?.(log.entries());
     } finally {
-      showCrashScreen(() => hooks.exportSave?.() ?? exportLog());
+      showCrashScreen(hooks);
     }
   }
 
@@ -52,11 +60,38 @@ async function exportLog() {
   return JSON.stringify({ log: log.entries() }, null, 2);
 }
 
-function showCrashScreen(exportSave: () => Promise<string>) {
+function showCrashScreen(hooks: CrashHooks) {
   showOverlay(
-    h(CrashScreen, {
-      onReload: () => location.reload(),
-      onExport: exportSave,
-    }),
+    h(
+      CrashScreen,
+      crashActions(hooks, () => location.reload()),
+    ),
   );
+}
+
+/**
+ * What the crash screen's buttons do. Starting over writes the save and
+ * reloads, since the game in memory may be what broke.
+ */
+export function crashActions(
+  hooks: CrashHooks,
+  reload: () => void,
+): ComponentProps<typeof CrashScreen> {
+  return {
+    onReload: reload,
+    onExport: () => hooks.exportSave?.() ?? exportLog(),
+    async newGame() {
+      // Reloads even if it failed: a crash loop still leaves the buttons.
+      try {
+        await hooks.newGame();
+      } finally {
+        reload();
+      }
+    },
+    async loadBackup() {
+      const result = await hooks.loadBackup();
+      if (result.ok) reload();
+      return result;
+    },
+  };
 }

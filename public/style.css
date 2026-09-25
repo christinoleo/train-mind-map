@@ -963,3 +963,10 @@ canvas {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+
+/* The crash screen's new-game confirmation and refusals, on a line of their own. */
+.crash-actions .menu-note,
+.crash-actions .menu-refused {
+  flex-basis: 100%;
+  text-align: center;
+}

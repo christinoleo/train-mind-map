@@ -13,8 +13,9 @@ import type { Command } from "./command";
 /**
  * A manual tap on cell (x, y) of a deposit: it spends 1 point of stamina
  * and sends the tap's yield of the deposit's resource to the Core (FR74,
- * FR75). Crude oil cannot be tapped, nor a deposit under a node. A tap is
- * not undoable.
+ * FR75). Crude oil cannot be tapped, nor a deposit under a node other than
+ * an Extractor: Extractors can cover a whole deposit, which must stay
+ * tappable. A tap is not undoable.
  */
 export class ManualTap implements Command {
   readonly type = "ManualTap";
@@ -50,7 +51,9 @@ export class ManualTap implements Command {
       ? depositUnder(map, cell)
       : undefined;
     if (!deposit) return fail("needs_deposit");
-    if (isOccupied(state, cell)) return fail("occupied");
+    if (isOccupied(state, cell, (node) => node.kind === "extractor")) {
+      return fail("occupied");
+    }
     if (!TAPPABLE.includes(deposit.resource)) return fail("not_tappable");
     return ok(deposit.resource);
   }

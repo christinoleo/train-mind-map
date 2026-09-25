@@ -77,14 +77,16 @@ export function nodeRect(node: Pick<FactoryNode, "kind" | "x" | "y">): Rect {
   return footprint(node.kind, node.x, node.y);
 }
 
-/** True when any node covers a cell of `rect`. */
+/** True when any node, bar those `ignore` skips, covers a cell of `rect`. */
 export function isOccupied(
   state: {
     readonly nodes: ReadonlyMap<NodeId, Pick<FactoryNode, "kind" | "x" | "y">>;
   },
   rect: Rect,
+  ignore?: (node: Pick<FactoryNode, "kind">) => boolean,
 ): boolean {
   for (const node of state.nodes.values()) {
+    if (ignore?.(node)) continue;
     if (overlaps(rect, nodeRect(node))) return true;
   }
   return false;

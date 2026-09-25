@@ -29,6 +29,15 @@ export const strings = {
     load: "Carregar backup",
     newGame: "Começar do zero",
   },
+  // Starting over, from the settings menu and the crash screen.
+  startOver: {
+    newGame: "Novo jogo",
+    confirmNew: "A partida atual será perdida. Os ajustes ficam.",
+    confirmBackup:
+      "A partida atual será trocada pelo backup. Os ajustes ficam.",
+    confirm: "Sim, começar do zero",
+    cancel: "Cancelar",
+  },
   // On iOS inside itch.io, where Safari may drop the save (NFR14).
   exportNotice: {
     body: "No iPhone e no iPad, o Safari pode apagar o save. Exporte-o de vez em quando.",
@@ -257,6 +266,7 @@ export const strings = {
     max_level: "Já está no nível máximo",
     needs_deposit: "O Extrator precisa ficar sobre uma jazida",
     newer_save: "Save de uma versão mais nova do jogo",
+    no_backup: "Não há backup",
     no_route: "Sem rota",
     no_stamina: "Sem fôlego",
     no_stock: "Estoque insuficiente",

@@ -507,6 +507,32 @@ export class SaveSlots {
     }
   }
 
+  /**
+   * Makes the backup the latest save and returns it, keeping the backup
+   * slot as it is: a backup that crashes too can still be left for a new
+   * game (FR129).
+   */
+  async restoreBackup(): Promise<Result<SaveFile>> {
+    const text = await this.store.get(SAVE_KEYS.backup);
+    if (typeof text !== "string") return fail("no_backup");
+    const save = decodeSave(text);
+    if (!save.ok) return save;
+    await this.store.setMany([[SAVE_KEYS.auto, text]]);
+    this.previous = text;
+    this.savedHash = hashState(loadState(save.value));
+    return save;
+  }
+
+  /**
+   * Writes `state` as the latest save without rotating the latest into the
+   * backup: after a crash, the game that crashed must not replace it.
+   */
+  async startOver(state: GameState): Promise<void> {
+    this.previous = null;
+    this.savedHash = null;
+    await this.save(state);
+  }
+
   /** Writes `save:crash`, apart from the slots, with the log buffer. */
   async saveCrash(state: GameState, logEntries: LogEntry[]): Promise<void> {
     await this.store.setMany([
