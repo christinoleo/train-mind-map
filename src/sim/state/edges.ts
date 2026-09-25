@@ -213,20 +213,20 @@ export function planRoute(
 
 /**
  * The automatic route from cell `from` to cell `to` inside the revealed
- * area, whatever its length, clear of the cells in front of free connectors.
- * `moved` is a node at the place it is moving to; see `reservedCells`. A
- * route blocked at either end reports what blocks it.
+ * area, whatever its length, clear of the `reserved` cells (by default
+ * those in front of free connectors; see `reservedCells`). A route blocked at
+ * either end reports what blocks it.
  */
 export function findRoute(
   state: Readonly<GameState>,
   index: PlanarIndex,
   from: Point,
   to: Point,
-  moved?: FactoryNode,
+  reserved: readonly Point[] = reservedCells(state),
 ): Result<Route> {
   const routed = routeEdge(index, from, to, {
     bounds: ringRect(state.map.revealedRing),
-    reserved: reservedCells(state, moved),
+    reserved,
   });
   if (routed.ok) return routed;
   return fail(

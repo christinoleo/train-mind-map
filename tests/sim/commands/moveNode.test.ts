@@ -21,7 +21,7 @@ import { createNode } from "../../../src/sim/state/nodes";
 import { hashState } from "../../../src/sim/state/serialize";
 import { updateStock } from "../../../src/sim/systems/stock";
 import { tick } from "../../../src/sim/tick";
-import { cellsOf } from "../support/route";
+import { railCells } from "../../../src/sim/rail/route";
 import { fillCore } from "../support/stock";
 
 // The MVP map: the Core at (59, 59) and open land around (50, 50).
@@ -154,7 +154,7 @@ describe("MoveNode (FR20)", () => {
     expect(run(new MoveNode(b, 56, 45))).toEqual(ok());
     const { path } = state.edges.get(edge.id)!;
     expect(path.at(-1)).toEqual({ x: 55, y: 45 });
-    expect(cellsOf(path).has("55,46")).toBe(false);
+    expect(railCells(path)).not.toContainEqual({ x: 55, y: 46 });
   });
 
   it("refuses to move the Core", () => {

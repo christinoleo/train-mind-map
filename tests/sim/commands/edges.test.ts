@@ -30,7 +30,7 @@ import { createNode } from "../../../src/sim/state/nodes";
 import { updateStock } from "../../../src/sim/systems/stock";
 import { isStorage, store } from "../../../src/sim/state/stock";
 import { tick } from "../../../src/sim/tick";
-import { cellsOf } from "../support/route";
+import { railCells } from "../../../src/sim/rail/route";
 import { fillCore } from "../support/stock";
 
 // The MVP map: the Core at (59, 59), open land around (50, 50), the water
@@ -279,7 +279,7 @@ describe("reserved connector cells (FR52)", () => {
     const { state, run, a, b, put } = belowLeft();
     expect(run(new ConnectEdge(out(a), into(b)))).toEqual(ok());
     const { path } = onlyEdge(state);
-    expect(cellsOf(path).has("55,51")).toBe(false);
+    expect(railCells(path)).not.toContainEqual({ x: 55, y: 51 });
     // The second input is still reachable.
     const c = put("box", 50, 57);
     expect(run(new ConnectEdge(out(c), into(b, 1)))).toEqual(ok());

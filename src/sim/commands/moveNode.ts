@@ -18,6 +18,7 @@ import {
   edgeUnits,
   findRoute,
   maxLength,
+  reservedCells,
 } from "../state/edges";
 import type { Edge, FactoryNode, GameState } from "../state/gameState";
 import type { EdgeId, NodeId } from "../state/ids";
@@ -120,6 +121,7 @@ export function planMove(
   let reason: FailReason | null = null;
   const edges: MovedEdge[] = [];
   const added: EdgeId[] = [];
+  const reserved = reservedCells(state, moved);
   index.addNode(id, nodeRect(moved));
   for (const edge of attached) {
     const start = connectorCell(nodeOf(edge.from), "output", edge.fromPort);
@@ -127,7 +129,7 @@ export function planMove(
     const given = undo?.paths.get(edge.id);
     const routed = given
       ? keptRoute(index, given, start, end)
-      : findRoute(state, index, start, end, moved);
+      : findRoute(state, index, start, end, reserved);
     const path = routed.ok ? routed.value.path : null;
     const length = routed.ok ? routed.value.length : null;
     edges.push({ id: edge.id, path, length, max: maxLength(edge.level) });
