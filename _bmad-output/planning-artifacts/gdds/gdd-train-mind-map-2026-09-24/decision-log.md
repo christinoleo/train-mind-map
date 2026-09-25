@@ -186,3 +186,11 @@
 ## 2026-09-25 — v1.16 (Partial Extractor coverage)
 
 - **Decision (user):** an Extractor does not need to sit fully on a deposit. Its speed scales with the fraction of its cells over deposit cells: 1 of 4 gives ¼ speed. Over two or more deposits, it produces each resource at its own fraction, through the same output, with items interleaved. FR30 is updated.
+
+## 2026-09-25 — Node interaction UX (playtest)
+
+- **Feedback:** on a phone, the node menu in the bottom sheet was not obvious and sat far from the finger, and tapping and moving did not feel distinct.
+- **Decision (user):** **tap = select.** The node gets an amber outline, and an **action bubble** floats above it: 3–5 large icon buttons with labels (Receita, Upgrade, Remover, and "Não usar em construção" on Boxes) and an arrow pointing at the node. It flips below the node near the top edge and stays clamped on screen. Choosing a recipe opens a compact picker in the same place. It dismisses on a tap on empty space or with Esc.
+- **Drag = move:** once the finger passes 8 px, the node lifts (bigger shadow, scale 1.05), the bubble hides, the original position stays as a ghost, the grid shows, and the attached edges preview their new routes live. The node turns red where the drop is invalid, and it snaps back on release.
+- **Remove:** a single tap, then an "Removido · Desfazer" toast.
+- **Edges:** tapping an edge opens the same bubble at the tap point (Upgrade, Remover).
