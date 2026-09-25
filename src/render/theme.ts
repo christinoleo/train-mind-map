@@ -104,6 +104,9 @@ export type GlyphShape =
   | "hexagon"
   | "bar";
 
+/** The half-side of the square glyph, for a glyph of radius 1. */
+export const GLYPH_SQUARE_HALF = 0.85;
+
 /** Polygon glyphs as flat x, y offsets for a glyph of radius 1. */
 export const GLYPH_POLYS = {
   diamond: [0, -1.15, 1.15, 0, 0, 1.15, -1.15, 0],

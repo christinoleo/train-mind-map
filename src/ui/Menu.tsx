@@ -11,15 +11,21 @@ interface Props {
   title: ComponentChildren;
   onClose(): void;
   children: ComponentChildren;
+  /** An extra class for a menu with its own layout. */
+  class?: string;
 }
 
 /**
  * A context menu over the bottom of the screen, opened by tapping something
  * on the map: a header with a close button, then its actions.
  */
-export function Menu({ label, title, onClose, children }: Props) {
+export function Menu({ label, title, onClose, children, class: extra }: Props) {
   return (
-    <div class="menu" role="dialog" aria-label={label}>
+    <div
+      class={extra ? `menu ${extra}` : "menu"}
+      role="dialog"
+      aria-label={label}
+    >
       <header class="menu-head">
         <span>{title}</span>
         <button

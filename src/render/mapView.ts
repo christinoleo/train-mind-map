@@ -15,6 +15,7 @@ import {
   CELL_PX,
   PALETTE,
   GLYPH_POLYS,
+  GLYPH_SQUARE_HALF,
   ITEM_STYLE,
   toWorld,
   type GlyphShape,
@@ -209,8 +210,10 @@ export function drawGlyph(
   switch (shape) {
     case "circle":
       return g.circle(cx, cy, r);
-    case "square":
-      return g.rect(cx - r * 0.85, cy - r * 0.85, r * 1.7, r * 1.7);
+    case "square": {
+      const h = r * GLYPH_SQUARE_HALF;
+      return g.rect(cx - h, cy - h, 2 * h, 2 * h);
+    }
     default:
       return g.poly(
         GLYPH_POLYS[shape].map((v, i) => (i % 2 ? cy : cx) + v * r),

@@ -616,7 +616,8 @@ canvas {
   border: 2px solid transparent;
 }
 
-.research-item[aria-pressed="true"] {
+.research-item[aria-pressed="true"],
+.inventory-slot[aria-pressed="true"] {
   border-color: #f5c542;
 }
 
@@ -936,23 +937,14 @@ canvas {
 
 .inventory-slot {
   position: relative;
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
   box-sizing: border-box;
   width: 100%;
   min-height: 76px;
   padding: 6px 4px;
   border: 2px solid transparent;
-  border-radius: 8px;
-  background: #2b303c;
-  color: inherit;
-  font: inherit;
-}
-
-.inventory-slot[aria-pressed="true"] {
-  border-color: #f5c542;
+  font-weight: 400;
+  text-align: center;
 }
 
 .item-icon {

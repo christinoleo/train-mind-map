@@ -133,6 +133,22 @@ export function buildsFrom(node: StorageNode): boolean {
   return node.kind === "core" || !node.noConstruction;
 }
 
+/** What the storage construction draws from holds, and holds at most. */
+export function constructionFill(state: Readonly<GameState>): {
+  used: number;
+  capacity: number;
+} {
+  let used = 0;
+  let capacity = 0;
+  for (const node of state.nodes.values()) {
+    if (isStorage(node) && buildsFrom(node)) {
+      used += storedCount(node);
+      capacity += storageCapacity(state, node);
+    }
+  }
+  return { used, capacity };
+}
+
 /**
  * True when the storage construction draws from holds all of `cost`. It
  * sums the storage nodes rather than reading the cache, which lags the
