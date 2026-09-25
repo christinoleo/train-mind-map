@@ -525,6 +525,24 @@ describe("save slots", () => {
     expect(store.data.get(settingsKey)).toEqual({ hintsSeen: 3 });
   });
 
+  it("starts over after a crash without losing the backup", async () => {
+    const store = memoryStore();
+    const good = encodeSave(createGameState("good"), 0);
+    const crashing = encodeSave(createGameState("crashing"), 1);
+    store.data.set(SAVE_KEYS.auto, crashing);
+    store.data.set(SAVE_KEYS.backup, good);
+    const slots = new SaveSlots(store);
+    await slots.load();
+
+    await slots.startOver(createGameState(MVP_SCENARIO));
+    expect(store.data.get(SAVE_KEYS.backup)).toBe(good);
+    const booted = await new SaveSlots(store).load();
+    expect(booted).toMatchObject({
+      kind: "loaded",
+      save: { seed: MVP_SCENARIO.seed },
+    });
+  });
+
   it("writes the crash save with the log", async () => {
     const store = memoryStore();
     const entry = {

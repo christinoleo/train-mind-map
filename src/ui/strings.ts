@@ -32,7 +32,9 @@ export const strings = {
   // Starting over, from the settings menu and the crash screen.
   startOver: {
     newGame: "Novo jogo",
-    confirmNote: "A partida atual será perdida. Os ajustes ficam.",
+    confirmNew: "A partida atual será perdida. Os ajustes ficam.",
+    confirmBackup:
+      "A partida atual será trocada pelo backup. Os ajustes ficam.",
     confirm: "Sim, começar do zero",
     cancel: "Cancelar",
   },

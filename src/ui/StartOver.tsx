@@ -9,10 +9,12 @@ export interface StartOverProps {
   loadBackup(): Promise<Result<unknown>>;
 }
 
+type Choice = "backup" | "new";
+
 /**
  * The ways out of a game that cannot go on: load the backup, or start a
- * new game once the player confirms it. The confirmation is in the page, as
- * `confirm()` is missing in some hosts.
+ * new game. Both replace the current game for good, so each asks first, in
+ * the page, as `confirm()` is missing in some hosts.
  */
 export function StartOver({
   newGame,
@@ -26,57 +28,68 @@ export function StartOver({
   buttonClass?: string;
 }) {
   const text = strings.startOver;
-  const [confirming, setConfirming] = useState(false);
+  const [confirming, setConfirming] = useState<Choice | null>(null);
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<FailReason | null>(null);
 
-  function run(action: () => Promise<Result<unknown> | void>) {
+  async function run(choice: Choice) {
     setBusy(true);
     setRefused(null);
-    void action().then((result) => {
-      setBusy(false);
+    try {
+      const result = choice === "new" ? await newGame() : await loadBackup();
       if (result && !result.ok) setRefused(result.reason);
       else onDone?.();
-    });
+    } finally {
+      setBusy(false);
+      setConfirming(null);
+    }
   }
 
-  return (
-    <>
+  function ask(choice: Choice, label: string) {
+    return (
       <button
         type="button"
         class={buttonClass}
         disabled={busy}
-        onClick={() => run(loadBackup)}
+        onClick={() => {
+          setConfirming(choice);
+          setRefused(null);
+        }}
       >
-        {strings.backup.load}
+        {label}
       </button>
-      {confirming ? (
+    );
+  }
+
+  return (
+    <>
+      {confirming === null ? (
         <>
-          <p class="menu-note">{text.confirmNote}</p>
+          {ask("backup", strings.backup.load)}
+          {ask("new", text.newGame)}
+        </>
+      ) : (
+        <>
+          <p class="menu-note">
+            {confirming === "new" ? text.confirmNew : text.confirmBackup}
+          </p>
           <button
             type="button"
             class={buttonClass}
             disabled={busy}
-            onClick={() => run(newGame)}
+            onClick={() => void run(confirming)}
           >
-            {text.confirm}
+            {confirming === "new" ? text.confirm : strings.backup.load}
           </button>
           <button
             type="button"
             class={buttonClass}
-            onClick={() => setConfirming(false)}
+            disabled={busy}
+            onClick={() => setConfirming(null)}
           >
             {text.cancel}
           </button>
         </>
-      ) : (
-        <button
-          type="button"
-          class={buttonClass}
-          onClick={() => setConfirming(true)}
-        >
-          {text.newGame}
-        </button>
       )}
       {refused && <p class="menu-refused">{strings.reasons[refused]}</p>}
     </>

@@ -40,4 +40,18 @@ describe("the crash screen", () => {
     await actions.newGame();
     expect(order).toEqual(["saved", "reloaded"]);
   });
+
+  it("reloads even when the new game could not be saved", async () => {
+    const reload = vi.fn();
+    const actions = crashActions(
+      hooks({
+        newGame: async () => {
+          throw new Error("no storage");
+        },
+      }),
+      reload,
+    );
+    await expect(actions.newGame()).rejects.toThrow("no storage");
+    expect(reload).toHaveBeenCalledOnce();
+  });
 });

@@ -81,8 +81,12 @@ export function crashActions(
     onReload: reload,
     onExport: () => hooks.exportSave?.() ?? exportLog(),
     async newGame() {
-      await hooks.newGame();
-      reload();
+      // Reloads even if it failed: a crash loop still leaves the buttons.
+      try {
+        await hooks.newGame();
+      } finally {
+        reload();
+      }
     },
     async loadBackup() {
       const result = await hooks.loadBackup();

@@ -523,6 +523,16 @@ export class SaveSlots {
     return save;
   }
 
+  /**
+   * Writes `state` as the latest save without rotating the latest into the
+   * backup: after a crash, the game that crashed must not replace it.
+   */
+  async startOver(state: GameState): Promise<void> {
+    this.previous = null;
+    this.savedHash = null;
+    await this.save(state);
+  }
+
   /** Writes `save:crash`, apart from the slots, with the log buffer. */
   async saveCrash(state: GameState, logEntries: LogEntry[]): Promise<void> {
     await this.store.setMany([
