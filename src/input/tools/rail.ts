@@ -155,11 +155,19 @@ export class RailTool implements Tool {
     this.show(drag);
   }
 
+  /**
+   * Drops the drag under way. The picked Station stays: a pinch to find the
+   * second one cancels the gesture, not the pick.
+   */
   cancel() {
-    this.setPick(null);
     if (!this.drag) return;
     this.drag = null;
     this.deps.showPreview(null);
+  }
+
+  /** Lets go of the Station picked as a new Line's first stop. */
+  cancelPick() {
+    this.setPick(null);
   }
 
   private setPick(station: NodeId | null) {

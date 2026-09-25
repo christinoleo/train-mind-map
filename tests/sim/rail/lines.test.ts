@@ -275,13 +275,48 @@ describe("Line commands (FR95)", () => {
     expect(line.stops[0].condition).toEqual({ kind: "inactive", seconds: 5 });
   });
 
-  it("adds a train at a free stop, and refuses when none is free", () => {
-    const { state, run, line, b } = yard();
-    expect(run(new PlaceTrain(line.id))).toEqual(ok());
-    const second = [...state.trains.values()].at(-1)!;
-    expect(second.station).toBe(b);
-    expect(lineThroughput(state, line).trains).toBe(2);
-    expect(run(new PlaceTrain(line.id))).toEqual(fail("occupied"));
+  it("keeps a stop free: a two-stop Line runs one train", () => {
+    const { run, line } = yard();
+    expect(run(new PlaceTrain(line.id))).toEqual(fail("line_full"));
+  });
+
+  it("adds a train at a free stop, and the trains keep going round", () => {
+    const g = game(BUILD);
+    // Four Stations round a square, a rail from each to the next.
+    const [a, b, c, d] = [
+      [46, 45],
+      [68, 45],
+      [68, 70],
+      [46, 70],
+    ].map(([x, y]) => g.place("station", x, y));
+    for (const [from, to] of [
+      [a, b],
+      [b, c],
+      [c, d],
+      [d, a],
+    ]) {
+      const rail = new PlaceRail(
+        { node: from, port: RIGHT },
+        { node: to, port: LEFT },
+      );
+      expect(g.run(rail)).toEqual(ok());
+    }
+    expect(g.run(new CreateLine([a, b, c, d]))).toEqual(ok());
+    const line = [...g.state.lines.values()][0];
+    expect(g.run(new PlaceTrain(line.id))).toEqual(ok());
+    expect(g.run(new PlaceTrain(line.id))).toEqual(ok());
+    const trains = [...g.state.trains.values()];
+    expect(trains.map((t) => t.station)).toEqual([a, b, c]);
+    expect(lineThroughput(g.state, line).trains).toBe(3);
+    expect(g.run(new PlaceTrain(line.id))).toEqual(fail("line_full"));
+    const arrivals = trains.map(() => 0);
+    for (let i = 0; i < 5000; i++) {
+      g.step();
+      trains.forEach((t, j) => {
+        if (t.station !== null && t.waited === 1) arrivals[j]++;
+      });
+    }
+    expect(arrivals.every((n) => n > 5)).toBe(true);
   });
 
   it("is removed with its trains, which frees its Stations, and undone", () => {

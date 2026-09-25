@@ -298,6 +298,7 @@ effect(() => {
   const kind = selected.value;
   buildTool.cancel();
   railTool.cancel();
+  railTool.cancelPick();
   if (kind) {
     selectedEdge.value = null;
     selectedNode.value = null;
@@ -324,6 +325,7 @@ effect(() => {
     railTool.cancel();
     controls.tool = mapTool();
   }
+  railTool.cancelPick();
   if (rails) {
     selectedEdge.value = null;
     selectedNode.value = null;
@@ -415,6 +417,7 @@ function loadGame(save: SaveFile) {
   selectedEdge.value = null;
   selectedRail.value = null;
   selectedLine.value = null;
+  railTool.cancelPick();
   focus.value = "factory";
   Object.assign(state, loadState(save));
 }
@@ -610,7 +613,7 @@ render(
       },
       onClose: () => (selectedLine.value = null),
     },
-    linePick: { station: linePick, onCancel: () => railTool.cancel() },
+    linePick: { station: linePick, onCancel: () => railTool.cancelPick() },
     railToggle: {
       focus,
       available: computed(() => unlocked.value.includes("station")),

@@ -224,6 +224,7 @@ export const strings = {
     has_trains: "Um trem ainda usa isto",
     immovable: "O Núcleo não pode ser movido",
     indestructible: "O Núcleo não pode ser removido",
+    line_full: "Cada trem precisa de uma parada livre na linha",
     locked: "Ainda não pesquisado",
     max_level: "Já está no nível máximo",
     needs_deposit: "O Extrator precisa ficar sobre uma jazida",

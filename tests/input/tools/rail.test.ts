@@ -183,6 +183,9 @@ describe("the rail tool (FR79)", () => {
     const a = s.put("station", 50, 50);
     const b = s.put("station", 60, 50);
     s.tool.tap(cellCentre({ x: 50, y: 50 }));
+    // A pinch cancels the gesture, not the pick.
+    s.tool.cancel();
+    expect(s.pick()).toBe(a);
     s.tool.tap(cellCentre({ x: 50, y: 50 }));
     expect(s.pick()).toBeNull();
     // No rail joins them.
