@@ -1,11 +1,11 @@
 import { FLOW_UNITS_PER_CELL, TICK_MS } from "../../config/constants";
 import { ITEM_SPEED } from "../../data/edges";
-import type { ItemId } from "../../data/items";
+import type { ItemCounts, ItemId } from "../../data/items";
 import { NODES } from "../../data/nodes";
 import { edgeUnits, spacingUnits } from "../state/edges";
 import type { Edge, FactoryNode, GameState } from "../state/gameState";
 import type { NodeId } from "../state/ids";
-import { acceptItem, takeOutput } from "../state/production";
+import { acceptItem, takeOutput, wouldAccept } from "../state/production";
 import {
   bufferCapacity,
   isBuffer,
@@ -19,15 +19,54 @@ import type { System } from "../tick";
 /** Flow units an item moves along an edge each tick. */
 export const STEP_UNITS = (ITEM_SPEED * FLOW_UNITS_PER_CELL * TICK_MS) / 1000;
 
+/** How far a queued item may sit from its place and still count as queued. */
+const QUEUE_EPSILON = 1e-9;
+
+/**
+ * The indices of `edge`'s items queued at its input connector: the front
+ * one, once it waits there, and each one stopped right behind it.
+ */
+function queued(edge: Edge): number[] {
+  const spacing = spacingUnits(edge);
+  const indices: number[] = [];
+  let place = edgeUnits(edge);
+  for (const [i, it] of edge.items.entries()) {
+    if (it.pos < place - QUEUE_EPSILON) break;
+    indices.push(i);
+    place = it.pos - spacing;
+  }
+  return indices;
+}
+
+/**
+ * Hands `deliver` the first item queued behind a refused front item that it
+ * takes, one per tick; the refused ones keep their place. So an item the node refuses never jams the edge for the
+ * others (FR57). A type refused once is not offered again this tick.
+ */
+function bypass(edge: Edge, deliver: (item: ItemId) => boolean): void {
+  const refused = new Set<ItemId>([edge.items[0].item]);
+  for (const i of queued(edge).slice(1)) {
+    const { item } = edge.items[i];
+    if (refused.has(item)) continue;
+    if (!deliver(item)) {
+      refused.add(item);
+      continue;
+    }
+    edge.items.splice(i, 1);
+    return;
+  }
+}
+
 /**
  * Moves an edge's items one tick. Each item moves `STEP_UNITS` but keeps its
  * spacing to the one ahead. The front item leaves through `deliver` on the
  * tick it reaches the input connector; while that refuses it, it waits there
- * and the queue halts behind it (FR57). Once the last item has left room, a
- * new one enters from `take`, of any type (FR56); it keeps what the last one
- * moved past the spacing, so the edge carries exactly its throughput. A last
- * item delivered this tick still counts, where it would have moved to, so a
- * short edge cannot skip the spacing.
+ * and the items queued behind it are offered instead, so only the ones the
+ * node refuses back up (FR57). Once the last item has left room, a new one
+ * enters from `take`, of any type (FR56); it keeps what the last one moved
+ * past the spacing, so the edge carries exactly its throughput. A last item
+ * delivered this tick still counts, where it would have moved to, so a short
+ * edge cannot skip the spacing.
  */
 export function stepEdge(
   edge: Edge,
@@ -43,6 +82,7 @@ export function stepEdge(
     if (!deliver(items[0].item)) break;
     delivered = items.shift()!.pos + STEP_UNITS;
   }
+  if (items.length > 1 && items[0].pos >= end) bypass(edge, deliver);
   let limit = end;
   for (const it of items) {
     // Items never move back: one closer than the spacing waits.
@@ -80,12 +120,6 @@ function linksOf(state: GameState): Links {
   return links;
 }
 
-/** The item waiting at the end of `edge` for its node to take it, if any. */
-function waiting(edge: Edge | undefined): ItemId | undefined {
-  const front = edge?.items[0];
-  return front && front.pos >= edgeUnits(edge) ? front.item : undefined;
-}
-
 /** True when `edge` exists and has room at its output connector for an item. */
 function isOpen(edge: Edge | undefined): boolean {
   if (!edge) return false;
@@ -109,51 +143,137 @@ function nextInTurn(
   return undefined;
 }
 
+function isRouter(node: FactoryNode): node is RouterNode {
+  return node.kind === "splitter" || node.kind === "merger";
+}
+
 /**
- * Hands the output edge on `port` of a Splitter the item waiting at its
- * input, when that output's turn has come (FR37). The turn goes round the
- * outputs and skips each one that could take no item now, so a blocked or
- * missing output never holds the others up.
+ * Whether the node `target` takes an item now, counting the items already
+ * on their way to it: on its input edges and on those of the Splitters and
+ * Mergers that feed it, but not beyond the router `from` that asks. So a
+ * sender that sends only what this accepts never puts on an edge an item
+ * its node will refuse. A Splitter or Merger takes what any node it leads
+ * to takes.
  */
-function split(node: RouterNode, port: number, links: Links) {
+function acceptor(
+  state: GameState,
+  links: Links,
+  target: NodeId,
+  from?: NodeId,
+): (item: ItemId) => boolean {
+  const pending = new Map<NodeId, ItemCounts>();
+  const pendingOf = (id: NodeId) => {
+    let counts = pending.get(id);
+    if (counts) return counts;
+    pending.set(id, (counts = {}));
+    const seen = new Set<NodeId>();
+    const visit = (to: NodeId) => {
+      seen.add(to);
+      for (const edge of links.inputs.get(to) ?? []) {
+        if (!edge) continue;
+        for (const { item } of edge.items)
+          counts[item] = (counts[item] ?? 0) + 1;
+        const source = state.nodes.get(edge.from);
+        if (
+          source &&
+          isRouter(source) &&
+          source.id !== from &&
+          !seen.has(source.id)
+        ) {
+          visit(source.id);
+        }
+      }
+    };
+    visit(id);
+    return counts;
+  };
+  const takes = (id: NodeId, item: ItemId, seen: Set<NodeId>): boolean => {
+    const node = state.nodes.get(id);
+    if (!node) return false;
+    if (isRouter(node)) {
+      if (seen.has(id)) return false;
+      seen.add(id);
+      const outputs = links.outputs.get(id) ?? [];
+      return outputs.some((edge) => edge && takes(edge.to, item, seen));
+    }
+    if (!isBuffer(node)) return wouldAccept(node, item, pendingOf(id));
+    const capacity = bufferCapacity(state, node);
+    if (capacity === Infinity) return true;
+    const coming = Object.values(pendingOf(id)).reduce((a, b) => a + b, 0);
+    return storedCount(node) + coming < capacity;
+  };
+  return (item) => takes(target, item, new Set());
+}
+
+/**
+ * Takes out of `edge`, for the router at its end, the first item queued
+ * there that `wanted` passes, the front one first; the others keep their
+ * place.
+ */
+function takeQueued(
+  edge: Edge,
+  wanted: (item: ItemId) => boolean,
+): ItemId | undefined {
+  const i = queued(edge).find((i) => wanted(edge.items[i].item));
+  return i === undefined ? undefined : edge.items.splice(i, 1)[0].item;
+}
+
+/**
+ * Hands the output edge on `port` of a Splitter an item queued at its input,
+ * when that output's turn has come (FR37). The turn goes round the outputs
+ * and skips each one that could take no item now, or whose node would
+ * refuse this one, so a blocked or missing output never holds the others
+ * up. An item no output takes waits, and the ones behind it pass.
+ */
+function split(state: GameState, node: RouterNode, port: number, links: Links) {
   const input = links.inputs.get(node.id)?.[0];
-  const item = waiting(input);
-  if (item === undefined) return undefined;
-  const outputs = links.outputs.get(node.id);
+  if (!input) return undefined;
+  const outputs = links.outputs.get(node.id) ?? [];
   const count = NODES[node.kind].outputs;
-  const turn = nextInTurn(
-    node,
-    count,
-    (t) => t === port || isOpen(outputs?.[t]),
+  const takes = outputs.map(
+    (edge) => edge && acceptor(state, links, edge.to, node.id),
   );
-  if (turn !== port) return undefined;
-  input!.items.shift();
-  node.next = (port + 1) % count;
+  const turnOf = (item: ItemId) =>
+    nextInTurn(
+      node,
+      count,
+      (t) => (t === port || isOpen(outputs[t])) && !!takes[t]?.(item),
+    );
+  for (const i of queued(input)) {
+    const turn = turnOf(input.items[i].item);
+    if (turn === undefined) continue;
+    if (turn !== port) return undefined;
+    node.next = (port + 1) % count;
+    return input.items.splice(i, 1)[0].item;
+  }
+  return undefined;
+}
+
+/**
+ * Hands a Merger's output edge an item queued at its next input in turn
+ * that has one its target takes, so every busy input gets an equal share
+ * (FR38).
+ */
+function merge(state: GameState, node: RouterNode, edge: Edge, links: Links) {
+  const inputs = links.inputs.get(node.id) ?? [];
+  const count = NODES[node.kind].inputs;
+  const takes = acceptor(state, links, edge.to, node.id);
+  let item: ItemId | undefined;
+  const turn = nextInTurn(node, count, (t) => {
+    const input = inputs[t];
+    item = input && takeQueued(input, takes);
+    return item !== undefined;
+  });
+  if (turn !== undefined) node.next = (turn + 1) % count;
   return item;
 }
 
-/**
- * Hands a Merger's output edge the item waiting at its next input in turn
- * that has one, so every busy input gets an equal share (FR38).
- */
-function merge(node: RouterNode, links: Links) {
-  const inputs = links.inputs.get(node.id);
-  const count = NODES[node.kind].inputs;
-  const turn = nextInTurn(
-    node,
-    count,
-    (t) => waiting(inputs?.[t]) !== undefined,
-  );
-  if (turn === undefined) return undefined;
-  node.next = (turn + 1) % count;
-  return inputs![turn].items.shift()!.item;
-}
-
-/** Takes the next item for the edge leaving `node` from output `port`. */
-function take(node: FactoryNode, port: number, links: Links) {
-  if (node.kind === "splitter") return split(node, port, links);
-  if (node.kind === "merger") return merge(node, links);
-  if (isBuffer(node)) return takeOldest(node);
+/** Takes the next item for `edge` from the node it leaves. */
+function take(state: GameState, node: FactoryNode, edge: Edge, links: Links) {
+  if (node.kind === "splitter") return split(state, node, edge.fromPort, links);
+  if (node.kind === "merger") return merge(state, node, edge, links);
+  // Storage sends only what its target takes, so no item it sends jams.
+  if (isBuffer(node)) return takeOldest(node, acceptor(state, links, edge.to));
   return takeOutput(node);
 }
 
@@ -168,18 +288,30 @@ function deliver(state: GameState, node: FactoryNode, item: ItemId): boolean {
 }
 
 /**
- * True when a Splitter or Merger has an item waiting that none of its
- * outputs can take: every output is blocked (FR37).
+ * True when a Splitter or Merger has items waiting and none of its outputs
+ * can take any of them: each output is blocked, or its node refuses them
+ * (FR37).
  */
-function isBlocked(node: RouterNode, links: Links): boolean {
-  const inputs = links.inputs.get(node.id) ?? [];
-  if (!inputs.some((edge) => waiting(edge) !== undefined)) return false;
-  return !(links.outputs.get(node.id) ?? []).some(isOpen);
+function isBlocked(state: GameState, node: RouterNode, links: Links): boolean {
+  const waiting = (links.inputs.get(node.id) ?? []).flatMap((edge) =>
+    edge ? queued(edge).map((i) => edge.items[i].item) : [],
+  );
+  if (waiting.length === 0) return false;
+  return !(links.outputs.get(node.id) ?? []).some((edge) => {
+    if (!isOpen(edge)) return false;
+    const takes = acceptor(state, links, edge.to, node.id);
+    return waiting.some(takes);
+  });
 }
 
 /** Reports a Splitter or Merger that became blocked, or ran again. */
-function updateRouter(node: RouterNode, links: Links, emit: Emit) {
-  const blocked = isBlocked(node, links);
+function updateRouter(
+  state: GameState,
+  node: RouterNode,
+  links: Links,
+  emit: Emit,
+) {
+  const blocked = isBlocked(state, node, links);
   if (blocked === node.blocked) return;
   node.blocked = blocked;
   emit({
@@ -205,13 +337,13 @@ export const flow: System = (state, { emit }) => {
     if (!from || !to) continue;
     stepEdge(
       edge,
-      () => take(from, edge.fromPort, links),
+      () => take(state, from, edge, links),
       (item) => deliver(state, to, item),
     );
   }
   for (const node of state.nodes.values()) {
     if (node.kind === "splitter" || node.kind === "merger") {
-      updateRouter(node, links, emit);
+      updateRouter(state, node, links, emit);
     }
   }
 };

@@ -28,9 +28,12 @@ import { flow } from "../../../src/sim/systems/flow";
 function world() {
   const state = createGameState(MVP_SCENARIO);
   const events: SimEvent[] = [];
-  const put = <K extends NodeKind>(kind: K) => {
+  const put = <K extends NodeKind>(
+    kind: K,
+    options?: Parameters<typeof createNode>[4],
+  ) => {
     const id = allocateId(state.nextIds, "node");
-    const node = createNode(id, kind, 0, 0);
+    const node = createNode(id, kind, 0, 0, options);
     state.nodes.set(id, node);
     return node as FactoryNode & { kind: K };
   };
@@ -87,18 +90,18 @@ describe("the Splitter (FR37)", () => {
     expect(sinks.map(storedCount)).toEqual([10, 10, 10]);
   });
 
-  it("skips a blocked output and keeps feeding the others", () => {
+  it("skips an output whose node refuses and keeps feeding the others", () => {
     const w = world();
     const source = w.box(["iron-ore", 40]);
     const splitter = w.put("splitter");
     const [a, full, c] = [w.box(), fullBox(w), w.box()];
     w.wire(source, 0, splitter);
     w.wire(splitter, 0, a);
-    const jammed = w.wire(splitter, 1, full);
+    const refused = w.wire(splitter, 1, full);
     w.wire(splitter, 2, c);
     w.run(400);
-    expect(isEdgeFull(jammed)).toBe(true);
-    expect(storedCount(a) + storedCount(c) + jammed.items.length).toBe(40);
+    expect(refused.items).toEqual([]);
+    expect(storedCount(a) + storedCount(c)).toBe(40);
     expect(Math.abs(storedCount(a) - storedCount(c))).toBeLessThanOrEqual(1);
     expect(splitter.blocked).toBe(false);
   });
@@ -119,7 +122,9 @@ describe("the Splitter (FR37)", () => {
 
   it("is blocked, and says so, only when every output is", () => {
     const w = world();
-    const source = w.box(["iron-ore", 100]);
+    // An Extractor sends whatever it makes, taken or not.
+    const source = w.put("extractor", { resource: "iron-ore" });
+    source.production.output = 1;
     const splitter = w.put("splitter");
     w.wire(source, 0, splitter);
     w.wire(splitter, 0, fullBox(w));
@@ -191,15 +196,15 @@ describe("storage nodes on edges (FR28, FR29, FR73)", () => {
     expect(storedCount(b)).toBeGreaterThan(0);
   });
 
-  it("blocks its input edges once full, and loses nothing", () => {
+  it("stops sending to a Box once it is full, and loses nothing", () => {
     const w = world();
     const source = w.box(["coal", 20]);
     const sink = w.box(["stone", STORAGE_CAPACITY.box - 5]);
     const edge = w.wire(source, 0, sink);
     w.run(300);
     expect(storedCount(sink)).toBe(STORAGE_CAPACITY.box);
-    expect(isEdgeFull(edge)).toBe(true);
-    expect(storedCount(source) + edge.items.length).toBe(15);
+    expect(edge.items).toEqual([]);
+    expect(storedCount(source)).toBe(15);
   });
 
   it("lets the Core receive items by edge", () => {
@@ -231,19 +236,25 @@ describe("the Station's buffer (FR92)", () => {
     w.run(1200);
     expect(stationCapacity()).toBe(200);
     expect(storedCount(station)).toBe(200);
-    expect(edges.every(isEdgeFull)).toBe(true);
+    expect(edges.every((edge) => edge.items.length === 0)).toBe(true);
   });
 
-  it("blocks its input edges once full, and loses nothing", () => {
+  it("backs up its input edges once full, and loses nothing", () => {
     const w = world();
     const station = w.put("station");
-    const source = w.box(["iron-plate", 300]);
+    // An Extractor sends whatever it makes, taken or not.
+    const source = w.put("extractor", { resource: "iron-ore" });
+    store(station, "iron-plate", stationCapacity() - 5);
     const edge = w.wire(source, 0, station);
-    w.run(1200);
+    let sent = 0;
+    for (let t = 0; t < 1200; t++) {
+      source.production.output = 1;
+      w.run(1);
+      sent += 1 - source.production.output;
+    }
     expect(isEdgeFull(edge)).toBe(true);
-    expect(storedCount(station) + edge.items.length + storedCount(source)).toBe(
-      300,
-    );
+    expect(storedCount(station)).toBe(stationCapacity());
+    expect(5 + edge.items.length).toBe(sent);
   });
 
   it("drains through its output edges, the oldest items first", () => {
@@ -266,5 +277,103 @@ describe("the Station's buffer (FR92)", () => {
     const station = w.put("station");
     store(station, "iron-plate", 10);
     expect(sumStock(w.state.nodes)["iron-plate"]).toBeUndefined();
+  });
+});
+
+describe("items a node refuses (FR57)", () => {
+  it("sends a Furnace only what its recipe takes, the rest staying in the Core", () => {
+    const w = world();
+    const core = coreNode(w.state);
+    store(core, "stone", 3);
+    store(core, "copper-ore", 1);
+    const furnace = w.put("furnace");
+    const edge = w.wire(core, 0, furnace);
+    w.run(100);
+    expect(furnace).toMatchObject({
+      recipe: "brick",
+      production: { input: { stone: 3 } },
+    });
+    expect(storedItems(core)).toEqual({ "copper-ore": 1 });
+    expect(edge.items).toEqual([]);
+    store(core, "stone", 1);
+    w.run(100);
+    expect(furnace.production.input).toEqual({ stone: 4 });
+  });
+
+  it("lets the items behind a refused one pass", () => {
+    const w = world();
+    const core = coreNode(w.state);
+    store(core, "stone", 4);
+    const furnace = w.put("furnace", { recipe: "brick" });
+    furnace.production.input = { stone: 1 };
+    const edge = w.wire(core, 0, furnace);
+    // Put on the edge before the Furnace was set to bricks.
+    edge.items.push({ item: "copper-ore", pos: 0, prevPos: 0 });
+    w.run(200);
+    expect(furnace.production.input).toEqual({ stone: 4 });
+    expect(edge.items.map(({ item }) => item)).toEqual(["copper-ore"]);
+  });
+
+  it("sends a Lab only science packs", () => {
+    const w = world();
+    const core = coreNode(w.state);
+    store(core, "stone", 10);
+    store(core, "red-science", 2);
+    const lab = w.put("lab");
+    w.wire(core, 0, lab);
+    w.run(100);
+    expect(lab.production.input).toEqual({ "red-science": 2 });
+    expect(storedItems(core)).toEqual({ stone: 10 });
+  });
+
+  it("feeds an Assembler every input, whichever the Core holds first", () => {
+    const w = world();
+    const core = coreNode(w.state);
+    store(core, "iron-plate", 50);
+    store(core, "stone", 50);
+    const assembler = w.put("assembler-1", { recipe: "rail" });
+    w.wire(core, 0, assembler);
+    w.run(200);
+    expect(assembler.production.input).toEqual({ "iron-plate": 2, stone: 2 });
+  });
+
+  it("routes a Box's items through a Splitter only to the nodes that take them", () => {
+    const w = world();
+    const source = w.box(["copper-ore", 5], ["stone", 10], ["iron-ore", 10]);
+    const splitter = w.put("splitter");
+    const bricks = w.put("furnace", { recipe: "brick" });
+    bricks.production.input = { stone: 1 };
+    const plates = w.put("furnace", { recipe: "iron-plate" });
+    plates.production.input = { "iron-ore": 1 };
+    w.wire(source, 0, splitter);
+    const [toBricks, toPlates] = [
+      w.wire(splitter, 0, bricks),
+      w.wire(splitter, 1, plates),
+    ];
+    w.run(400);
+    expect(bricks.production.input).toEqual({ stone: 4 });
+    expect(plates.production.input).toEqual({ "iron-ore": 2 });
+    expect(toBricks.items).toEqual([]);
+    expect(toPlates.items).toEqual([]);
+    expect(splitter.blocked).toBe(false);
+    expect(storedItems(source)).toEqual({
+      "copper-ore": 5,
+      stone: 7,
+      "iron-ore": 9,
+    });
+  });
+
+  it("merges Boxes into an Assembler without jamming on either input", () => {
+    const w = world();
+    const plates = w.box(["iron-plate", 20]);
+    const mixed = w.box(["iron-plate", 20], ["stone", 20]);
+    const merger = w.put("merger");
+    const assembler = w.put("assembler-1", { recipe: "rail" });
+    w.wire(plates, 0, merger, 0);
+    w.wire(mixed, 0, merger, 1);
+    w.wire(merger, 0, assembler);
+    w.run(400);
+    expect(assembler.production.input).toEqual({ "iron-plate": 2, stone: 2 });
+    expect(merger.blocked).toBe(false);
   });
 });

@@ -3,7 +3,6 @@ import { MVP_SCENARIO } from "../../../src/data/scenarios/mvp";
 import { NODE_KINDS, NODES, STARTING_NODES } from "../../../src/data/nodes";
 import type { Command } from "../../../src/sim/commands/command";
 import { CommandQueue } from "../../../src/sim/commands/commandQueue";
-import { ConnectEdge } from "../../../src/sim/commands/connectEdge";
 import { PlaceNode } from "../../../src/sim/commands/placeNode";
 import { RemoveNode } from "../../../src/sim/commands/removeNode";
 import { EventQueue, type SimEvent } from "../../../src/sim/events";
@@ -18,7 +17,7 @@ import {
   hashState,
   serializeState,
 } from "../../../src/sim/state/serialize";
-import { acceptItem } from "../../../src/sim/state/production";
+import { storedItems } from "../../../src/sim/state/stock";
 import { tick } from "../../../src/sim/tick";
 import { fillCore } from "../support/stock";
 import { createNode } from "../../../src/sim/state/nodes";
@@ -246,31 +245,35 @@ describe("RemoveNode", () => {
     expect(state.nodes.get(2 as NodeId)).toEqual(placed);
   });
 
-  it("loses the items inside, so its undo brings the node back empty", () => {
+  it("returns the items inside to the Core, and its undo takes them back", () => {
     const { state, commands, step, run } = setup();
-    run(new PlaceNode("extractor", 65, 58));
-    // The Core powers it from the start; the Generator takes its coal.
-    run(new PlaceNode("generator", 71, 58));
-    run(
-      new ConnectEdge(
-        { node: 2 as NodeId, port: 0 },
-        { node: 3 as NodeId, port: 0 },
-      ),
-    );
-    expect(state.edges.size).toBe(1);
-    acceptItem(state.nodes.get(3 as NodeId)!, "coal");
-    for (let t = 0; t < 30; t++) step();
-    const extractor = state.nodes.get(2 as NodeId) as ProducerNode;
-    // Into its second batch; the edge took the first item.
-    expect(extractor.production.progress).toBe(13);
-    // An item waiting to leave, as behind a full edge.
-    extractor.production.output = 1;
+    run(new PlaceNode("assembler-1", 45, 45, "gear"));
+    const assembler = state.nodes.get(2 as NodeId) as ProducerNode;
+    // A batch under way, inputs waiting and a finished gear.
+    assembler.production.progress = 3;
+    assembler.production.input = { "iron-plate": 3 };
+    assembler.production.output = 1;
+    const placed = structuredClone(assembler);
+    const core = state.nodes.get(CORE_ID)!;
+    const before = storedItems(core as never);
     run(new RemoveNode(2 as NodeId));
+    const after = storedItems(core as never);
+    const { cost } = NODES["assembler-1"];
+    // 3 waiting and 2 in the batch under way, the gear, and the refund.
+    expect(after["iron-plate"]! - before["iron-plate"]!).toBe(
+      5 + (cost["iron-plate"] ?? 0),
+    );
+    expect(after.gear! - before.gear!).toBe(1 + (cost.gear ?? 0));
     commands.undo(state);
     step();
     expect(state.nodes.get(2 as NodeId)).toMatchObject({
-      production: { output: 0, progress: 1 },
+      recipe: "gear",
+      production: {
+        input: placed.production.input,
+        output: 1,
+      },
     });
+    expect(storedItems(core as never).gear).toBe(before.gear);
   });
 
   it("cannot be undone once another node took the cells", () => {

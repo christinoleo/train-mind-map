@@ -103,14 +103,20 @@ export function store(node: ItemHolder, item: ItemId, count: number): void {
 }
 
 /**
- * Takes the item that has waited longest out of `node`, if it holds any: a
- * storage node or Station with an output delivers in order of arrival (FR29).
+ * Takes the item that has waited longest out of `node` among those that pass
+ * `wanted`, if it holds any: a storage node or Station with an output
+ * delivers in order of arrival (FR29), and the items passed over keep their
+ * place.
  */
-export function takeOldest(node: ItemHolder): ItemId | undefined {
-  const first = node.items[0];
-  if (!first) return undefined;
-  if (--first.count === 0) node.items.shift();
-  return first.item;
+export function takeOldest(
+  node: ItemHolder,
+  wanted: (item: ItemId) => boolean = () => true,
+): ItemId | undefined {
+  const i = node.items.findIndex((run) => wanted(run.item));
+  if (i < 0) return undefined;
+  const run = node.items[i];
+  if (--run.count === 0) node.items.splice(i, 1);
+  return run.item;
 }
 
 /**
@@ -170,8 +176,7 @@ export function canAfford(state: Readonly<GameState>, cost: Cost): boolean {
  * out of construction are left out, of payments and refunds alike (FR71).
  */
 export function storageOrder(state: GameState, site: Rect): StorageNode[] {
-  const feeding = new Set<NodeId>();
-  for (const edge of state.edges.values()) feeding.add(edge.from);
+  const feeding = feedingNodes(state);
   const key = (node: StorageNode) => ({
     buffer: feeding.has(node.id) ? 1 : 0,
     distance: distanceSq(nodeRect(node), site),
@@ -185,6 +190,13 @@ export function storageOrder(state: GameState, site: Rect): StorageNode[] {
         a.buffer - b.buffer || a.distance - b.distance || a.node.id - b.node.id,
     )
     .map(({ node }) => node);
+}
+
+/** The nodes with an output edge. */
+function feedingNodes(state: Readonly<GameState>): Set<NodeId> {
+  const feeding = new Set<NodeId>();
+  for (const edge of state.edges.values()) feeding.add(edge.from);
+  return feeding;
 }
 
 /** Items taken from one storage node to pay for construction. */
@@ -217,10 +229,15 @@ export function debit(state: GameState, cost: Cost, site: Rect): Draw[] {
 
 /**
  * Puts `items` into storage near `site`, in `storageOrder`, each Box up to
- * its capacity, and returns what went in. The Core takes whatever is left.
+ * its capacity, and returns what went in. A Box with an output edge gets
+ * none, so a refund never reaches a machine it feeds (FR70). The Core takes
+ * whatever is left.
  */
 export function deposit(state: GameState, items: Cost, site: Rect): ItemCounts {
-  const order = storageOrder(state, site);
+  const feeding = feedingNodes(state);
+  const order = storageOrder(state, site).filter(
+    (node) => node.kind === "core" || !feeding.has(node.id),
+  );
   const stored: ItemCounts = {};
   for (const [item, count] of itemEntries(items)) {
     let left = count;

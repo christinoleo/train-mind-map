@@ -60,21 +60,6 @@ export function createNode(
   }
 }
 
-/**
- * `node` as it was placed: the same id, place, setup and player options,
- * with every buffer empty.
- */
-export function emptied(node: Readonly<FactoryNode>): FactoryNode {
-  const fresh = createNode(node.id, node.kind, node.x, node.y, {
-    resource: "resource" in node ? node.resource : undefined,
-    recipe: "recipe" in node ? (node.recipe ?? undefined) : undefined,
-  });
-  if (fresh.kind === "box" && node.kind === "box") {
-    fresh.noConstruction = node.noConstruction;
-  }
-  return fresh;
-}
-
 /** True when `kind` may run `recipe`: a Furnace smelts, an Assembler assembles. */
 export function canRun(kind: NodeKind, recipe: RecipeId): boolean {
   return (
